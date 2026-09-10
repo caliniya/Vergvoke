@@ -14,10 +14,12 @@
                 "-Dfile.encoding=UTF-8",
                 "-Dstdout.encoding=UTF-8",
                 "-Dstderr.encoding=UTF-8",
-                "-Dconsole.encoding=UTF-8"
+                "-Dconsole.encoding=UTF-8",
+                "-Dnative.encoding=UTF-8",
+                "-Dsun.stdout.encoding=UTF-8"
             ],
             "cwd": "${workspaceFolder}",
-            "console": "internalConsole"
+            "console": "integratedTerminal"
         }
     ]
 }

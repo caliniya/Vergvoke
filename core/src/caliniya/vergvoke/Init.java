@@ -1,30 +1,35 @@
 package caliniya.vergvoke;
 
-import arc.*;
+import java.io.Writer;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+import static arc.Core.app;
+import static arc.Core.assets;
+import static arc.Core.atlas;
+import static arc.Core.batch;
+import static arc.Core.bundle;
+import static arc.Core.camera;
+import static arc.Core.files;
+import static arc.Core.gl30;
+import static arc.Core.graphics;
+import static arc.Core.input;
+import static arc.Core.scene;
+import static arc.Core.settings;
 import arc.assets.AssetManager;
-import arc.assets.loaders.I18NBundleLoader;
-import arc.files.Fi;
 import arc.graphics.Camera;
 import arc.graphics.Texture;
 import arc.graphics.g2d.SpriteBatch;
 import arc.graphics.g2d.TextureAtlas;
-import arc.graphics.g2d.TextureRegion;
-import arc.math.Scaled;
 import arc.scene.Scene;
-import java.io.Writer;
-import arc.util.Log.*;
+import arc.util.I18NBundle;
 import arc.util.Log;
-import java.text.SimpleDateFormat;
+import arc.util.Log.LogHandler;
+import arc.util.Strings;
 import arc.util.viewport.ScreenViewport;
-import arc.util.*;
-
-import caliniya.vergvoke.core.*;
-import java.util.*;
-
 import caliniya.vergvoke.core.UI;
-import caliniya.vergvoke.ui.*;
-
-import static arc.Core.*;
+import caliniya.vergvoke.ui.Fonts;
 
 public class Init {
 
@@ -37,6 +42,12 @@ public class Init {
 
   @SuppressWarnings("unused")
   public static void init() {
+
+System.out.println("file.encoding = " + System.getProperty("file.encoding"));
+System.out.println("stdout.encoding = " + System.getProperty("stdout.encoding"));
+System.out.println("sun.stdout.encoding = " + System.getProperty("sun.stdout.encoding"));
+System.out.println("native.encoding = " + System.getProperty("native.encoding"));
+
     // assets.load("");
     inited = false;
     

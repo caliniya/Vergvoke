@@ -22,7 +22,7 @@ public class ECProcessor extends Processor {
   // 每种类型的实体都有哪些组件
   public ObjectMap<String, ObjectSet<String>> ECMap = new ObjectMap<>();
   public Ar<AType> entityDef = new Ar<>();
-  public String local = ""
+  public String local = "";
 
   @SuppressWarnings("unused")
   @Override

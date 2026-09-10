@@ -9,6 +9,7 @@ tasks.withType(JavaCompile).configureEach {
 tasks.withType(JavaCompile) {
     options.annotationProcessorGeneratedSourcesDirectory = file("$buildDir/generated/sources/annotationProcessor/java/main")
     options.incremental = true
+    options.encoding = "UTF-8"
 }
 
 eclipse.project.name = appName + "-annotations"
