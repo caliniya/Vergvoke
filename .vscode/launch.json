@@ -19,7 +19,7 @@
                 "-Dsun.stdout.encoding=UTF-8"
             ],
             "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal"
+            "console": "internalConsole"
         }
     ]
 }
