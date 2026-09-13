@@ -41,23 +41,67 @@ public class ECProcessor extends Processor {
     // 每种类型的实体都有哪些组件
     public ObjectMap<String, ObjectSet<String>> ECMap = new ObjectMap<>();
     public Ar<AType> entityDef = new Ar<>();
-
-    {
-        maxRounds = 2;
-    }
+    private final Map<String, List<String>> validatedComponents = new LinkedHashMap<>();
 
     @SuppressWarnings("unused")
     @Override
     protected void process() {
+        if (round == maxRounds - 1) {
+            validate();
+            return;
+        }
 
+        if (round == maxRounds) {
+            generate();
+        }
+    }
+
+    private void validate() {
         entityDef = types(Entity.class);
         Map<String, AType> components = componentTypes();
-        validateImportTargets(components);
+        validatedComponents.clear();
 
+        boolean valid = validateImportTargets(components);
         for (AType entity : entityDef) {
             List<AType> entityComponents = resolveComponents(entity, components);
             if (entityComponents == null) {
+                valid = false;
                 continue;
+            }
+            if (!validateEntity(entity, entityComponents)) {
+                valid = false;
+                continue;
+            }
+
+            List<String> componentNames = new ArrayList<>();
+            for (AType component : entityComponents) {
+                componentNames.add(component.fullName());
+            }
+            validatedComponents.put(entity.fullName(), componentNames);
+        }
+
+        validationFailed = !valid;
+    }
+
+    private void generate() {
+        if (validationFailed) {
+            return;
+        }
+
+        for (Map.Entry<String, List<String>> entry : validatedComponents.entrySet()) {
+            javax.lang.model.element.TypeElement element = elementUtils.getTypeElement(entry.getKey());
+            if (element == null) {
+                continue;
+            }
+
+            AType entity = new AType(element);
+            List<AType> entityComponents = new ArrayList<>();
+            for (String componentName : entry.getValue()) {
+                javax.lang.model.element.TypeElement componentElement = elementUtils.getTypeElement(componentName);
+                if (componentElement == null) {
+                    continue;
+                }
+                entityComponents.add(new AType(componentElement));
             }
 
             ObjectSet<String> componentNames = new ObjectSet<>();
@@ -70,6 +114,8 @@ public class ECProcessor extends Processor {
         }
     }
 
+    private boolean validationFailed;
+
     private Map<String, AType> componentTypes() {
         Map<String, AType> components = new LinkedHashMap<>();
         for (AType component : types(Component.class)) {
@@ -78,12 +124,60 @@ public class ECProcessor extends Processor {
         return components;
     }
 
-    private void validateImportTargets(Map<String, AType> components) {
+    private boolean validateImportTargets(Map<String, AType> components) {
+        boolean valid = true;
         for (AVar imported : fields(Import.class)) {
             if (!components.containsKey(imported.enclosingType().fullName())) {
                 error("@Import can only be used on a field declared by @Component", imported);
+                valid = false;
             }
         }
+        return valid;
+    }
+
+    private boolean validateEntity(AType entity, List<AType> components) {
+        String entityName = entity.annotation(Entity.class).name() + "Entity";
+        if (!SourceVersion.isName(entityName)) {
+            error("Invalid generated entity name: " + entityName, entity);
+            return false;
+        }
+
+        Map<String, VariableElement> injectedFields = new LinkedHashMap<>();
+        List<VariableElement> imports = new ArrayList<>();
+        boolean valid = true;
+
+        for (AType component : components) {
+            for (AVar field : component.fields()) {
+                VariableElement variable = field.e;
+                if (field.has(Import.class)) {
+                    if (field.isStatic()) {
+                        error("@Import cannot be used on a static field", variable);
+                        valid = false;
+                    } else {
+                        imports.add(variable);
+                    }
+                    continue;
+                }
+                if (field.isStatic()) {
+                    continue;
+                }
+
+                VariableElement previous = injectedFields.putIfAbsent(field.name(), variable);
+                if (previous != null) {
+                    error(
+                            "Duplicate entity field '"
+                                    + field.name()
+                                    + "' from components "
+                                    + previous.getEnclosingElement()
+                                    + " and "
+                                    + component.fullName(),
+                            variable);
+                    valid = false;
+                }
+            }
+        }
+
+        return validateImports(imports, injectedFields) && valid;
     }
 
     private List<AType> resolveComponents(AType entity, Map<String, AType> components) {
