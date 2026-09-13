@@ -6,7 +6,6 @@ import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
@@ -24,7 +23,6 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
-
 import caliniya.vergvoke.annotation.tool.AElement;
 import caliniya.vergvoke.annotation.tool.AMethod;
 import caliniya.vergvoke.annotation.tool.AType;
@@ -171,9 +169,9 @@ public abstract class Processor extends AbstractProcessor {
      */
     public static boolean isPrimitive(String typeName) {
         return typeName.equals("boolean") || typeName.equals("byte") ||
-               typeName.equals("short") || typeName.equals("int") ||
-               typeName.equals("long") || typeName.equals("float") ||
-               typeName.equals("double") || typeName.equals("char");
+                typeName.equals("short") || typeName.equals("int") ||
+                typeName.equals("long") || typeName.equals("float") ||
+                typeName.equals("double") || typeName.equals("char");
     }
 
     /**
@@ -213,30 +211,32 @@ public abstract class Processor extends AbstractProcessor {
         int lastDot = fullName.lastIndexOf('.');
         return lastDot > 0 ? fullName.substring(0, lastDot) : "";
     }
+
     protected Ar<String> compsOf(AType a) {
-    Ar<String> result = new Ar<>();
-    for (AnnotationMirror am : a.mirror) {
-      if (!am.getAnnotationType().toString()
-          .equals("caliniya.vergvoke.annotation.Annotations.Entity")) {
-        continue;
-      }
-      for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> e :
-          am.getElementValues().entrySet()) {
-        if (!e.getKey().getSimpleName().contentEquals("comps")) continue;
-        Object v = e.getValue().getValue();
-        if (v instanceof List) {
-          for (Object o : (List<?>) v) {
-            Object inner = ((AnnotationValue) o).getValue();
-            if (inner instanceof TypeMirror) {
-              Element el = typeUtils.asElement((TypeMirror) inner);
-              if (el instanceof TypeElement) {
-                result.add(((TypeElement) el).getQualifiedName().toString());
-              }
+        Ar<String> result = new Ar<>();
+        for (AnnotationMirror am : a.mirror) {
+            if (!am.getAnnotationType().toString()
+                    .equals("caliniya.vergvoke.annotation.Annotations.Entity")) {
+                continue;
             }
-          }
+            for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> e : am.getElementValues()
+                    .entrySet()) {
+                if (!e.getKey().getSimpleName().contentEquals("comps"))
+                    continue;
+                Object v = e.getValue().getValue();
+                if (v instanceof List) {
+                    for (Object o : (List<?>) v) {
+                        Object inner = ((AnnotationValue) o).getValue();
+                        if (inner instanceof TypeMirror) {
+                            Element el = typeUtils.asElement((TypeMirror) inner);
+                            if (el instanceof TypeElement) {
+                                result.add(((TypeElement) el).getQualifiedName().toString());
+                            }
+                        }
+                    }
+                }
+            }
         }
-      }
+        return result;
     }
-    return result;
-  }
 };

@@ -27,14 +27,12 @@ import caliniya.vergvoke.annotation.tool.AVar;
 import caliniya.vergvoke.base.anno.auto.AnnoProc;
 
 /**
- * ECS 注解处理器：单轮完成。
+ * EC 注解处理器
  *
  * <p>
- * 这一轮里先在内存中做完全部校验（@Import 归属、实体组件重复、字段重名、@Import 目标存在且类型一致），
+ * 先在内存中做完全部校验（@Import 归属、实体组件重复、字段重名、@Import 目标存在且类型一致），
  * 只有全部通过才一次性生成所有实体类；校验期间不写任何文件，所以不会落下半成品。
- *
- * <p>
- * 单轮意味着不需要关心 javac 的轮次数量（生成发生在普通轮，也不会再有
+ * 
  * "created in the last round will not be subject to annotation processing" 警告）。
  */
 @AnnoProc
@@ -52,7 +50,6 @@ public class ECProcessor extends Processor {
     public ObjectMap<String, ObjectSet<String>> ECMap = new ObjectMap<>();
 
     {
-        // 只跑一轮：校验 + 生成都在这轮里做完
         maxRounds = 1;
     }
 
