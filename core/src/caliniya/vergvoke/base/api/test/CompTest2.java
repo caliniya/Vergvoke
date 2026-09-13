@@ -2,13 +2,9 @@ package caliniya.vergvoke.base.api.test;
 
 import caliniya.vergvoke.annotation.Annotations.*;
 
+@Component(name = "test2", proc = "")
 public class CompTest2 {
-    
-    @Import 
-    public int x;
+    public int xxxxx;
 
-    public int y;
-
-    @Import 
-    public int qqqq;
+    public int yyyyy;
 }

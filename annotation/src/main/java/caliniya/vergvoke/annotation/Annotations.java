@@ -10,7 +10,7 @@ public class Annotations {
     public @interface Component {
         String name();// 组件名字
 
-        String proc();// 由哪一个系统处理自己
+        String proc() default "";// 由哪一个系统处理自己，为空字符串表示不由任何系统处理
     }
 
     // 这说明这个字段是从实体中其他组件读来的，不应该将它注入到实体中以避免覆盖
@@ -30,7 +30,6 @@ public class Annotations {
     }
 
     // 声明一个系统
-
     @Retention(RetentionPolicy.SOURCE)
     @Target({ ElementType.TYPE })
     public @interface SystemDef {
@@ -53,5 +52,4 @@ public class Annotations {
     @Target({ ElementType.METHOD })
     public @interface Updata {
     }
-
 }
