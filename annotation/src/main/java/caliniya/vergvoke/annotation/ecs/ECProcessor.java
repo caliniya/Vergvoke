@@ -25,8 +25,18 @@ import caliniya.vergvoke.annotation.Processor;
 import caliniya.vergvoke.annotation.tool.AType;
 import caliniya.vergvoke.annotation.tool.AVar;
 import caliniya.vergvoke.base.anno.auto.AnnoProc;
-import caliniya.vergvoke.base.tool.Ar;
 
+/**
+ * ECS 注解处理器：单轮完成。
+ *
+ * <p>
+ * 这一轮里先在内存中做完全部校验（@Import 归属、实体组件重复、字段重名、@Import 目标存在且类型一致），
+ * 只有全部通过才一次性生成所有实体类；校验期间不写任何文件，所以不会落下半成品。
+ *
+ * <p>
+ * 单轮意味着不需要关心 javac 的轮次数量（生成发生在普通轮，也不会再有
+ * "created in the last round will not be subject to annotation processing" 警告）。
+ */
 @AnnoProc
 @SupportedSourceVersion(SourceVersion.RELEASE_17)
 @SupportedAnnotationTypes({
@@ -38,84 +48,43 @@ public class ECProcessor extends Processor {
 
     private static final String GENERATED_PACKAGE = "caliniya.vergvoke.base.ecs";
 
-    // 每种类型的实体都有哪些组件
+    /** 每种类型的实体都有哪些组件（生成成功后填充） */
     public ObjectMap<String, ObjectSet<String>> ECMap = new ObjectMap<>();
-    public Ar<AType> entityDef = new Ar<>();
-    private final Map<String, List<String>> validatedComponents = new LinkedHashMap<>();
+
+    {
+        // 只跑一轮：校验 + 生成都在这轮里做完
+        maxRounds = 1;
+    }
 
     @SuppressWarnings("unused")
     @Override
     protected void process() {
-        if (round == maxRounds - 1) {
-            validate();
-            return;
-        }
-
-        if (round == maxRounds) {
-            generate();
-        }
-    }
-
-    private void validate() {
-        entityDef = types(Entity.class);
         Map<String, AType> components = componentTypes();
-        validatedComponents.clear();
-
         boolean valid = validateImportTargets(components);
-        for (AType entity : entityDef) {
-            List<AType> entityComponents = resolveComponents(entity, components);
-            if (entityComponents == null) {
-                valid = false;
-                continue;
-            }
-            if (!validateEntity(entity, entityComponents)) {
-                valid = false;
-                continue;
-            }
 
-            List<String> componentNames = new ArrayList<>();
-            for (AType component : entityComponents) {
-                componentNames.add(component.fullName());
+        // 1) 先把所有实体算成"生成计划"，过程中只报错、不写文件
+        List<EntityPlan> plans = new ArrayList<>();
+        for (AType entity : types(Entity.class)) {
+            EntityPlan plan = planEntity(entity, components);
+            if (plan == null) {
+                valid = false;
+                continue;
             }
-            validatedComponents.put(entity.fullName(), componentNames);
+            plans.add(plan);
         }
 
-        validationFailed = !valid;
-    }
-
-    private void generate() {
-        if (validationFailed) {
+        // 2) 有任何一处校验失败就整体不生成
+        if (!valid) {
             return;
         }
 
-        for (Map.Entry<String, List<String>> entry : validatedComponents.entrySet()) {
-            javax.lang.model.element.TypeElement element = elementUtils.getTypeElement(entry.getKey());
-            if (element == null) {
-                continue;
-            }
-
-            AType entity = new AType(element);
-            List<AType> entityComponents = new ArrayList<>();
-            for (String componentName : entry.getValue()) {
-                javax.lang.model.element.TypeElement componentElement = elementUtils.getTypeElement(componentName);
-                if (componentElement == null) {
-                    continue;
-                }
-                entityComponents.add(new AType(componentElement));
-            }
-
-            ObjectSet<String> componentNames = new ObjectSet<>();
-            for (AType component : entityComponents) {
-                componentNames.add(component.simpleName());
-            }
-            ECMap.put(entity.annotation(Entity.class).name() + "Entity", componentNames);
-
-            generateEntity(entity, entityComponents);
+        // 3) 全部通过，统一生成
+        for (EntityPlan plan : plans) {
+            generateEntity(plan);
         }
     }
 
-    private boolean validationFailed;
-
+    /** 收集所有 @Component 类型：全限定名 -> 类型包装 */
     private Map<String, AType> componentTypes() {
         Map<String, AType> components = new LinkedHashMap<>();
         for (AType component : types(Component.class)) {
@@ -124,6 +93,7 @@ public class ECProcessor extends Processor {
         return components;
     }
 
+    /** @Import 只能出现在 @Component 的字段上 */
     private boolean validateImportTargets(Map<String, AType> components) {
         boolean valid = true;
         for (AVar imported : fields(Import.class)) {
@@ -135,56 +105,24 @@ public class ECProcessor extends Processor {
         return valid;
     }
 
-    private boolean validateEntity(AType entity, List<AType> components) {
+    /**
+     * 校验一个实体并算出它的生成计划；返回 null 表示这个实体没通过校验（错误已经报出）。
+     *
+     * <p>
+     * 这里一趟就把"要注入的字段"和"要校验的导入"都收集好，生成阶段直接复用，不再重复遍历。
+     */
+    private EntityPlan planEntity(AType entity, Map<String, AType> components) {
         String entityName = entity.annotation(Entity.class).name() + "Entity";
         if (!SourceVersion.isName(entityName)) {
             error("Invalid generated entity name: " + entityName, entity);
-            return false;
+            return null;
         }
 
-        Map<String, VariableElement> injectedFields = new LinkedHashMap<>();
-        List<VariableElement> imports = new ArrayList<>();
         boolean valid = true;
 
-        for (AType component : components) {
-            for (AVar field : component.fields()) {
-                VariableElement variable = field.e;
-                if (field.has(Import.class)) {
-                    if (field.isStatic()) {
-                        error("@Import cannot be used on a static field", variable);
-                        valid = false;
-                    } else {
-                        imports.add(variable);
-                    }
-                    continue;
-                }
-                if (field.isStatic()) {
-                    continue;
-                }
-
-                VariableElement previous = injectedFields.putIfAbsent(field.name(), variable);
-                if (previous != null) {
-                    error(
-                            "Duplicate entity field '"
-                                    + field.name()
-                                    + "' from components "
-                                    + previous.getEnclosingElement()
-                                    + " and "
-                                    + component.fullName(),
-                            variable);
-                    valid = false;
-                }
-            }
-        }
-
-        return validateImports(imports, injectedFields) && valid;
-    }
-
-    private List<AType> resolveComponents(AType entity, Map<String, AType> components) {
-        List<AType> result = new ArrayList<>();
+        // --- 解析实体包含的组件 ---
+        List<AType> entityComponents = new ArrayList<>();
         Set<String> seen = new HashSet<>();
-        boolean valid = true;
-
         for (String componentName : compsOf(entity)) {
             AType component = components.get(componentName);
             if (component == null) {
@@ -192,32 +130,22 @@ public class ECProcessor extends Processor {
                 valid = false;
                 continue;
             }
-
             if (!seen.add(component.fullName())) {
                 error("Duplicate component in entity: " + component.simpleName(), entity);
                 valid = false;
                 continue;
             }
-            result.add(component);
+            entityComponents.add(component);
         }
 
-        return valid ? result : null;
-    }
-
-    private void generateEntity(AType entity, List<AType> components) {
-        String entityName = entity.annotation(Entity.class).name() + "Entity";
-        if (!SourceVersion.isName(entityName)) {
-            error("Invalid generated entity name: " + entityName, entity);
-            return;
-        }
-
+        // --- 收集字段 + 判重名（@Import 不注入实体，单独记下来校验） ---
         Map<String, VariableElement> injectedFields = new LinkedHashMap<>();
         List<VariableElement> imports = new ArrayList<>();
-        boolean valid = true;
 
-        for (AType component : components) {
+        for (AType component : entityComponents) {
             for (AVar field : component.fields()) {
                 VariableElement variable = field.e;
+
                 if (field.has(Import.class)) {
                     if (field.isStatic()) {
                         error("@Import cannot be used on a static field", variable);
@@ -227,6 +155,7 @@ public class ECProcessor extends Processor {
                     }
                     continue;
                 }
+
                 if (field.isStatic()) {
                     continue;
                 }
@@ -246,38 +175,7 @@ public class ECProcessor extends Processor {
             }
         }
 
-        if (!validateImports(imports, injectedFields)) {
-            valid = false;
-        }
-        if (!valid) {
-            return;
-        }
-
-        TypeSpec.Builder entityType = TypeSpec.classBuilder(entityName).addModifiers(Modifier.PUBLIC);
-        for (VariableElement field : injectedFields.values()) {
-            entityType.addField(
-                    FieldSpec.builder(
-                            TypeName.get(field.asType()), field.getSimpleName().toString(), Modifier.PUBLIC)
-                            .build());
-        }
-
-        try {
-            JavaFile.builder(GENERATED_PACKAGE, entityType.build()).build().writeTo(filer);
-        } catch (IOException e) {
-            error(
-                    "Failed to generate entity "
-                            + GENERATED_PACKAGE
-                            + "."
-                            + entityName
-                            + ": "
-                            + e.getMessage(),
-                    entity);
-        }
-    }
-
-    private boolean validateImports(
-            List<VariableElement> imports, Map<String, VariableElement> injectedFields) {
-        boolean valid = true;
+        // --- @Import 必须在别的组件里有同名同类型的字段 ---
         for (VariableElement imported : imports) {
             VariableElement source = injectedFields.get(imported.getSimpleName().toString());
             if (source == null) {
@@ -289,7 +187,6 @@ public class ECProcessor extends Processor {
                 valid = false;
                 continue;
             }
-
             if (!typeUtils.isSameType(imported.asType(), source.asType())) {
                 error(
                         "@Import field '"
@@ -302,6 +199,61 @@ public class ECProcessor extends Processor {
                 valid = false;
             }
         }
-        return valid;
+
+        if (!valid) {
+            return null;
+        }
+
+        ObjectSet<String> componentNames = new ObjectSet<>();
+        for (AType component : entityComponents) {
+            componentNames.add(component.simpleName());
+        }
+
+        return new EntityPlan(entity, entityName, componentNames, injectedFields);
+    }
+
+    /** 按生成计划写出实体类 */
+    private void generateEntity(EntityPlan plan) {
+        TypeSpec.Builder entityType = TypeSpec.classBuilder(plan.entityName).addModifiers(Modifier.PUBLIC);
+
+        for (VariableElement field : plan.injectedFields.values()) {
+            entityType.addField(
+                    FieldSpec.builder(
+                            TypeName.get(field.asType()), field.getSimpleName().toString(), Modifier.PUBLIC)
+                            .build());
+        }
+
+        try {
+            JavaFile.builder(GENERATED_PACKAGE, entityType.build()).build().writeTo(filer);
+            ECMap.put(plan.entityName, plan.componentNames);
+        } catch (IOException e) {
+            error(
+                    "Failed to generate entity "
+                            + GENERATED_PACKAGE
+                            + "."
+                            + plan.entityName
+                            + ": "
+                            + e.getMessage(),
+                    plan.entity);
+        }
+    }
+
+    /** 一个实体校验通过后算好的生成计划 */
+    private static final class EntityPlan {
+        final AType entity;
+        final String entityName;
+        final ObjectSet<String> componentNames;
+        final Map<String, VariableElement> injectedFields;
+
+        EntityPlan(
+                AType entity,
+                String entityName,
+                ObjectSet<String> componentNames,
+                Map<String, VariableElement> injectedFields) {
+            this.entity = entity;
+            this.entityName = entityName;
+            this.componentNames = componentNames;
+            this.injectedFields = injectedFields;
+        }
     }
 }
