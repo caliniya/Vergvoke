@@ -18,6 +18,27 @@
                 "$gradle"
             ],
             "label": "gradle: desktop:build"
+        },
+        {
+            "type": "gradle",
+            "id": "d:\\project\\Vergvokedesktop:assembledesktop",
+            "script": "desktop:assemble",
+            "description": "Assembles the outputs of this project.",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "project": "desktop",
+            "buildFile": "D:\\project\\Vergvoke\\desktop\\build.gradle",
+            "rootProject": "Vergvoke",
+            "projectFolder": "d:\\project\\Vergvoke",
+            "workspaceFolder": "d:\\project\\Vergvoke",
+            "args": "",
+            "javaDebug": false,
+            "problemMatcher": [
+                "$gradle"
+            ],
+            "label": "gradle: desktop:assemble"
         }
     ]
 }

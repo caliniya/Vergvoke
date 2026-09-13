@@ -4,7 +4,7 @@ import caliniya.vergvoke.annotation.Annotations.*;
 
 @Component(name = "tastComp", proc = "main")
 public class CompTest {
-
+    
     public int x;
     public int y;
 

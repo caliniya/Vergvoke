@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "jdk",
+            "type": "java",
             "request": "launch",
             "name": "启动",
             "mainClass": "caliniya.vergvoke.DesktopLauncher",
@@ -15,6 +15,6 @@
                 "-Dsun.stdout.encoding=UTF-8",
             ],
             "console": "internalConsole"
-        }
+        },
     ]
 }
