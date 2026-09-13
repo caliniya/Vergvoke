@@ -1,23 +1,35 @@
 package caliniya.vergvoke.annotation;
 
-import caliniya.vergvoke.annotation.tool.AElement;
-import caliniya.vergvoke.annotation.tool.AMethod;
-import caliniya.vergvoke.annotation.tool.AType;
-import caliniya.vergvoke.annotation.tool.AVar;
-import caliniya.vergvoke.base.tool.Ar;
-import javax.annotation.processing.*;
-import javax.lang.model.SourceVersion;
-import javax.lang.model.element.*;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
-import javax.tools.Diagnostic;
 import java.io.IOException;
 import java.io.Writer;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Filer;
+import javax.annotation.processing.Messager;
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedSourceVersion;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
+import javax.tools.Diagnostic;
+
+import caliniya.vergvoke.annotation.tool.AElement;
+import caliniya.vergvoke.annotation.tool.AMethod;
+import caliniya.vergvoke.annotation.tool.AType;
+import caliniya.vergvoke.annotation.tool.AVar;
+import caliniya.vergvoke.base.tool.Ar;
 
 /**
  * 注解处理器基类，提供通用功能
@@ -30,8 +42,8 @@ public abstract class Processor extends AbstractProcessor {
     public static Filer filer;
     public static Messager messager;
 
-    private int round = 0;
-    private int maxRounds = 2;
+    protected int round = 0;
+    protected int maxRounds = 2;
     protected RoundEnvironment roundEnv;
 
     @Override
