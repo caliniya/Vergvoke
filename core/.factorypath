@@ -1,6 +1,6 @@
 <factorypath>
-    <factorypathentry kind="EXTJAR" id="/root/.gradle/caches/modules-2/files-2.1/com.squareup/javapoet/1.12.1/e0e49f502697522ef047470b117ff81edc9f9a07/javapoet-1.12.1.jar" enabled="true" runInBatchMode="false"/>
-    <factorypathentry kind="EXTJAR" id="/mnt/d/project/Vergvoke/base/build/libs/base-1.0.jar" enabled="true" runInBatchMode="false"/>
-    <factorypathentry kind="EXTJAR" id="/root/.gradle/caches/modules-2/files-2.1/com.github.Anuken.Arc/arc-core/v157.1/c101db02894acba4c389d6003bc89d45e112fe2c/arc-core-v157.1.jar" enabled="true" runInBatchMode="false"/>
-    <factorypathentry kind="EXTJAR" id="/mnt/d/project/Vergvoke/annotation/build/libs/annotation-1.0.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="EXTJAR" id="D:\project\Vergvoke\base\build\libs\base-1.0.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="EXTJAR" id="C:\Users\calin\.gradle\caches\modules-2\files-2.1\com.github.Anuken.Arc\arc-core\v157.1\c101db02894acba4c389d6003bc89d45e112fe2c\arc-core-v157.1.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="EXTJAR" id="D:\project\Vergvoke\annotation\build\libs\annotation-1.0.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="EXTJAR" id="C:\Users\calin\.gradle\caches\modules-2\files-2.1\com.squareup\javapoet\1.12.1\e0e49f502697522ef047470b117ff81edc9f9a07\javapoet-1.12.1.jar" enabled="true" runInBatchMode="false"/>
 </factorypath>
