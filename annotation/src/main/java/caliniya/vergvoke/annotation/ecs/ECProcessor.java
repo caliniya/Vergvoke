@@ -59,7 +59,6 @@ public class ECProcessor extends Processor {
         Map<String, AType> components = componentTypes();
         boolean valid = validateImportTargets(components);
 
-        // 1) 先把所有实体算成"生成计划"，过程中只报错、不写文件
         List<EntityPlan> plans = new ArrayList<>();
         for (AType entity : types(Entity.class)) {
             EntityPlan plan = planEntity(entity, components);
@@ -70,12 +69,10 @@ public class ECProcessor extends Processor {
             plans.add(plan);
         }
 
-        // 2) 有任何一处校验失败就整体不生成
         if (!valid) {
             return;
         }
 
-        // 3) 全部通过，统一生成
         for (EntityPlan plan : plans) {
             generateEntity(plan);
         }
