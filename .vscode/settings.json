@@ -1,5 +1,5 @@
 {
-    "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx6G -Xms1g -Xlog:disable",
+    "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx12G -Xms1g -Xlog:disable",
     "java.debug.settings.onBuildFailureProceed": true,
     "editor.tabSize": 4,
     "editor.insertSpaces": true,
