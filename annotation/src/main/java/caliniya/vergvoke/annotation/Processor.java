@@ -23,6 +23,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
+import com.sun.source.util.Trees;
 import caliniya.vergvoke.annotation.tool.AElement;
 import caliniya.vergvoke.annotation.tool.AMethod;
 import caliniya.vergvoke.annotation.tool.AType;
@@ -39,6 +40,8 @@ public abstract class Processor extends AbstractProcessor {
     public static Elements elementUtils;
     public static Filer filer;
     public static Messager messager;
+    /** javac 的语法树工具：用来取方法体的源码文本（@Updata 注入需要） */
+    public static Trees trees;
 
     protected int round = 0;
     protected int maxRounds = 2;
@@ -51,6 +54,12 @@ public abstract class Processor extends AbstractProcessor {
         elementUtils = env.getElementUtils();
         filer = env.getFiler();
         messager = env.getMessager();
+        try {
+            trees = Trees.instance(env);
+        } catch (IllegalArgumentException e) {
+            // 非 javac 环境（正常不会走到），保持 null
+            trees = null;
+        }
     }
 
     @Override
