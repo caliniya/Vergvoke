@@ -15,13 +15,11 @@ public class Systems {
   public static BulletProcess BP;
   public static UnitMath UM;
   public static EntityProces EP;
-  public static MapRender MR;
-  public static UnitRender UR;
   public static Render R;
-  public static BlockRender BR;
   public static GameProcess GP;
   public static DebugRender DE;
-  public static UniverseRender UV;
+
+  // 渲染器（MapRender / UnitRender / BlockRender / UniverseRender）已并入 Render.renders，不在系统列表里
 
   public static void addSystem(caliniya.vergvoke.system.System<?>... newSystems) {
     for (caliniya.vergvoke.system.System<?> s : newSystems) {

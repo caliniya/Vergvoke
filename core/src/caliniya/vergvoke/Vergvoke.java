@@ -16,6 +16,7 @@ import caliniya.vergvoke.base.tool.Ar;
 import caliniya.vergvoke.base.type.EventType;
 import caliniya.vergvoke.content.*;
 import caliniya.vergvoke.core.UI;
+import caliniya.vergvoke.core.Render;
 import caliniya.vergvoke.core.meta.ui.Pal;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
@@ -111,6 +112,7 @@ public class Vergvoke extends ApplicationCore {
         }
         sys.update();
       }
+      Render.updateAll();
       camera.update();
     }
     scene.act();

@@ -5,6 +5,7 @@ import arc.graphics.Camera;
 import arc.graphics.g2d.Draw;
 import arc.math.Mathf;
 import arc.math.geom.Vec2;
+import caliniya.vergvoke.base.tool.*;
 import caliniya.vergvoke.game.Game;
 import caliniya.vergvoke.game.data.WorldData;
 import caliniya.vergvoke.system.*;
@@ -45,6 +46,9 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
 
   /** 宇宙视图相机 —— 无边界限制，自由移动 */
   public static Camera universeCamera;
+
+  /** 渲染管线：并入的子渲染器（按数组顺序逐个更新）。 */
+  public static final Ar<caliniya.vergvoke.system.System<?>> renders = new Ar<>();
 
   /**
    * 初始化
@@ -172,10 +176,11 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
     universeCamera.position.y = Mathf.clamp(universeCamera.position.y,0,Game.starMap.h);
   }
   
-  public static void updateAll(){
-    if(Systems.MR == null || Systems.UR == null)return;
-    Systems.MR.update();
-    Systems.UR.update();
+  /** 驱动全部子渲染器（顺序 = renders 数组顺序），最后统一 flush。 */
+  public static void updateAll() {
+    for (caliniya.vergvoke.system.System<?> render : renders) {
+      render.update();
+    }
     Draw.flush();
   }
   

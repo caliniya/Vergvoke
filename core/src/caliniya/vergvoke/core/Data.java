@@ -49,13 +49,17 @@ public class Data {
   // 这个方法会加载所有的系统
   // 所有渲染方法 在此阶段不应该启动
   public static void loadSystems() {
-    Systems.MR = new MapRender();
-    Systems.UR = new UnitRender();
-    Systems.BR = new BlockRender();
     Systems.GP = new GameProcess();
-    Systems.UV = new UniverseRender();
+
+    // 渲染器并入 Render 的管线数组（不再注册为独立系统）
+    Render.renders.clear();
+    Render.renders.add(new MapRender());
+    Render.renders.add(new UnitRender());
+    Render.renders.add(new BlockRender());
+    Render.renders.add(new UniverseRender());
     // Systems.DE = new DebugRender();
-    Systems.addSystem(new Render(), Systems.MR, Systems.UR, Systems.GP, Systems.BR, Systems.UV);
+
+    Systems.addSystem(new Render(), Systems.GP);
     Systems.BP = new BulletProcess();
     Systems.UM = new UnitMath();
     Systems.EP = new EntityProces();
@@ -66,6 +70,11 @@ public class Data {
   public static void enter() {
     for (caliniya.vergvoke.system.System sys : Systems.systems) {
       sys.init();
+    }
+
+    // 渲染器也统一初始化（并入 Render 后不再走上面的系统列表）
+    for (caliniya.vergvoke.system.System<?> render : Render.renders) {
+      render.init();
     }
 
     Systems.systems.sort();
