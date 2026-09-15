@@ -360,11 +360,6 @@ public class Unit extends Entity {
     }
   }
 
-  /** 是否过热锁定（单位附加了被锁定的 HeatAbility）。 */
-  public boolean overheated() {
-    return locked;
-  }
-
   public void impuse(float knockX, float knockY) {
     this.x += knockX;
     this.y += knockY;
