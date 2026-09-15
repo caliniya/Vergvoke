@@ -20,6 +20,7 @@ public class CompTest2 {
     @Read
     public void load(Reads in) {
         xxxxx = in.i();
+        if (false) return;
         yyyyy = in.i();
     }
 }
