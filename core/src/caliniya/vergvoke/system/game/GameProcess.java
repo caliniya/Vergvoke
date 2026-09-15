@@ -1,6 +1,7 @@
 package caliniya.vergvoke.system.game;
 
 import arc.util.*;
+import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.base.tool.*;
 import caliniya.vergvoke.content.*;
@@ -12,6 +13,7 @@ import caliniya.vergvoke.system.*;
 import caliniya.vergvoke.system.world.BulletProcess;
 
 // 在这里进行主线程游戏内容的更新
+@SystemDef(name = "GameProcess", thread = "main", index = 5)
 public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 
   public Ar<Unit> deadUnits;

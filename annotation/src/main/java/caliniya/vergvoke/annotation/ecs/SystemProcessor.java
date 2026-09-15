@@ -53,6 +53,7 @@ public class SystemProcessor extends Processor {
         Map<String, AType> threads = threadTypes();
 
         valid &= validateSystems(systems, threads);
+        valid &= validateSystemBases(systems);
         valid &= validateSystemIndexes(systems);
         valid &= validateProcs(componentTypes(), systems);
 
@@ -103,6 +104,26 @@ public class SystemProcessor extends Processor {
                                 + "' uses unknown thread '"
                                 + def.thread()
                                 + "': declare it with @ThreadDef, or use 'main' / 'test' for the main thread",
+                        system);
+                valid = false;
+            }
+        }
+        return valid;
+    }
+
+    /** @SystemDef 类必须继承系统基类（caliniya.vergvoke.system.System），行为通过 update 注入 */
+    private boolean validateSystemBases(Map<String, AType> systems) {
+        TypeElement base = elementUtils.getTypeElement("caliniya.vergvoke.system.System");
+        if (base == null) {
+            return true; // 运行时基类不在类路径（不该发生）：跳过这项校验
+        }
+        boolean valid = true;
+        for (AType system : systems.values()) {
+            if (!typeUtils.isSubtype(typeUtils.erasure(system.e.asType()), typeUtils.erasure(base.asType()))) {
+                error(
+                        "@SystemDef '"
+                                + system.annotation(SystemDef.class).name()
+                                + "' must extend caliniya.vergvoke.system.System (and override update())",
                         system);
                 valid = false;
             }

@@ -80,8 +80,7 @@ public class Vergvoke extends ApplicationCore {
               uniInput,
               unInput);
       input.addProcessor(multiplexer);
-      Systems.addSystem(camInput);
-      Systems.addSystem(uniInput);
+      Inputs.add(camInput, uniInput);
       Contents.load();
       UI.camera.resize(graphics.getWidth(), graphics.getHeight());
       UI.camera.update();
@@ -105,6 +104,9 @@ public class Vergvoke extends ApplicationCore {
       UI.Loading(assets.getProgress());
     } else {
       Draw.proj(camera);
+
+      // 输入控制器（原 camInput / uniInput 的系统注册，改为集中驱动）
+      Inputs.updateAll();
 
       for (caliniya.vergvoke.system.System sys : Systems.systems) {
         if (sys == null || !sys.inited) {
