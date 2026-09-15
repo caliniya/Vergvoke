@@ -59,9 +59,7 @@ import caliniya.vergvoke.base.tool.Ar;
         "caliniya.vergvoke.annotation.Annotations.Updata",
         "caliniya.vergvoke.annotation.Annotations.Save",
         "caliniya.vergvoke.annotation.Annotations.Write",
-        "caliniya.vergvoke.annotation.Annotations.Read",
-        "caliniya.vergvoke.annotation.Annotations.SystemDef",
-        "caliniya.vergvoke.annotation.Annotations.ThreadDef"
+        "caliniya.vergvoke.annotation.Annotations.Read"
 })
 public class ECProcessor extends Processor {
 
@@ -72,9 +70,6 @@ public class ECProcessor extends Processor {
 
     /** 轻量档：proc 为空或等于它时，更新逻辑直接铺进实体 update() */
     private static final String MAIN_SYSTEM = "main";
-
-    /** 保留线程名：直接表示"主线程"，不需要 @ThreadDef 声明 */
-    private static final Set<String> RESERVED_THREADS = Set.of("main", "test");
 
     /** 序列化用的 IO 类型（arc） */
     private static final String WRITES_CLASS = "arc.util.io.Writes";
@@ -97,8 +92,6 @@ public class ECProcessor extends Processor {
     @Override
     protected void process() {
         Map<String, AType> components = componentTypes();
-        Map<String, AType> systems = systemTypes();
-        Set<String> threads = declaredThreads();
 
         boolean valid = validateImportTargets(components);
         valid &= validateUpdateTargets(components);
@@ -106,8 +99,6 @@ public class ECProcessor extends Processor {
         valid &= validateSerializationMethods(components);
         valid &= validateComponentNames(components);
         valid &= validateComponentIndexes(components);
-        valid &= validateProcs(components, systems);
-        valid &= validateSystems(systems, threads);
 
         // 1) 先把所有实体算成"生成计划"，过程中只报错、不写文件
         List<EntityPlan> plans = new ArrayList<>();
@@ -138,27 +129,6 @@ public class ECProcessor extends Processor {
             components.put(component.fullName(), component);
         }
         return components;
-    }
-
-    private Map<String, AType> systemTypes() {
-        Map<String, AType> systems = new LinkedHashMap<>();
-        for (AType system : types(SystemDef.class)) {
-            String name = system.annotation(SystemDef.class).name();
-            AType previous = systems.putIfAbsent(name, system);
-            if (previous != null) {
-                error("Duplicate system name '" + name + "': " + previous.fullName(), system);
-            }
-        }
-        return systems;
-    }
-
-    /** 合法的线程名 = 声明的 @ThreadDef + 保留名（main / test） */
-    private Set<String> declaredThreads() {
-        Set<String> threads = new LinkedHashSet<>(RESERVED_THREADS);
-        for (AType thread : types(ThreadDef.class)) {
-            threads.add(thread.annotation(ThreadDef.class).name());
-        }
-        return threads;
     }
 
     /**
@@ -447,47 +417,6 @@ public class ECProcessor extends Processor {
             }
         }
 
-        return valid;
-    }
-
-    /** 非轻量档组件的 proc 必须对应一个真实存在的 @SystemDef（否则没人会调用它） */
-    private boolean validateProcs(Map<String, AType> components, Map<String, AType> systems) {
-        boolean valid = true;
-        for (AType component : components.values()) {
-            String proc = component.annotation(Component.class).proc();
-            if (isMainTier(proc) || systems.containsKey(proc)) {
-                continue;
-            }
-            error(
-                    "@Component '"
-                            + component.simpleName()
-                            + "' declares proc = '"
-                            + proc
-                            + "', but no @SystemDef with that name exists",
-                    component);
-            valid = false;
-        }
-        return valid;
-    }
-
-    /**
-     * @SystemDef.thread 必须是已声明的 @ThreadDef 名字或保留名（main / test）
-     */
-    private boolean validateSystems(Map<String, AType> systems, Set<String> threads) {
-        boolean valid = true;
-        for (AType system : systems.values()) {
-            SystemDef def = system.annotation(SystemDef.class);
-            if (!threads.contains(def.thread())) {
-                error(
-                        "@SystemDef '"
-                                + def.name()
-                                + "' uses unknown thread '"
-                                + def.thread()
-                                + "': declare it with @ThreadDef, or use 'main' / 'test' for the main thread",
-                        system);
-                valid = false;
-            }
-        }
         return valid;
     }
 

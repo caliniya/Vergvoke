@@ -281,8 +281,10 @@ public class Unit extends Entity {
       if (Mathf.len(speedX, speedY) > 0.01f) {
         rotation = Angles.moveToward(rotation, angle - 90, rotationSpeed * dt);
       }
-      type.update(this, dt);
     }
+
+    // 类型级每帧钩子（模组等"不新建实体就扩展行为"的入口）：实体自身逻辑跑完后调用
+    type.update(this, dt);
 
     moving = (x != oldX || y != oldY);
     boolean rotated = !Mathf.equal(rotation, oldRot);

@@ -280,8 +280,12 @@ public class UnitType extends ContentType implements DrawType<Unit>, TechNodeCon
     Draw.color();
   }
 
+  /**
+   * 类型级每帧钩子：在单位 update 的末尾调用（实体自身逻辑跑完之后）。
+   *
+   * <p>留给模组等"不新建实体就扩展行为"的场景；注意类型对象是共享的，别在这里存每实例状态。
+   */
   public void update(Unit u, float dt) {
-    // TODO: 以后再说
   }
 
   public void addWeapons(WeaponType... newWeapons) {
