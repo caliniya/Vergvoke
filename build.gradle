@@ -79,20 +79,12 @@ project(":desktop") {
     }
 }
 
-project(":base") {
-    apply plugin: "java-library"
-    compileJava.options.fork = true
-    dependencies {
-        api "com.github.Anuken.Arc:arc-core:$arcVersion"
-    }
-}
-
 project(":annotation") {
     apply plugin: "java"
     dependencies {
         //compileOnly gradleApi()
-        implementation project(":base")
-        annotationProcessor project(":base")
+        implementation project(":tools")
+        annotationProcessor project(":tools")
         implementation 'com.squareup:javapoet:1.12.1'
         implementation "com.github.Anuken.Arc:arc-core:$arcVersion"
     }
@@ -102,10 +94,10 @@ project(":core") {
     apply plugin: "java-library"
     //compileJava.options.fork = true
     dependencies {
-    
+
         implementation project(":annotation")
         annotationProcessor project(":annotation")
-        implementation project(":base")
+        implementation project(":tools")
         
         // 这是啥来着
         api "org.lz4:lz4-java:1.8.0"
@@ -123,9 +115,11 @@ project(":core") {
 
 project(":tools") {
     apply plugin: "java-library"
-    
+    compileJava.options.fork = true
+
     dependencies {
         implementation "com.github.Anuken.Arc:packer:$arcVersion"
-        implementation "com.github.Anuken.Arc:arc-core:$arcVersion"
+        // api：annotation/core 通过 tools 拿到 Ar 等工具类时也需要 arc 类型
+        api "com.github.Anuken.Arc:arc-core:$arcVersion"
     }
 }

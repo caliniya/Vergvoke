@@ -1,4 +1,5 @@
 <factorypath>
-    <factorypathentry kind="EXTJAR" id="D:\project\Vergvoke\base\build\libs\base-1.0.jar" enabled="true" runInBatchMode="false"/>
     <factorypathentry kind="EXTJAR" id="C:\Users\calin\.gradle\caches\modules-2\files-2.1\com.github.Anuken.Arc\arc-core\v157.1\c101db02894acba4c389d6003bc89d45e112fe2c\arc-core-v157.1.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="EXTJAR" id="C:\Users\calin\.gradle\caches\modules-2\files-2.1\com.github.Anuken.Arc\packer\v157.1\c74c01bce26ad21bf40b61e62e41a3089d409336\packer-v157.1.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="EXTJAR" id="D:\project\Vergvoke\tools\build\libs\tools-1.0.jar" enabled="true" runInBatchMode="false"/>
 </factorypath>
