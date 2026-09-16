@@ -23,14 +23,6 @@ public class Game {
             return;
         }
 
-        // 过渡期：手写系统（GameProcess / Render 等）先照旧驱动，等它们逐步迁移
-        for (caliniya.vergvoke.system.System<?> sys : caliniya.vergvoke.system.Systems.systems) {
-            if (sys == null || !sys.inited) {
-                continue;
-            }
-            sys.update();
-        }
-
         // 生成侧统一更新（帧序：基础更新 → 组件系统 → 实体）
         Systems.updateAll(delta);
     }

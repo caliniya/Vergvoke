@@ -65,6 +65,7 @@ public class Campaign {
   /** 该地图是否已被玩家游玩/修改（数据目录存在副本）。 */
   public static boolean isPlayed(String starName, String mapName) {
     return Core.settings.getDataDirectory().child(mapRelPath(starName, mapName)).exists();
+    
   }
 
   /**
