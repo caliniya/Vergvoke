@@ -46,9 +46,9 @@ allprojects {
 
 
 //其余模块同样统一使用 Java 17
-configure(subprojects){
-    
-    tasks.withType(JavaCompile){
+// 注意：不能在这里 apply "java"，:android / :android-old 与 java 插件互斥
+configure(subprojects) {
+    tasks.withType(JavaCompile) {
         targetCompatibility = JavaVersion.VERSION_17
         sourceCompatibility = JavaVersion.VERSION_17
         options.compilerArgs.addAll(['--release', '17'])
@@ -67,6 +67,7 @@ configure(subprojects){
 
 project(":desktop") {
     apply plugin: "java"
+    sourceSets.main.java.srcDir "$buildDir/generated/sources/annotationProcessor/java/main"
 
     compileJava.options.fork = true
 
@@ -81,6 +82,7 @@ project(":desktop") {
 
 project(":annotation") {
     apply plugin: "java"
+    sourceSets.main.java.srcDir "$buildDir/generated/sources/annotationProcessor/java/main"
     dependencies {
         //compileOnly gradleApi()
         implementation project(":tools")
@@ -92,6 +94,7 @@ project(":annotation") {
 
 project(":core") {
     apply plugin: "java-library"
+    sourceSets.main.java.srcDir "$buildDir/generated/sources/annotationProcessor/java/main"
     //compileJava.options.fork = true
     dependencies {
 
@@ -115,6 +118,7 @@ project(":core") {
 
 project(":tools") {
     apply plugin: "java-library"
+    sourceSets.main.java.srcDir "$buildDir/generated/sources/annotationProcessor/java/main"
     compileJava.options.fork = true
 
     dependencies {
