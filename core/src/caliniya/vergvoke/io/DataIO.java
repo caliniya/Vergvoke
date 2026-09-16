@@ -6,6 +6,7 @@ import arc.struct.StringMap;
 import arc.util.io.*;
 import arc.util.*;
 import caliniya.vergvoke.system.*;
+import caliniya.vergvoke.system.world.*;
 import java.io.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.type.*;
@@ -54,7 +55,7 @@ public class DataIO {
       w.str(entry.key);
       w.str(entry.value);
     }
-    Systems.EP.task = true;
+    EntityProces.it.task = true;
   }
 
   // 调用此方法来实现保存

@@ -38,9 +38,8 @@ import caliniya.vergvoke.base.tool.Ar;
  * <li><b>proc = 其他系统名</b>：需要"同阶段一致"或较重的更新（开火、寻路、AI…）， 生成独立方法 {@code
  *             update_<组件简单名>()}，由该系统在自己阶段调用。
  * </ul>
- * <li><b>系统分发类</b>（{@code caliniya.vergvoke.base.ecs.ECUpdates}）：
- * {@code update_<系统名>(<实体> e)}，按
- * {@code @Component.index} 顺序调用属于该系统的组件更新。
+ * <li><b>组件系统</b>（{@code caliniya.vergvoke.base.ecs.<系统名>}）：继承系统基类，
+ * {@code update(float)} 遍历该系统的实体、按 {@code @Component.index} 顺序直接调用属于该系统的组件更新。
  * <li><b>序列化</b>：实体按 {@code @Component.index} 顺序生成 {@code write(Writes)} /
  * {@code read(Reads)}，
  * 各组件的读写<b>直接铺进这两个方法</b>（不再生成中间方法）：组件内部按 {@code @Save.index} 写字段； 标了
@@ -121,7 +120,6 @@ public class ECProcessor extends Processor {
             generateEntity(plan);
         }
         Map<String, Map<String, List<UpdatePiece>>> bySystem = systemsByEntity(plans);
-        generateSystemDispatch(bySystem);
         generateEntityArs(plans);
         generateComponentSystems(bySystem);
         generateSystems(plans, bySystem);
@@ -1204,8 +1202,7 @@ public class ECProcessor extends Processor {
         }
     }
 
-    /** 生成 ECUpdates：系统名 -> 该系统的组件更新入口 */
-    /** 按系统分组：系统名 -> 实体名 -> 更新片段（ECUpdates / 组件系统 / Systems 生成共用） */
+    /** 按系统分组：系统名 -> 实体名 -> 更新片段（组件系统 / Systems 生成共用） */
     private Map<String, Map<String, List<UpdatePiece>>> systemsByEntity(List<EntityPlan> plans) {
         Map<String, Map<String, List<UpdatePiece>>> bySystem = new LinkedHashMap<>();
 
@@ -1221,47 +1218,6 @@ public class ECProcessor extends Processor {
             }
         }
         return bySystem;
-    }
-
-    private void generateSystemDispatch(Map<String, Map<String, List<UpdatePiece>>> bySystem) {
-        if (bySystem.isEmpty()) {
-            return;
-        }
-
-        TypeSpec.Builder registry = TypeSpec.classBuilder("ECUpdates")
-                .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-                .addJavadoc("由注解处理器生成：系统 -&gt; 它负责的组件更新入口。\n");
-
-        registry.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
-
-        for (Map.Entry<String, Map<String, List<UpdatePiece>>> systemEntry : bySystem.entrySet()) {
-            String systemName = systemEntry.getKey();
-
-            for (Map.Entry<String, List<UpdatePiece>> entityEntry : systemEntry.getValue().entrySet()) {
-                String entityName = entityEntry.getKey();
-                List<UpdatePiece> pieces = new ArrayList<>(entityEntry.getValue());
-                pieces.sort(
-                        Comparator.comparingInt((UpdatePiece piece) -> piece.index)
-                                .thenComparingInt(piece -> piece.order));
-
-                MethodSpec.Builder method = MethodSpec.methodBuilder("update_" + systemName)
-                        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                        .addJavadoc("proc = $L 的组件更新（按 @Component.index 排序，自动生成）。\n", systemName)
-                        .addParameter(ClassName.get(GENERATED_PACKAGE, entityName), "e");
-
-                for (UpdatePiece piece : pieces) {
-                    method.addStatement("e.$L()", piece.methodName);
-                }
-
-                registry.addMethod(method.build());
-            }
-        }
-
-        try {
-            JavaFile.builder(GENERATED_PACKAGE, registry.build()).build().writeTo(filer);
-        } catch (IOException e) {
-            error("Failed to generate " + GENERATED_PACKAGE + ".ECUpdates: " + e.getMessage());
-        }
     }
 
     /** 生成 EntityArs：为每个实体生成一个 EntityAr（实体集合），供系统遍历 */
@@ -1299,14 +1255,13 @@ public class ECProcessor extends Processor {
         }
     }
 
-    /** 生成"组件系统"：每个有独立档组件的系统一个类——继承 System，update 遍历实体、分发该系统的组件更新 */
+    /** 生成"组件系统"：每个有独立档组件的系统一个类——继承 System，update 遍历实体、直接调用该系统的组件更新 */
     private void generateComponentSystems(Map<String, Map<String, List<UpdatePiece>>> bySystem) {
         if (bySystem.isEmpty()) {
             return;
         }
 
         ClassName systemBase = ClassName.get("caliniya.vergvoke.system", "System");
-        ClassName ecUpdates = ClassName.get(GENERATED_PACKAGE, "ECUpdates");
         ClassName entityArs = ClassName.get(GENERATED_PACKAGE, "EntityArs");
 
         for (String systemName : bySystem.keySet()) {
@@ -1315,7 +1270,7 @@ public class ECProcessor extends Processor {
                     .superclass(
                             ParameterizedTypeName.get(
                                     systemBase, ClassName.get(GENERATED_PACKAGE, systemName)))
-                    .addJavadoc("由注解处理器生成：$L 的组件系统——遍历实体，分发该系统的组件更新。\n", systemName);
+                    .addJavadoc("由注解处理器生成：$L 的组件系统——遍历实体，直接调用该系统的组件更新。\n", systemName);
 
             MethodSpec.Builder update = MethodSpec.methodBuilder("update")
                     .addAnnotation(Override.class)
@@ -1324,12 +1279,19 @@ public class ECProcessor extends Processor {
                     .addJavadoc("遍历该系统的实体集合，逐个调用组件更新（自动生成）。\n");
 
             for (String entityName : bySystem.get(systemName).keySet()) {
+                List<UpdatePiece> pieces = new ArrayList<>(bySystem.get(systemName).get(entityName));
+                pieces.sort(
+                        Comparator.comparingInt((UpdatePiece piece) -> piece.index)
+                                .thenComparingInt(piece -> piece.order));
+
                 update.beginControlFlow(
                         "for ($T e : $T.$L)",
                         ClassName.get(GENERATED_PACKAGE, entityName),
                         entityArs,
                         entityName);
-                update.addStatement("$T.update_$L(e)", ecUpdates, systemName);
+                for (UpdatePiece piece : pieces) {
+                    update.addStatement("e.$L()", piece.methodName);
+                }
                 update.endControlFlow();
             }
 

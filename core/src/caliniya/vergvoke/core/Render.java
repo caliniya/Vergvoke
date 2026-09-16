@@ -19,6 +19,9 @@ import caliniya.vergvoke.ui.fragment.UniverseFragment;
  */
 public class Render extends caliniya.vergvoke.system.System<Render> {
 
+  /** 全局实例（由 Data.loadSystems() 创建，负责相机缩放 / 震动等每帧逻辑）。 */
+  public static Render it;
+
   // --- 静态变量 ---
   
   /** 当前相机缩放级别 */

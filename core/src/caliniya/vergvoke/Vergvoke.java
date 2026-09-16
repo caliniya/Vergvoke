@@ -96,7 +96,7 @@ public class Vergvoke extends ApplicationCore {
 
       Log.info(
           "Game inited - Using: " + String.format("%d ms / %d µs", durationMillis, durationMicros));
-      //Systems.DE = new DebugRender().init();
+      //DebugRender.it = new DebugRender().init();
     }
 
     // 加载界面
@@ -118,9 +118,9 @@ public class Vergvoke extends ApplicationCore {
     scene.draw();
     // Draw.flush();
 
-    if (Systems.DE != null) {
+    if (DebugRender.it != null) {
       Draw.proj(UI.camera);
-      Systems.DE.update();
+      DebugRender.it.update();
     }
 
     Draw.flush();

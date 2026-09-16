@@ -13,7 +13,7 @@ import caliniya.vergvoke.type.*;
 import caliniya.vergvoke.game.data.RouteData;
 import caliniya.vergvoke.game.data.WorldData;
 import caliniya.vergvoke.io.DataIO;
-import caliniya.vergvoke.system.Systems;
+import caliniya.vergvoke.system.world.*;
 import caliniya.vergvoke.type.enhance.shield.ShieldBoostEnhancementType;
 import caliniya.vergvoke.ui.*;
 
@@ -60,7 +60,7 @@ public class MenuFragment {
                       () -> {
                         WorldData.initWorld(100, 100, true);
                         Data.loadSystems();
-                        Systems.EP.init();
+                        EntityProces.it.init();
 
                         // 两个测试单位，各自运行时安装强化模组（出厂无模组，由外部"安装"）
                         Unit A = UnitTypes.test.create(TeamTypes.Evoke, 100, 100);

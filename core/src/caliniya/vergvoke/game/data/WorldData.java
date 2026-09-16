@@ -9,7 +9,7 @@ import caliniya.vergvoke.base.game.EntityAr;
 import caliniya.vergvoke.base.tool.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.system.render.*;
-import caliniya.vergvoke.system.Systems;
+import caliniya.vergvoke.system.world.*;
 import caliniya.vergvoke.world.*;
 import arc.math.*;
 import caliniya.vergvoke.type.*;
@@ -59,7 +59,7 @@ public class WorldData {
     if (moveunits != null) moveunits.resize(0, 0, worldPixelW, worldPixelH);
     if (bullets != null) bullets.resize(0, 0, worldPixelW, worldPixelH);
     // 同步子弹处理系统的内部子弹树（力场拦截等依赖它的 intersect）
-    if (Systems.BP != null) Systems.BP.resizeTree(worldPixelW, worldPixelH);
+    if (BulletProcess.it != null) BulletProcess.it.resizeTree(worldPixelW, worldPixelH);
   }
 
   public static void clear() {

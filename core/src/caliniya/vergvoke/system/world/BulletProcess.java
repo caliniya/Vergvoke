@@ -17,6 +17,9 @@ import caliniya.vergvoke.type.Bullet;
 /** 子弹处理系统。 管理子弹生命周期、移动、碰撞及渲染数据同步，后台线程运行，双缓冲保证线程安全。 */
 public class BulletProcess extends caliniya.vergvoke.system.System<BulletProcess> {
 
+  /** 全局实例（由 Data.loadSystems() 创建；跨线程访问用）。 */
+  public static BulletProcess it;
+
   /** 双缓冲专用锁。 逻辑线程交换 WorldData.bullets 与 renderBuffer 引用时， 必须用此固定锁对象，避免锁在不同实例上导致互斥失效。 */
   public final Object BULLET_LOCK = new Object();
 

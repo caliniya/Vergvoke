@@ -49,7 +49,8 @@ public class Data {
   // 这个方法会加载所有的系统
   // 所有渲染方法 在此阶段不应该启动
   public static void loadSystems() {
-    Systems.GP = new GameProcess();
+    GameProcess.it = new GameProcess();
+    Render.it = new Render();
 
     // 渲染器并入 Render 的管线数组（不再注册为独立系统）
     Render.renders.clear();
@@ -57,31 +58,28 @@ public class Data {
     Render.renders.add(new UnitRender());
     Render.renders.add(new BlockRender());
     Render.renders.add(new UniverseRender());
-    // Systems.DE = new DebugRender();
+    // DebugRender.it = new DebugRender();
 
-    Systems.addSystem(new Render(), Systems.GP);
-    Systems.BP = new BulletProcess();
-    Systems.UM = new UnitMath();
-    Systems.EP = new EntityProces();
+    BulletProcess.it = new BulletProcess();
+    UnitMath.it = new UnitMath();
+    EntityProces.it = new EntityProces();
   }
 
   // 初始化所有系统，允许其工作
   // 同时将游戏UI切换到游戏内部
   public static void enter() {
-    for (caliniya.vergvoke.system.System sys : Systems.systems) {
-      sys.init();
-    }
+    // 手写主线程系统（过渡期）：GameProcess / Render
+    if (GameProcess.it != null) GameProcess.it.init();
+    if (Render.it != null) Render.it.init();
 
     // 渲染器也统一初始化（并入 Render 后不再走上面的系统列表）
     for (caliniya.vergvoke.system.System<?> render : Render.renders) {
       render.init();
     }
 
-    Systems.systems.sort();
-
-    Systems.BP.init();
-    Systems.UM.init();
-    Systems.EP.init();
+    BulletProcess.it.init();
+    UnitMath.it.init();
+    EntityProces.it.init();
 
     Game.starMap = new StarMap(2000, 2000);
 

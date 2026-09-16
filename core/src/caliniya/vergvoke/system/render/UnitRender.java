@@ -9,7 +9,6 @@ import arc.util.Log;
 import caliniya.vergvoke.base.tool.Ar;
 import caliniya.vergvoke.type.ability.Ability;
 import caliniya.vergvoke.type.*;
-import caliniya.vergvoke.system.Systems;
 import caliniya.vergvoke.base.tool.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.type.Bullet;
@@ -57,7 +56,7 @@ public class UnitRender extends System<UnitRender> {
     // 用与 BulletProcess 相同的固定锁对象，确保与逻辑线程的缓冲交换互斥，
     // 避免拷到正在被清空/重填的缓冲导致子弹闪烁。
     temp.clear();
-    synchronized (Systems.BP.BULLET_LOCK) {
+    synchronized (BulletProcess.it.BULLET_LOCK) {
       temp.addAll(WorldData.bullets);
     }
     temp.each(

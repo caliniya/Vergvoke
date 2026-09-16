@@ -30,6 +30,9 @@ import caliniya.vergvoke.type.Weapon;
  */
 public class EntityProces extends System<EntityProces> {
 
+  /** 全局实例（由 Data.loadSystems() 创建）。 */
+  public static EntityProces it;
+
   public volatile boolean task2 = false, task3 = false;
 
   public Ar<Floor> floorPalette;

@@ -17,6 +17,9 @@ import caliniya.vergvoke.core.meta.ui.Pal;
  */
 public class DebugRender extends caliniya.vergvoke.system.System<DebugRender> {
 
+  /** 全局实例（需要时由外部创建）。 */
+  public static DebugRender it;
+
   /** 复用的坐标转换缓存，避免每帧每元素 new。 */
   private final Vec2 tmp = new Vec2();
 

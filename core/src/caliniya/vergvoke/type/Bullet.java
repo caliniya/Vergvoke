@@ -6,6 +6,7 @@ import arc.util.pooling.Pools;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.system.*;
+import caliniya.vergvoke.system.world.*;
 import caliniya.vergvoke.type.type.*;
 import arc.math.geom.QuadTree.*;
 
@@ -72,7 +73,7 @@ public class Bullet implements Poolable, QuadTreeObject {
     this.velY = baseVy + velocityY;
 
     // 自动添加到处理系统
-    Systems.BP.addBullet(this);
+    BulletProcess.it.addBullet(this);
   }
 
   @Override

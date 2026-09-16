@@ -11,6 +11,9 @@ import caliniya.vergvoke.system.System;
 
 public class UnitMath extends caliniya.vergvoke.system.System<UnitMath> {
 
+  /** 全局实例（由 Data.loadSystems() 创建）。 */
+  public static UnitMath it;
+
   private Ar<Unit> processList = new Ar<>();
   // 判定到达节点的阈值，稍微宽容一点避免在节点附近抖动
   private static final float NODE_REACH_TOLERANCE = 4f; 

@@ -16,6 +16,9 @@ import caliniya.vergvoke.system.world.BulletProcess;
 @SystemDef(name = "GameProcess", thread = "main", index = 5)
 public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 
+  /** 全局实例（由 Data.loadSystems() 创建）。 */
+  public static GameProcess it;
+
   public Ar<Unit> deadUnits;
   public Ar<Building> deadBuildings;
   public Ar<Entity> freshKilled; // 接收 BulletProcess 的即时击杀通知
@@ -32,7 +35,7 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
   @Override
   public void update() {
     // 先处理 BulletProcess 线程刚击杀的实体（延迟最小化，防止血量变负才死）
-    Systems.BP.drainFreshKills(freshKilled);
+    BulletProcess.it.drainFreshKills(freshKilled);
     for (Entity e : freshKilled) {
       e.kill();
     }
