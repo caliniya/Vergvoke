@@ -67,7 +67,6 @@ configure(subprojects) {
 
 project(":desktop") {
     apply plugin: "java"
-    sourceSets.main.java.srcDir "$buildDir/generated/sources/annotationProcessor/java/main"
 
     compileJava.options.fork = true
 
@@ -94,7 +93,6 @@ project(":annotation") {
 
 project(":core") {
     apply plugin: "java-library"
-    sourceSets.main.java.srcDir "$buildDir/generated/sources/annotationProcessor/java/main"
     //compileJava.options.fork = true
     dependencies {
 

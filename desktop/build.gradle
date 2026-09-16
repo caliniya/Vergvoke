@@ -1,5 +1,7 @@
 sourceCompatibility = 17
 sourceSets.main.java.srcDirs = [ "src/" ]
+// 让 IDE（VS Code / AIDE）也能看到注解处理器生成的代码（Gradle 编译时生成到 build/generated）
+sourceSets.main.java.srcDir "$buildDir/generated/sources/annotationProcessor/java/main"
 sourceSets.main.resources.srcDirs = ["../assets"]
 
 project.ext.mainClassName = "caliniya.vergvoke.DesktopLauncher"
