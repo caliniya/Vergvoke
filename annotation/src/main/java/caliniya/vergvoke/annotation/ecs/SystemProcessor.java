@@ -1,11 +1,9 @@
 package caliniya.vergvoke.annotation.ecs;
 
-import java.io.IOException;
 import java.util.*;
 import javax.annotation.processing.*;
 import javax.lang.model.*;
 import javax.lang.model.element.*;
-import com.squareup.javapoet.*;
 import caliniya.vergvoke.annotation.Processor;
 import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.annotation.tool.*;
@@ -15,11 +13,11 @@ import caliniya.vergvoke.base.anno.auto.*;
  * 系统与线程侧的注解处理器：
  *
  * <ul>
- *   <li>收集并校验 {@code @SystemDef} / {@code @ThreadDef}（含与 {@code @Component.proc} 的交叉校验）；
- *   <li>生成调度蓝图 {@code Systems}：线程 → 按 index 升序的系统清单（Class 字面量，编译期安全）。
+ *   <li>收集并校验 {@code @SystemDef} / {@code @ThreadDef}（含与 {@code @Component.proc} 的交叉校验）。
  * </ul>
  *
- * <p>组件 / 实体 / 序列化由 {@code ECProcessor} 负责；本处理器只管"系统与线程"。
+ * <p>生成物（{@code Systems} / {@code EntityArs} / 组件系统）由 {@code ECProcessor} 统一生成；
+ * 本处理器只做系统 / 线程校验。
  */
 @AnnoProc
 @SupportedSourceVersion(SourceVersion.RELEASE_17)
@@ -29,8 +27,6 @@ import caliniya.vergvoke.base.anno.auto.*;
         "caliniya.vergvoke.annotation.Annotations.Component"
 })
 public class SystemProcessor extends Processor {
-
-    private static final String GENERATED_PACKAGE = "caliniya.vergvoke.base.ecs";
 
     /** 保留线程名：直接表示"主线程"，不需要 @ThreadDef 声明 */
     private static final Set<String> RESERVED_THREADS = Set.of("main", "test");
@@ -61,7 +57,7 @@ public class SystemProcessor extends Processor {
             return;
         }
 
-        generateSchedules(systems);
+        // 生成物（Systems / EntityArs / 组件系统）由 ECProcessor 统一生成，这里只做系统 / 线程校验
     }
 
     /** 收集 @SystemDef（重名报错，但仍然收集到最后一刻——让本轮能报出更多错误） */
@@ -197,83 +193,5 @@ public class SystemProcessor extends Processor {
 
     private boolean isMainTier(String proc) {
         return proc == null || proc.isEmpty() || MAIN_SYSTEM.equals(proc);
-    }
-
-    /** 生成 Systems：线程 → 按 index 排序的系统清单（Class 字面量，编译期安全） */
-    private void generateSchedules(Map<String, AType> systems) {
-        Map<String, List<AType>> byThread = new LinkedHashMap<>();
-        for (AType system : systems.values()) {
-            SystemDef def = system.annotation(SystemDef.class);
-            byThread.computeIfAbsent(def.thread(), key -> new ArrayList<>()).add(system);
-        }
-
-        if (byThread.isEmpty()) {
-            return;
-        }
-
-        // 线程顺序：main 优先，其余按名字升序（保证同一份源码每次生成结果一致）
-        List<String> threadNames = new ArrayList<>(byThread.keySet());
-        threadNames.sort((a, b) -> {
-            if (a.equals(MAIN_SYSTEM)) {
-                return b.equals(MAIN_SYSTEM) ? 0 : -1;
-            }
-            if (b.equals(MAIN_SYSTEM)) {
-                return 1;
-            }
-            return a.compareTo(b);
-        });
-
-        TypeName classOfWildcard = ParameterizedTypeName.get(
-                ClassName.get(Class.class), WildcardTypeName.subtypeOf(TypeName.OBJECT));
-
-        TypeSpec.Builder schedule = TypeSpec.classBuilder("Systems")
-                .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-                .addJavadoc("由注解处理器生成：系统调度蓝图（按线程分组，组内按 index 升序）。\n");
-
-        schedule.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
-
-        for (String thread : threadNames) {
-            List<AType> group = new ArrayList<>(byThread.get(thread));
-            group.sort(
-                    Comparator.comparingInt((AType system) -> system.annotation(SystemDef.class).index()));
-
-            CodeBlock.Builder array = CodeBlock.builder().add("{ ");
-            for (int i = 0; i < group.size(); i++) {
-                if (i > 0) {
-                    array.add(", ");
-                }
-                array.add("$T.class", ClassName.bestGuess(group.get(i).fullName()));
-            }
-            array.add(" }");
-
-            schedule.addField(
-                    FieldSpec.builder(ArrayTypeName.of(classOfWildcard), thread)
-                            .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                            .addJavadoc("线程 {@code $L}：$L 个系统，按 index 升序\n", thread, group.size())
-                            .initializer(array.build())
-                            .build());
-        }
-
-        CodeBlock.Builder threadsArray = CodeBlock.builder().add("{ ");
-        for (int i = 0; i < threadNames.size(); i++) {
-            if (i > 0) {
-                threadsArray.add(", ");
-            }
-            threadsArray.add("$S", threadNames.get(i));
-        }
-        threadsArray.add(" }");
-
-        schedule.addField(
-                FieldSpec.builder(ArrayTypeName.of(ClassName.get(String.class)), "THREADS")
-                        .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
-                        .addJavadoc("线程清单（与上面的字段一一对应）\n")
-                        .initializer(threadsArray.build())
-                        .build());
-
-        try {
-            JavaFile.builder(GENERATED_PACKAGE, schedule.build()).build().writeTo(filer);
-        } catch (IOException e) {
-            error("Failed to generate " + GENERATED_PACKAGE + ".Systems: " + e.getMessage());
-        }
     }
 }

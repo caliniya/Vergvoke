@@ -108,12 +108,9 @@ public class Vergvoke extends ApplicationCore {
       // 输入控制器（原 camInput / uniInput 的系统注册，改为集中驱动）
       Inputs.updateAll();
 
-      for (caliniya.vergvoke.system.System sys : Systems.systems) {
-        if (sys == null || !sys.inited) {
-          continue;
-        }
-        sys.update();
-      }
+      // 游戏内每帧更新（手写系统 + 生成侧统一更新，见 Game.update）
+      Game.update(Core.graphics.getDeltaTime() * 60f);
+
       Render.updateAll();
       camera.update();
     }

@@ -104,6 +104,9 @@ public class Data {
       Log.info(n.x +"   "+n.y);
     });*/
 
+    // 标记进入游戏内：主循环开始驱动游戏更新（Game.update → 生成侧统一更新）
+    Game.inGame = true;
+
     UI.Game();
   }
 }

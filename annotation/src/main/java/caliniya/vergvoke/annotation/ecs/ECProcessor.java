@@ -120,7 +120,11 @@ public class ECProcessor extends Processor {
         for (EntityPlan plan : plans) {
             generateEntity(plan);
         }
-        generateSystemDispatch(plans);
+        Map<String, Map<String, List<UpdatePiece>>> bySystem = systemsByEntity(plans);
+        generateSystemDispatch(bySystem);
+        generateEntityArs(plans);
+        generateComponentSystems(bySystem);
+        generateSystems(plans, bySystem);
     }
 
     private Map<String, AType> componentTypes() {
@@ -789,7 +793,9 @@ public class ECProcessor extends Processor {
 
         if (hasMain) {
             MethodSpec.Builder update = MethodSpec.methodBuilder("update")
+                    .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
+                    .addParameter(float.class, "dt")
                     .addJavadoc("proc = \"main\"（或未指定）的组件更新，按 @Component.index 顺序直接注入（自动生成）。\n");
             for (UpdatePiece piece : plan.pieces) {
                 if (!piece.mainTier) {
@@ -814,7 +820,7 @@ public class ECProcessor extends Processor {
         }
 
         // 补齐基类里仍然抽象的方法，保证生成类一定能编译
-        addAbstractStubs(entityType, plan, generateWrite, generateRead);
+        addAbstractStubs(entityType, plan, generateWrite, generateRead, hasMain);
 
         try {
             JavaFile.builder(GENERATED_PACKAGE, entityType.build()).build().writeTo(filer);
@@ -1105,7 +1111,11 @@ public class ECProcessor extends Processor {
 
     /** 基类 {@code Entity} 里还没实现的方法，这里生成空实现（带 TODO）， 这样即使以后基类增删抽象方法，生成类也始终能编译。 */
     private void addAbstractStubs(
-            TypeSpec.Builder entityType, EntityPlan plan, boolean generateWrite, boolean generateRead) {
+            TypeSpec.Builder entityType,
+            EntityPlan plan,
+            boolean generateWrite,
+            boolean generateRead,
+            boolean updateGenerated) {
         TypeElement base = elementUtils.getTypeElement(ENTITY_BASE_CLASS);
         if (base == null) {
             return;
@@ -1137,9 +1147,9 @@ public class ECProcessor extends Processor {
                 continue;
             }
 
-            boolean isGeneratedUpdate = name.equals("update") && method.getParameters().isEmpty();
-            if (isGeneratedUpdate) {
-                continue; // 生成的无参 update() 不覆盖 update(float)，但也不会重复生成
+            // update(float) 已被轻量档注入生成过，别再补空实现盖掉
+            if (updateGenerated && name.equals("update") && method.getParameters().size() == 1) {
+                continue;
             }
 
             // write / read 已经由序列化那一步生成了，别再补空实现盖掉
@@ -1195,7 +1205,8 @@ public class ECProcessor extends Processor {
     }
 
     /** 生成 ECUpdates：系统名 -> 该系统的组件更新入口 */
-    private void generateSystemDispatch(List<EntityPlan> plans) {
+    /** 按系统分组：系统名 -> 实体名 -> 更新片段（ECUpdates / 组件系统 / Systems 生成共用） */
+    private Map<String, Map<String, List<UpdatePiece>>> systemsByEntity(List<EntityPlan> plans) {
         Map<String, Map<String, List<UpdatePiece>>> bySystem = new LinkedHashMap<>();
 
         for (EntityPlan plan : plans) {
@@ -1209,7 +1220,10 @@ public class ECProcessor extends Processor {
                         .add(piece);
             }
         }
+        return bySystem;
+    }
 
+    private void generateSystemDispatch(Map<String, Map<String, List<UpdatePiece>>> bySystem) {
         if (bySystem.isEmpty()) {
             return;
         }
@@ -1247,6 +1261,251 @@ public class ECProcessor extends Processor {
             JavaFile.builder(GENERATED_PACKAGE, registry.build()).build().writeTo(filer);
         } catch (IOException e) {
             error("Failed to generate " + GENERATED_PACKAGE + ".ECUpdates: " + e.getMessage());
+        }
+    }
+
+    /** 生成 EntityArs：为每个实体生成一个 EntityAr（实体集合），供系统遍历 */
+    private void generateEntityArs(List<EntityPlan> plans) {
+        if (plans.isEmpty()) {
+            return;
+        }
+
+        ClassName entityAr = ClassName.get("caliniya.vergvoke.base.game", "EntityAr");
+
+        TypeSpec.Builder ars = TypeSpec.classBuilder("EntityArs")
+                .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                .addJavadoc("由注解处理器生成：各实体的集合（EntityAr），系统遍历它来更新实体。\n");
+
+        ars.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
+
+        for (EntityPlan plan : plans) {
+            ars.addField(
+                    FieldSpec.builder(
+                            ParameterizedTypeName.get(
+                                    entityAr, ClassName.get(GENERATED_PACKAGE, plan.entityName)),
+                            plan.entityName,
+                            Modifier.PUBLIC,
+                            Modifier.STATIC,
+                            Modifier.FINAL)
+                            .addJavadoc("$L 实体的集合。\n", plan.entityName)
+                            .initializer("new $T<>()", entityAr)
+                            .build());
+        }
+
+        try {
+            JavaFile.builder(GENERATED_PACKAGE, ars.build()).build().writeTo(filer);
+        } catch (IOException e) {
+            error("Failed to generate " + GENERATED_PACKAGE + ".EntityArs: " + e.getMessage());
+        }
+    }
+
+    /** 生成"组件系统"：每个有独立档组件的系统一个类——继承 System，update 遍历实体、分发该系统的组件更新 */
+    private void generateComponentSystems(Map<String, Map<String, List<UpdatePiece>>> bySystem) {
+        if (bySystem.isEmpty()) {
+            return;
+        }
+
+        ClassName systemBase = ClassName.get("caliniya.vergvoke.system", "System");
+        ClassName ecUpdates = ClassName.get(GENERATED_PACKAGE, "ECUpdates");
+        ClassName entityArs = ClassName.get(GENERATED_PACKAGE, "EntityArs");
+
+        for (String systemName : bySystem.keySet()) {
+            TypeSpec.Builder componentSystem = TypeSpec.classBuilder(systemName)
+                    .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                    .superclass(
+                            ParameterizedTypeName.get(
+                                    systemBase, ClassName.get(GENERATED_PACKAGE, systemName)))
+                    .addJavadoc("由注解处理器生成：$L 的组件系统——遍历实体，分发该系统的组件更新。\n", systemName);
+
+            MethodSpec.Builder update = MethodSpec.methodBuilder("update")
+                    .addAnnotation(Override.class)
+                    .addModifiers(Modifier.PUBLIC)
+                    .addParameter(float.class, "delta")
+                    .addJavadoc("遍历该系统的实体集合，逐个调用组件更新（自动生成）。\n");
+
+            for (String entityName : bySystem.get(systemName).keySet()) {
+                update.beginControlFlow(
+                        "for ($T e : $T.$L)",
+                        ClassName.get(GENERATED_PACKAGE, entityName),
+                        entityArs,
+                        entityName);
+                update.addStatement("$T.update_$L(e)", ecUpdates, systemName);
+                update.endControlFlow();
+            }
+
+            componentSystem.addMethod(update.build());
+
+            try {
+                JavaFile.builder(GENERATED_PACKAGE, componentSystem.build()).build().writeTo(filer);
+            } catch (IOException e) {
+                error("Failed to generate " + GENERATED_PACKAGE + "." + systemName + ": " + e.getMessage());
+            }
+        }
+    }
+
+    /** 生成 Systems：系统总览——@SystemDef 线程视图 + 组件系统数组 + 统一更新入口（update / updateAll） */
+    private void generateSystems(
+            List<EntityPlan> plans, Map<String, Map<String, List<UpdatePiece>>> bySystem) {
+        ClassName systemBase = ClassName.get("caliniya.vergvoke.system", "System");
+        ClassName ar = ClassName.get("caliniya.vergvoke.base.tool", "Ar");
+        ClassName entityArs = ClassName.get(GENERATED_PACKAGE, "EntityArs");
+
+        TypeSpec.Builder systems = TypeSpec.classBuilder("Systems")
+                .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                .addJavadoc("由注解处理器生成：系统总览。\n")
+                .addJavadoc("@SystemDef 的线程视图（Class 清单）＋ 组件系统数组与统一更新入口（update / updateAll）。\n");
+
+        systems.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
+
+        List<AType> systemDefs = new ArrayList<>();
+        for (AType system : types(SystemDef.class)) {
+            systemDefs.add(system);
+        }
+
+        // ---- 线程视图：按线程分组（Class 清单），main 优先、组内按 index 升序 ----
+        Map<String, List<AType>> byThread = new LinkedHashMap<>();
+        for (AType system : systemDefs) {
+            byThread
+                    .computeIfAbsent(system.annotation(SystemDef.class).thread(), key -> new ArrayList<>())
+                    .add(system);
+        }
+
+        if (!byThread.isEmpty()) {
+            List<String> threadNames = new ArrayList<>(byThread.keySet());
+            threadNames.sort(
+                    (a, b) -> {
+                        if (a.equals(MAIN_SYSTEM)) {
+                            return b.equals(MAIN_SYSTEM) ? 0 : -1;
+                        }
+                        if (b.equals(MAIN_SYSTEM)) {
+                            return 1;
+                        }
+                        return a.compareTo(b);
+                    });
+
+            TypeName classOfWildcard = ParameterizedTypeName.get(
+                    ClassName.get(Class.class), WildcardTypeName.subtypeOf(TypeName.OBJECT));
+
+            for (String thread : threadNames) {
+                List<AType> group = new ArrayList<>(byThread.get(thread));
+                group.sort(
+                        Comparator.comparingInt(
+                                (AType system) -> system.annotation(SystemDef.class).index()));
+
+                CodeBlock.Builder array = CodeBlock.builder().add("{ ");
+                for (int i = 0; i < group.size(); i++) {
+                    if (i > 0) {
+                        array.add(", ");
+                    }
+                    array.add("$T.class", ClassName.bestGuess(group.get(i).fullName()));
+                }
+                array.add(" }");
+
+                systems.addField(
+                        FieldSpec.builder(ArrayTypeName.of(classOfWildcard), thread)
+                                .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                                .addJavadoc("线程 {@code $L} 的 @SystemDef 类（按 index 升序）。\n", thread)
+                                .initializer(array.build())
+                                .build());
+            }
+
+            CodeBlock.Builder threadsArray = CodeBlock.builder().add("{ ");
+            for (int i = 0; i < threadNames.size(); i++) {
+                if (i > 0) {
+                    threadsArray.add(", ");
+                }
+                threadsArray.add("$S", threadNames.get(i));
+            }
+            threadsArray.add(" }");
+
+            systems.addField(
+                    FieldSpec.builder(ArrayTypeName.of(ClassName.get(String.class)), "THREADS")
+                            .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                            .addJavadoc("线程清单（与上面的字段一一对应）。\n")
+                            .initializer(threadsArray.build())
+                            .build());
+        }
+
+        // ---- 组件系统数组：按 @SystemDef.index 升序（找不到声明的排最后，按名字兜底）----
+        Map<String, Integer> indexes = new LinkedHashMap<>();
+        for (AType system : systemDefs) {
+            SystemDef def = system.annotation(SystemDef.class);
+            indexes.putIfAbsent(def.name(), def.index());
+        }
+
+        List<String> ordered = new ArrayList<>(bySystem.keySet());
+        ordered.sort(
+                (a, b) -> {
+                    int ia = indexes.getOrDefault(a, Integer.MAX_VALUE);
+                    int ib = indexes.getOrDefault(b, Integer.MAX_VALUE);
+                    return ia != ib ? Integer.compare(ia, ib) : a.compareTo(b);
+                });
+
+        TypeName systemWildcard = ParameterizedTypeName.get(
+                systemBase, WildcardTypeName.subtypeOf(TypeName.OBJECT));
+
+        systems.addField(
+                FieldSpec.builder(ParameterizedTypeName.get(ar, systemWildcard), "systems",
+                        Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                        .addJavadoc("全部组件系统（按 @SystemDef.index 升序）。\n")
+                        .initializer("new $T<>()", ar)
+                        .build());
+
+        if (!ordered.isEmpty()) {
+            CodeBlock.Builder init = CodeBlock.builder();
+            for (String name : ordered) {
+                init.addStatement("systems.add(new $T())", ClassName.get(GENERATED_PACKAGE, name));
+            }
+            systems.addStaticBlock(init.build());
+        }
+
+        systems.addMethod(
+                MethodSpec.methodBuilder("update")
+                        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                        .addParameter(float.class, "delta")
+                        .addJavadoc("按 @SystemDef.index 依次调用所有组件系统。\n")
+                        .addCode("for ($T<?> sys : systems) {\n$>sys.update(delta);\n$<}\n", systemBase)
+                        .build());
+
+        MethodSpec.Builder updateAll = MethodSpec.methodBuilder("updateAll")
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                .addParameter(float.class, "delta")
+                .addJavadoc("按划定的帧顺序总驱动：基础更新 → 组件系统 → 实体更新（帧时间倍率统一传入）。\n");
+
+        if (!plans.isEmpty()) {
+            updateAll.addCode("// 基础更新（热量 / 能量 + 能力 / 模组）\n");
+            for (EntityPlan plan : plans) {
+                updateAll.beginControlFlow(
+                        "for ($T e : $T.$L)",
+                        ClassName.get(GENERATED_PACKAGE, plan.entityName),
+                        entityArs,
+                        plan.entityName);
+                updateAll.addStatement("e.updateBase(delta)");
+                updateAll.endControlFlow();
+            }
+        }
+
+        updateAll.addCode("// 组件系统（按 @SystemDef.index）\nupdate(delta);\n");
+
+        if (!plans.isEmpty()) {
+            updateAll.addCode("// 实体自身更新（轻量档注入在 update(float) 里）\n");
+            for (EntityPlan plan : plans) {
+                updateAll.beginControlFlow(
+                        "for ($T e : $T.$L)",
+                        ClassName.get(GENERATED_PACKAGE, plan.entityName),
+                        entityArs,
+                        plan.entityName);
+                updateAll.addStatement("e.update(delta)");
+                updateAll.endControlFlow();
+            }
+        }
+
+        systems.addMethod(updateAll.build());
+
+        try {
+            JavaFile.builder(GENERATED_PACKAGE, systems.build()).build().writeTo(filer);
+        } catch (IOException e) {
+            error("Failed to generate " + GENERATED_PACKAGE + ".Systems: " + e.getMessage());
         }
     }
 
