@@ -57,7 +57,6 @@ public abstract class Processor extends AbstractProcessor {
         try {
             trees = Trees.instance(env);
         } catch (IllegalArgumentException e) {
-            // 非 javac 环境（正常不会走到），保持 null
             trees = null;
         }
     }
