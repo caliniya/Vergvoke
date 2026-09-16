@@ -1,6 +1,6 @@
 package caliniya.vergvoke.game;
 
-import caliniya.vergvoke.base.ecs.Systems;
+import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.type.TeamTypes;
 import caliniya.vergvoke.core.Render;
 import caliniya.vergvoke.system.game.GameProcess;
