@@ -17,10 +17,12 @@ public class CompTest2 {
         out.i(yyyyy);
     }
 
+    @SuppressWarnings("unused")
     @Read
     public void load(Reads in) {
         xxxxx = in.i();
-        if (false) return;
+        if (false)
+            return;
         yyyyy = in.i();
     }
 }
