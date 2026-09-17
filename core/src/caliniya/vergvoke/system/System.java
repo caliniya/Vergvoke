@@ -112,11 +112,16 @@ public abstract class System<T extends System<T>> implements Comparable<System<?
   }
 
   /**
-   * 系统逻辑更新方法（带时间增量）。
+   * 系统逻辑更新方法（带时间增量）。驱动方（主循环 / 系统线程）统一调用本方法。
    *
-   * @param delta 以 60TPS 为基准的帧时间增量（1.0 = 理想一帧，最大 4.0）。
+   * <p>默认转发到 {@link #update()}——所以系统只实现 {@code update()} 或 {@code update(float)} 之一都行；
+   * 两个都实现时以 {@code update(float)} 为准（需要的话自己调 {@code super.update(delta)}）。
+   *
+   * @param delta 以 60TPS 为基准的帧时间增量（1.0 = 理想一帧；与 {@code arc.util.Time.delta} 同口径）。
    */
-  public void update(float delta) {}
+  public void update(float delta) {
+    update();
+  }
 
   /** 系统逻辑更新方法（无参数）。 */
   public void update() {}
@@ -205,7 +210,6 @@ public abstract class System<T extends System<T>> implements Comparable<System<?
 
                   try {
                     update(delta);
-                    update();
                     tickCounter++;
                   } catch (Exception e) {
                     Log.err("Error in thread: @", this.getClass().getSimpleName() + "  " + e);

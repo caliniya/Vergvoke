@@ -8,7 +8,7 @@ import arc.graphics.*;
 import arc.graphics.g2d.*;
 import arc.input.*;
 import arc.scene.ui.layout.Scl;
-import arc.util.Log;
+import arc.util.*;
 import caliniya.vergvoke.base.shaders.*;
 import caliniya.vergvoke.base.type.EventType;
 import caliniya.vergvoke.core.*;
@@ -97,8 +97,8 @@ public class Vergvoke extends ApplicationCore {
             // 输入控制器（原 camInput / uniInput 的系统注册，改为集中驱动）
             Inputs.updateAll();
 
-            // 游戏内每帧更新（手写系统 + 生成侧统一更新，见 Game.update）
-            Game.update(Core.graphics.getDeltaTime() * 60f);
+            // 游戏内每帧更新（统一用 Time.delta：60TPS 帧倍率，Arc 自带 3.0 上限）
+            Game.update(Time.delta);
 
             Render.updateAll();
             camera.update();
