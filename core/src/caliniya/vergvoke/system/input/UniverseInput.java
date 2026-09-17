@@ -9,7 +9,7 @@ import caliniya.vergvoke.core.Render;
 import caliniya.vergvoke.world.stars.Universe;
 
 /**
- * 宇宙视图网格选择器。这是过去的网格实现系统，已经被现在的新图取代了，需要重构<br>
+ * TODO 宇宙视图网格选择器。这是过去的网格实现系统，已经被现在的新图取代了，需要重构<br>
  */
 public class UniverseInput implements InputProcessor {
 
