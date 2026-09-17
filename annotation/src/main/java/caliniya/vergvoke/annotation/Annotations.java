@@ -26,10 +26,10 @@ public class Annotations {
         String proc() default "";
 
         /**
-         * 组件序号，必须非 0。决定序列化顺序，以及 main 档 {@code @Updata} 的注入顺序。
+         * 组件序号，必须非 0。决定序列化顺序，以及{@code @Updata} 的注入顺序
          * 同一实体内不允许重复。
          */
-        int index() default 0;
+        int index();
     }
 
     /**

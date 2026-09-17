@@ -20,8 +20,8 @@ public class UnitControl implements InputProcessor, GestureListener {
 
     @Override
     public boolean tap(float x, float y, int count, KeyCode button) {
-        if (!Core.app.isMobile())
-            return false;
+        // 桌面端鼠标点击同样会走到这里（SDL 后端把鼠标按下/抬起映射成 pointer=0 的 touch 事件），
+        // 所以不再按平台过滤——移动端触控与桌面端点击共用同一套指挥逻辑。
         // 使用全局指挥状态判断
         if (!CommandData.commanding)
             return false;
