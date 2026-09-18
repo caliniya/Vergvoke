@@ -158,7 +158,7 @@ public class HUDFragment {
     }
 
     /** 清空当前选中的单位列表。 */
-    private void clearSelection() {
+    public void clearSelection() {
         for (caliniya.vergvoke.type.Unit u : CommandData.checkedUnits) {
             if (u != null)
                 u.isSelected = false;

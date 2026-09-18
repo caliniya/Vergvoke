@@ -55,16 +55,17 @@ public class Vergvoke extends ApplicationCore {
             UI.initAll();
             UI.Menu();
             UI.Debug();
-            UnitControl unitCtrl = new UnitControl().init();
+            // 单位指挥输入：按平台选一个（共享逻辑在 InputHandler 基类里）
+            InputHandler unitInput = Core.app.isMobile() ? new MobileInput() : new DesktopInput();
             camInput = new CameraInput().init();
             uniInput = new UniverseCameraInput().init();
             unInput = new UniverseInput();
             InputMultiplexer multiplexer = new InputMultiplexer(
                     scene,
-                    new GestureDetector(unitCtrl),
+                    new GestureDetector(unitInput),
                     new GestureDetector(camInput),
                     new GestureDetector(uniInput),
-                    unitCtrl,
+                    unitInput,
                     camInput,
                     uniInput,
                     unInput);
