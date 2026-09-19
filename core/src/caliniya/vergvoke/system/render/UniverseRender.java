@@ -11,7 +11,6 @@ import caliniya.vergvoke.base.type.EventType;
 import caliniya.vergvoke.core.Render;
 import caliniya.vergvoke.game.Game;
 import caliniya.vergvoke.system.System;
-import caliniya.vergvoke.system.input.UniverseCameraInput;
 
 /** 宇宙渲染 */
 public class UniverseRender extends System<UniverseRender> {
@@ -22,7 +21,7 @@ public class UniverseRender extends System<UniverseRender> {
   @Override
   public UniverseRender init() {
     this.index = 16;
-    background = new SpaceShader(Render.universeCamera, () -> UniverseCameraInput.zoom);
+    background = new SpaceShader(Render.universeCamera, () -> Render.universeZoom);
     background.parallaxScale = 0.5f;
     background.baseScale = 0.6f;
     Events.run(EventType.events.EnterUV, () -> paused = false);
@@ -35,7 +34,7 @@ public class UniverseRender extends System<UniverseRender> {
   public void update(float delta) {
     if (!inited || paused) return;
     Camera cam = Render.universeCamera;
-    float zoom = UniverseCameraInput.zoom;
+    float zoom = Render.universeZoom;
     cam.update();
     background.render();
     Draw.proj(cam);

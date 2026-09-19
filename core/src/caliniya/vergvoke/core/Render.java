@@ -30,6 +30,15 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
     /** 最大允许的缩放级别 */
     public static float maxZoom = 4.0f;
 
+    /** 宇宙相机当前缩放级别 */
+    public static float universeZoom = 1.0f;
+
+    /** 宇宙相机最小允许的缩放级别 */
+    public static float universeMinZoom = 0.5f;
+
+    /** 宇宙相机最大允许的缩放级别 */
+    public static float universeMaxZoom = 2.0f;
+
     // --- 震屏参数 ---
 
     /** 世界相机的震动强度 */
@@ -59,6 +68,7 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
 
         // 重置状态
         currentZoom = 1.0f;
+        universeZoom = 1.0f;
         shakeIntensity = 0f;
         uiShakeIntensity = 0f;
         shakeOffset.setZero();
@@ -112,6 +122,21 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
      */
     public static void zoom(float amount) {
         setZoom(currentZoom + amount);
+    }
+
+    /**
+     * 直接设置宇宙相机的缩放级别
+     * 会自动限制在universeMinZoom和universeMaxZoom允许的范围内
+     */
+    public static void setUniverseZoom(float value) {
+        universeZoom = Mathf.clamp(value, universeMinZoom, universeMaxZoom);
+    }
+
+    /**
+     * 基于当前缩放级别进行增量缩放（宇宙相机）
+     */
+    public static void zoomUniverse(float amount) {
+        setUniverseZoom(universeZoom + amount);
     }
 
     /**
@@ -192,6 +217,7 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
     public void dispose() {
         super.dispose();
         currentZoom = 1.0f;
+        universeZoom = 1.0f;
         shakeIntensity = 0f;
         uiShakeIntensity = 0f;
         shakeOffset.setZero();

@@ -8,6 +8,8 @@ import caliniya.vergvoke.game.data.*;
 
 /**
  * 移动端输入：先开"指挥"开关，再点单位选 / 点地图下令。
+ *
+ * <p>相机、宇宙视图、选中等平台无关逻辑都在基类 {@link InputProcess} 里，这里只覆盖触摸这一处平台差异。
  */
 public class MobileInput extends InputProcess {
 

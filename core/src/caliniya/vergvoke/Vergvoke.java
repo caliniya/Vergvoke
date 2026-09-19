@@ -21,9 +21,8 @@ import caliniya.vergvoke.ui.*;
 public class Vergvoke extends ApplicationCore {
 
     public boolean assinited = false;
-    public CameraInput camInput;
-    public UniverseCameraInput uniInput;
-    public UniverseInput unInput;
+    /** 平台输入：桌面 / 移动二选一（相机 / 宇宙视图 / 选中 / 下令全在 InputProcess 里）。 */
+    public InputProcess platformInput;
 
     // 用于记录开始时间
     private long startTime;
@@ -60,22 +59,14 @@ public class Vergvoke extends ApplicationCore {
             UI.initAll();
             UI.Menu();
             UI.Debug();
-            // 单位指挥输入：按平台选一个（共享逻辑在 InputHandler 基类里）
-            InputProcess unitInput = Core.app.isMobile() ? new MobileInput() : new DesktopInput();
-            camInput = new CameraInput().init();
-            uniInput = new UniverseCameraInput().init();
-            unInput = new UniverseInput();
+            // 平台输入：按平台二选一；相机 / 宇宙视图 / 选中 / 下令都在同一个对象里，
+            // 不再有"每个输入处理器各自维护运行 / 暂停状态"的麻烦
+            platformInput = Core.app.isMobile() ? new MobileInput() : new DesktopInput();
             InputMultiplexer multiplexer = new InputMultiplexer(
                     scene,
-                    new GestureDetector(unitInput),
-                    new GestureDetector(camInput),
-                    new GestureDetector(uniInput),
-                    unitInput,
-                    camInput,
-                    uniInput,
-                    unInput);
+                    new GestureDetector(platformInput),
+                    platformInput);
             input.addProcessor(multiplexer);
-            Inputs.add(camInput, uniInput);
             Contents.load();
             UI.camera.resize(graphics.getWidth(), graphics.getHeight());
             UI.camera.update();
@@ -100,8 +91,8 @@ public class Vergvoke extends ApplicationCore {
         } else {
             Draw.proj(camera);
 
-            // 输入控制器（原 camInput / uniInput 的系统注册，改为集中驱动）
-            Inputs.updateAll();
+            // 平台输入每帧更新（WASD 平移 / 宇宙相机视口）
+            platformInput.update(delta);
 
             Game.update(delta);
 

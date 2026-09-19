@@ -10,13 +10,16 @@ import caliniya.vergvoke.game.data.*;
 /**
  * 桌面端输入：左键选中 / 右键执行当前指令 / 右键双击中断选中单位的操作。
  *
- * <p>
- * 只在游戏内（{@link Game#inGame}）生效；不依赖"指挥"开关。
+ * <p>相机、宇宙视图、选中等平台无关逻辑都在基类 {@link InputProcess} 里，这里只覆盖鼠标这一处平台差异。
+ *
+ * <p>只在游戏内（{@link Game#inGame}）且开了"指挥"（{@link CommandData#commanding}）时才响应：
+ * 指挥开关是总闸，没开时鼠标不选中也不下令（和移动端一致）。
  */
 public class DesktopInput extends InputProcess {
 
     @Override
     public boolean tap(float x, float y, int count, KeyCode button) {
+        // 只有指挥模式才能选中 / 下令 / 中断
         if (!Game.inGame || !CommandData.commanding)
             return false;
 
