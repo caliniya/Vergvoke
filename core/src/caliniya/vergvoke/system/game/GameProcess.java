@@ -33,7 +33,7 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
   }
 
   @Override
-  public void update() {
+  public void update(float delta) {
     // 先处理 BulletProcess 线程刚击杀的实体（延迟最小化，防止血量变负才死）
     BulletProcess.it.drainFreshKills(freshKilled);
     for (Entity e : freshKilled) {
@@ -50,9 +50,9 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
             deadUnits.add(u);
             return;
           } else {
-            u.update(Time.delta);
+            u.update(delta);
             u.canShoot = true;
-            u.updateWeapons(Time.delta);
+            u.updateWeapons(delta);
             if (u.velocityDirty) moved.add(u);
           }
         });
@@ -73,7 +73,7 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
             deadBuildings.add(b);
             return;
           } else {
-            b.update(Time.delta);
+            b.update(delta);
           }
         });
     for (Building b : deadBuildings) {

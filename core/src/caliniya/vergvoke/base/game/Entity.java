@@ -94,7 +94,7 @@ public abstract class Entity implements Poolable, QuadTreeObject {
     public Entity() {
     }
 
-    public abstract void update(float dt);
+    public abstract void update(float delta);
 
     public abstract void draw();
 

@@ -36,7 +36,7 @@ import caliniya.vergvoke.base.tool.Ar;
  * {@code update()}</b>，顺序由
  * {@code @Component.index} 决定（该档必须提供非 0 的 index）；
  * <li><b>proc = 其他系统名</b>：需要"同阶段一致"或较重的更新（开火、寻路、AI…）， 生成独立方法 {@code
- *             update_<组件简单名>()}，由该系统在自己阶段调用。
+ *             update_<组件简单名>(float delta)}，由该系统在自己阶段调用。
  * </ul>
  * <li><b>组件系统</b>（{@code caliniya.vergvoke.base.ecs.<系统名>}）：继承系统基类，
  * {@code update(float)} 遍历该系统的实体、按 {@code @Component.index} 顺序直接调用属于该系统的组件更新。
@@ -69,6 +69,9 @@ public class ECProcessor extends Processor {
 
     /** 轻量档：proc 为空或等于它时，更新逻辑直接铺进实体 update() */
     private static final String MAIN_SYSTEM = "main";
+
+    /** 实体 / 组件更新方法统一用的帧时间参数名：@Updata 的方法体会原样铺进生成代码，名字必须对上 */
+    private static final String DELTA_NAME = "delta";
 
     /** 序列化用的 IO 类型（arc） */
     private static final String WRITES_CLASS = "arc.util.io.Writes";
@@ -586,8 +589,18 @@ public class ECProcessor extends Processor {
                     valid = false;
                     continue;
                 }
-                if (method.parameterCount() != 0) {
-                    error("@Updata method must not have parameters: " + label, method);
+                if (method.parameterCount() != 1
+                        || !isType(method.parameters().first().type(), "float")
+                        || !method.parameters().first().name().equals(DELTA_NAME)) {
+                    error(
+                            "@Updata method must take exactly one float parameter named '"
+                                    + DELTA_NAME
+                                    + "': "
+                                    + label
+                                    + "(float "
+                                    + DELTA_NAME
+                                    + ")",
+                            method);
                     valid = false;
                     continue;
                 }
@@ -813,6 +826,7 @@ public class ECProcessor extends Processor {
             }
             MethodSpec.Builder method = MethodSpec.methodBuilder(piece.methodName)
                     .addModifiers(Modifier.PUBLIC)
+                    .addParameter(float.class, DELTA_NAME)
                     .addJavadoc("来自 {@code @Updata}：$L（由 $L 处理，自动生成）。\n", piece.label, piece.proc);
             method.addCode("$L\n", piece.body);
             entityType.addMethod(method.build());
@@ -831,7 +845,7 @@ public class ECProcessor extends Processor {
             MethodSpec.Builder update = MethodSpec.methodBuilder("update")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
-                    .addParameter(float.class, "dt")
+                    .addParameter(float.class, DELTA_NAME)
                     .addJavadoc("proc = \"main\"（或未指定）的组件更新，按 @Component.index 顺序直接注入（自动生成）。\n");
             for (UpdatePiece piece : plan.pieces) {
                 if (!piece.mainTier) {
@@ -1240,10 +1254,10 @@ public class ECProcessor extends Processor {
         Set<String> generated = new HashSet<>();
         for (UpdatePiece piece : plan.pieces) {
             if (!piece.mainTier) {
-                generated.add(piece.methodName + "/0");
+                generated.add(piece.methodName + "/1");
             }
         }
-        generated.add("update/1"); // update(float) 依旧要补（生成的是无参 update()）
+        generated.add("update/1"); // 轻量档会生成 update(float delta)；没生成时这里补空实现
 
         Set<String> done = new HashSet<>();
         for (Element member : elementUtils.getAllMembers(base)) {
@@ -1408,7 +1422,7 @@ public class ECProcessor extends Processor {
                         entityArs,
                         entityName);
                 for (UpdatePiece piece : pieces) {
-                    update.addStatement("e.$L()", piece.methodName);
+                    update.addStatement("e.$L($L)", piece.methodName, DELTA_NAME);
                 }
                 update.endControlFlow();
             }

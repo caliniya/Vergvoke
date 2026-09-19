@@ -46,7 +46,7 @@ public class EntityProces extends System<EntityProces> {
   }
 
   @Override
-  public void update() {
+  public void update(float delta) {
     // --- 单位处理（战斗逻辑，每帧执行）---
     WorldData.units.each(
         u -> {

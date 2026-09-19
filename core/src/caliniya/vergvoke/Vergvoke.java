@@ -45,6 +45,11 @@ public class Vergvoke extends ApplicationCore {
     public void update() {
         super.update();
         graphics.clear(Color.black);
+
+        // 本帧的帧时间只在这里取一次（Time.delta：60TPS 帧倍率，Arc 自带 3.0 上限），
+        // 往下全部靠参数传递：游戏更新 / 渲染 / 调试渲染都用同一个 delta
+        float delta = Time.delta;
+
         // 资源加载完成后的初始化
         if (assets.update() && !assinited) {
             Shaders.load();
@@ -98,10 +103,9 @@ public class Vergvoke extends ApplicationCore {
             // 输入控制器（原 camInput / uniInput 的系统注册，改为集中驱动）
             Inputs.updateAll();
 
-            // 游戏内每帧更新（统一用 Time.delta：60TPS 帧倍率，Arc 自带 3.0 上限）
-            Game.update(Time.delta);
+            Game.update(delta);
 
-            Render.updateAll();
+            Render.updateAll(delta);
             camera.update();
         }
         scene.act();
@@ -110,7 +114,7 @@ public class Vergvoke extends ApplicationCore {
 
         if (DebugRender.it != null) {
             Draw.proj(UI.camera);
-            DebugRender.it.update();
+            DebugRender.it.update(delta);
         }
 
         Draw.flush();

@@ -17,7 +17,7 @@ public class DesktopInput extends InputProcess {
 
     @Override
     public boolean tap(float x, float y, int count, KeyCode button) {
-        if (!Game.inGame)
+        if (!Game.inGame || !CommandData.commanding)
             return false;
 
         Vec2 worldPos = Core.camera.unproject(x, y);

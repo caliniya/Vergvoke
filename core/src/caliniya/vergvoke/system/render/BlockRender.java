@@ -17,7 +17,7 @@ public class BlockRender extends caliniya.vergvoke.system.System<BlockRender> {
   }
 
   @Override
-  public void update() {
+  public void update(float delta) {
     if (!inited || paused)
       return;
     // 遍历所有建筑

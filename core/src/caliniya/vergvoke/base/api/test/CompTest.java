@@ -12,7 +12,7 @@ public class CompTest {
     public int y;
 
     @Updata
-    public void test() {
+    public void test(float delta) {
         x++;
         y++;
     }

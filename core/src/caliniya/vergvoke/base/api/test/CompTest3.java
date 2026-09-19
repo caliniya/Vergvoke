@@ -10,7 +10,7 @@ public class CompTest3 {
     public int z;
 
     @Updata
-    public void test() {
+    public void test(float delta) {
         z++;
     }
 

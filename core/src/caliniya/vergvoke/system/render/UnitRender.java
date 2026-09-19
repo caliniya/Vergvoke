@@ -25,7 +25,7 @@ public class UnitRender extends System<UnitRender> {
     }
 
     @Override
-    public void update() {
+    public void update(float delta) {
         if (!inited || paused)
             return;
         // 绘制单位

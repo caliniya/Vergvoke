@@ -119,7 +119,7 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
      * 宇宙视图下跳过游戏相机处理，仅更新 universeCamera。
      */
     @Override
-    public void update() {
+    public void update(float delta) {
 
         // 1. 撤销上一帧的震动偏移，恢复相机逻辑位置
         Core.camera.position.sub(shakeOffset);
@@ -177,10 +177,10 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
         universeCamera.position.y = Mathf.clamp(universeCamera.position.y, 0, Game.starMap.h);
     }
 
-    /** 驱动全部子渲染器（顺序 = renders 数组顺序），最后统一 flush。 */
-    public static void updateAll() {
+    /** 驱动全部子渲染器（顺序 = renders 数组顺序，帧时间统一由主循环传进来），最后统一 flush。 */
+    public static void updateAll(float delta) {
         for (caliniya.vergvoke.system.System<?> render : renders) {
-            render.update();
+            render.update(delta);
         }
         Draw.flush();
     }

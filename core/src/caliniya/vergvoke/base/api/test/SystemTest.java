@@ -7,7 +7,7 @@ import caliniya.vergvoke.annotation.Annotations.*;
 public class SystemTest extends caliniya.vergvoke.system.System<SystemTest> {
 
     @Override
-    public void update() {
+    public void update(float delta) {
     }
 
 }

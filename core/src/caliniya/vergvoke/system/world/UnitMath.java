@@ -24,7 +24,7 @@ public class UnitMath extends caliniya.vergvoke.system.System<UnitMath> {
   }
 
   @Override
-  public void update() {
+  public void update(float delta) {
     processList.clear();
     synchronized (WorldData.moveunits) {
       processList.addAll(WorldData.moveunits);

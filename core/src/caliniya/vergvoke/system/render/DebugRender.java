@@ -30,7 +30,7 @@ public class DebugRender extends caliniya.vergvoke.system.System<DebugRender> {
   }
 
   @Override
-  public void update() {
+  public void update(float delta) {
     Lines.stroke(2f, Color.green);
 
     // 递归遍历整棵 UI 树，给每个元素画边框

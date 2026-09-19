@@ -1,17 +1,18 @@
 package caliniya.vergvoke.type.def.comps;
 
 import arc.math.geom.*;
-import arc.util.*;
 import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.base.tool.*;
 
 /**
  * 移动组件：目标点 + 速度向量 + 每帧位移积分（"走"的那一半）。
  *
- * <p>分工：寻路（算路径、每帧给出速度向量）归寻路系统（现在的 UnitMath）；
+ * <p>
+ * 分工：寻路（算路径、每帧给出速度向量）归寻路系统（现在的 UnitMath）；
  * 本组件只负责把速度向量积到坐标上、到达判定、以及给空间索引留一个"位置变了"的标记。
  *
- * <p>x / y 用 {@code @Import} 借 {@link PosComp} 的坐标，实体里只保留一份位置。
+ * <p>
+ * x / y 用 {@code @Import} 借 {@link PosComp} 的坐标，实体里只保留一份位置。
  */
 @Component(name = "Move", index = 2, proc = "main")
 public class MoveComp {
@@ -57,7 +58,7 @@ public class MoveComp {
     public float y;
 
     @Updata
-    public void update() {
+    public void update(float delta) {
         // 注：注解处理器只搬字段声明，字段的初始化表达式不会跟到实体里，
         // 所以 arriveRange 没被显式赋值时，这里按旧默认值 2f 兜底
         float range = arriveRange > 0f ? arriveRange : 2f;
@@ -75,15 +76,12 @@ public class MoveComp {
             speedY = 0f;
         } else {
             // 按速度向量积分位移（速度向量由寻路系统算好）
-            // Time.delta = 主循环用的 60TPS 帧倍率（等同实体 update 收到的 dt）
-            x += speedX * Time.delta;
-            y += speedY * Time.delta;
+            // delta 由系统一路传下来（主循环只取一次 Time.delta）
+            x += speedX * delta;
+            y += speedY * delta;
         }
 
         moving = x != ox || y != oy;
-        if (moving) {
-            velocityDirty = true;
-        }
-    }
 
+    }
 }
