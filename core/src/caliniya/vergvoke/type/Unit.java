@@ -351,6 +351,7 @@ public class Unit extends Entity {
         type.draw(this);
     }
 
+    @SuppressWarnings("unused")
     public void updateWeapons(float dt) {
         float aimX = targetX;
         float aimY = targetY;

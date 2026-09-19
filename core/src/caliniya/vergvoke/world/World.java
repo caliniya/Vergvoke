@@ -34,6 +34,7 @@ public class World {
 
     // --- 区块管理辅助方法 ---
 
+    @SuppressWarnings("unused")
     private int getChunkIndex(int cx, int cy) {
         return cy * chunksW + cx;
     }
