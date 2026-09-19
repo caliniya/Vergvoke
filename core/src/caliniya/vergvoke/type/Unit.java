@@ -105,7 +105,7 @@ public class Unit extends Entity {
         energyMax = 0;
         energyRegen = 0;
 
-        this.speed = this.type.speedt;
+        this.speed = this.type.speed; // speed 是像素/帧（带 t 的 type.speedt 是格每秒）
         this.rotationSpeed = this.type.rotationSpeend;
         this.region = this.type.region;
         this.cell = this.type.cell;

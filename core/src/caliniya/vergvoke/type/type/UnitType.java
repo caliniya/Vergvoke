@@ -21,9 +21,10 @@ import caliniya.vergvoke.core.meta.stat.StatUnit;
 
 public class UnitType extends ContentType implements DrawType<Unit>, TechNodeContent {
 
-    public float speed = 60f, // 格每秒
+    // 约定：带 t 的是"格每秒"（设计值），不带 t 的是"像素/帧"（运行时用的）
+    public float speedt = 60f, // 格每秒
             health = 100f,
-            speedt, // 像素每帧
+            speed, // 像素每帧（load() 里由 speedt 换算出来）
             rotationSpeend = 1f // 旋转速度(单位帧每度？)
     ;
 
@@ -68,7 +69,7 @@ public class UnitType extends ContentType implements DrawType<Unit>, TechNodeCon
 
     // 加载资源 (在 Assets 加载完成后调用)
     public void load() {
-        this.speedt = (speed * WorldData.TILE_SIZE) / 60f;
+        this.speed = (speedt * WorldData.TILE_SIZE) / 60f;
         region = Core.atlas.find(name, "white");
         cell = Core.atlas.find(name + "-cell", "air");
         for (WeaponType weapon : weapons) {
@@ -76,7 +77,7 @@ public class UnitType extends ContentType implements DrawType<Unit>, TechNodeCon
         }
         // 基础
         stat.add(Stat.healthMax, health);
-        stat.add(Stat.speed, speed);
+        stat.add(Stat.speed, speedt);
         stat.add(Stat.rotateSpeed, rotationSpeend);
         stat.add(Stat.energyMax, energyMax);
         stat.add(Stat.energyRegen, energyRegen);
