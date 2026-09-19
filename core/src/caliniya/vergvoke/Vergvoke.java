@@ -56,7 +56,7 @@ public class Vergvoke extends ApplicationCore {
             UI.Menu();
             UI.Debug();
             // 单位指挥输入：按平台选一个（共享逻辑在 InputHandler 基类里）
-            InputHandler unitInput = Core.app.isMobile() ? new MobileInput() : new DesktopInput();
+            InputProcess unitInput = Core.app.isMobile() ? new MobileInput() : new DesktopInput();
             camInput = new CameraInput().init();
             uniInput = new UniverseCameraInput().init();
             unInput = new UniverseInput();
