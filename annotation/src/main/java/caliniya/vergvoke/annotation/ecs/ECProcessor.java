@@ -83,6 +83,9 @@ public class ECProcessor extends Processor {
     /** 基类的 write / read 是不是已经实现好了（是的话生成的 write / read 会先调 super） */
     private Boolean baseWriteConcrete, baseReadConcrete;
 
+    /** 本轮校验里有问题的组件（全限定名）：用它们的实体会被跳过，错误只在组件那边报一次 */
+    private final Set<String> brokenComponents = new LinkedHashSet<>();
+
     {
         maxRounds = 1;
     }
@@ -92,30 +95,30 @@ public class ECProcessor extends Processor {
     protected void process() {
         Map<String, AType> components = componentTypes();
 
-        boolean valid = validateImportTargets(components);
-        valid &= validateUpdateTargets(components);
-        valid &= validateSaveTargets(components);
-        valid &= validateSerializationMethods(components);
-        valid &= validateComponentNames(components);
-        valid &= validateComponentIndexes(components);
+        // --- 组件级校验：只报错 + 记下"坏组件"，不再整体停摆 ---
+        // 用到坏组件的实体会被跳过（错误在组件那边已经报过），其余部分照常生成，
+        // 免得一处错误连累到"整个 base.ecs 包都不存在"那种一片红。
+        validateImportTargets(components);
+        validateUpdateTargets(components);
+        validateSaveTargets(components);
+        validateSerializationMethods(components);
+        validateComponentNames(components);
+        validateComponentIndexes(components);
 
-        // 1) 先把所有实体算成"生成计划"，过程中只报错、不写文件
+        // 1) 把没问题的实体算成"生成计划"（出错的只报错、不生成）
         List<EntityPlan> plans = new ArrayList<>();
         for (AType entity : types(Entity.class)) {
+            if (usesBrokenComponent(entity)) {
+                continue;
+            }
             EntityPlan plan = planEntity(entity, components);
             if (plan == null) {
-                valid = false;
                 continue;
             }
             plans.add(plan);
         }
 
-        // 2) 有任何一处校验失败就整体不生成
-        if (!valid) {
-            return;
-        }
-
-        // 3) 全部通过，统一生成
+        // 2) 统一生成：能站住的部分照常生成
         for (EntityPlan plan : plans) {
             generateEntity(plan);
         }
@@ -123,6 +126,23 @@ public class ECProcessor extends Processor {
         generateEntityArs(plans);
         generateComponentSystems(bySystem);
         generateSystems(plans, bySystem);
+    }
+
+    /** 用到"坏组件"的实体本轮直接跳过（组件的错误已经报过，不再连带报一片） */
+    private boolean usesBrokenComponent(AType entity) {
+        for (String componentName : compsOf(entity)) {
+            if (brokenComponents.contains(componentName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 记一笔"坏组件"：它自己报过错，用到它的实体不再连带报一片 */
+    private void markBroken(String componentFullName) {
+        if (componentFullName != null) {
+            brokenComponents.add(componentFullName);
+        }
     }
 
     private Map<String, AType> componentTypes() {
@@ -173,6 +193,7 @@ public class ECProcessor extends Processor {
                                 + "' has "
                                 + entry.getValue(),
                         components.get(entry.getKey()));
+                markBroken(entry.getKey());
                 valid = false;
             }
         }
@@ -188,6 +209,8 @@ public class ECProcessor extends Processor {
             String previous = seen.putIfAbsent(component.simpleName(), component.fullName());
             if (previous != null) {
                 error("Duplicate component name '" + component.simpleName() + "': " + previous, component);
+                markBroken(previous);
+                markBroken(component.fullName());
                 valid = false;
             }
         }
@@ -205,6 +228,7 @@ public class ECProcessor extends Processor {
                                 + component.simpleName()
                                 + "' must set a non-zero index: it orders component serialization (and the main-tier update injection)",
                         component);
+                markBroken(component.fullName());
                 valid = false;
             }
         }
@@ -229,6 +253,7 @@ public class ECProcessor extends Processor {
                 error(
                         "@Save cannot be used on a static field: " + owner.simpleName() + "#" + field.name(),
                         field);
+                markBroken(owner.fullName());
                 valid = false;
                 continue;
             }
@@ -240,6 +265,7 @@ public class ECProcessor extends Processor {
                                 + field.name()
                                 + " (the field it borrows is serialized by its owner component)",
                         field);
+                markBroken(owner.fullName());
                 valid = false;
                 continue;
             }
@@ -253,6 +279,7 @@ public class ECProcessor extends Processor {
                                 + field.typeName()
                                 + ", which cannot be written directly: use @Write / @Read on the component",
                         field);
+                markBroken(owner.fullName());
                 valid = false;
                 continue;
             }
@@ -272,6 +299,7 @@ public class ECProcessor extends Processor {
                                 + field.name()
                                 + "'",
                         field);
+                markBroken(owner.fullName());
                 valid = false;
             }
         }
@@ -307,6 +335,7 @@ public class ECProcessor extends Processor {
                                 + entry.getValue()
                                 + " but no matching @Read method: they must be used in pairs",
                         component);
+                markBroken(entry.getKey());
                 valid = false;
             }
             if (withSaveFields.contains(entry.getKey())) {
@@ -315,6 +344,7 @@ public class ECProcessor extends Processor {
                                 + component.simpleName()
                                 + "' cannot mix @Save fields with @Write / @Read methods: pick one style",
                         component);
+                markBroken(entry.getKey());
                 valid = false;
             }
         }
@@ -329,6 +359,7 @@ public class ECProcessor extends Processor {
                                 + entry.getValue()
                                 + " but no matching @Write method: they must be used in pairs",
                         component);
+                markBroken(entry.getKey());
                 valid = false;
             }
             if (withSaveFields.contains(entry.getKey()) && !writes.containsKey(entry.getKey())) {
@@ -338,6 +369,7 @@ public class ECProcessor extends Processor {
                                 + component.simpleName()
                                 + "' cannot mix @Save fields with @Write / @Read methods: pick one style",
                         component);
+                markBroken(entry.getKey());
                 valid = false;
             }
         }
@@ -378,22 +410,26 @@ public class ECProcessor extends Processor {
                                 + annotationName
                                 + " method",
                         method);
+                markBroken(owner.fullName());
                 valid = false;
                 continue;
             }
 
             if (method.isStatic()) {
                 error(annotationName + " method cannot be static: " + label, method);
+                markBroken(owner.fullName());
                 valid = false;
                 continue;
             }
             if (method.isAbstract()) {
                 error(annotationName + " method cannot be abstract: " + label, method);
+                markBroken(owner.fullName());
                 valid = false;
                 continue;
             }
             if (!method.isVoid()) {
                 error(annotationName + " method must return void: " + label, method);
+                markBroken(owner.fullName());
                 valid = false;
                 continue;
             }
@@ -409,11 +445,13 @@ public class ECProcessor extends Processor {
                                 + parameterClass
                                 + ")",
                         method);
+                markBroken(owner.fullName());
                 valid = false;
                 continue;
             }
             if (bodyOf(method) == null) {
                 error(annotationName + " method body is not accessible: " + label, method);
+                markBroken(owner.fullName());
                 valid = false;
                 continue;
             }
@@ -620,7 +658,7 @@ public class ECProcessor extends Processor {
             componentNames.add(component.simpleName());
         }
 
-        return new EntityPlan(entity, entityName, componentNames, injectedFields, pieces, serials);
+        return new EntityPlan(entity, entityName, entityComponents, componentNames, injectedFields, pieces, serials);
     }
 
     private String safeName(AType entity) {
@@ -821,7 +859,21 @@ public class ECProcessor extends Processor {
         addAbstractStubs(entityType, plan, generateWrite, generateRead, hasMain);
 
         try {
-            JavaFile.builder(GENERATED_PACKAGE, entityType.build()).build().writeTo(filer);
+            // 组件的 import 原样搬进生成文件：@Updata / @Write / @Read 的方法体里就能写短名（Mathf、Time……）
+            JavaFile javaFile = JavaFile.builder(GENERATED_PACKAGE, entityType.build()).build();
+            String source = injectImports(javaFile.toString(), componentImports(plan));
+
+            // 自己落盘：JavaPoet 的 writeTo 没给"外来 import"留位置，只能渲染完手动插
+            List<Element> origins = new ArrayList<>();
+            origins.add(plan.entity.e);
+            for (AType component : plan.components) {
+                origins.add(component.e);
+            }
+            Writer writer =
+                    createSourceFile(GENERATED_PACKAGE + "." + plan.entityName, origins.toArray(new Element[0]));
+            writer.write(source);
+            writer.close();
+
             ECMap.put(plan.entityName, plan.componentNames);
         } catch (IOException e) {
             error(
@@ -833,6 +885,72 @@ public class ECProcessor extends Processor {
                             + e.getMessage(),
                     plan.entity);
         }
+    }
+
+    /** 实体各组件的源文件里有那些 import（原样搬到生成实体，方法体里才能用短名） */
+    private Set<String> componentImports(EntityPlan plan) {
+        Set<String> imports = new LinkedHashSet<>();
+        if (trees == null) {
+            return imports;
+        }
+        for (AType component : plan.components) {
+            TreePath path = trees.getPath(component.e);
+            if (path == null || path.getCompilationUnit() == null) {
+                continue;
+            }
+            for (ImportTree importTree : path.getCompilationUnit().getImports()) {
+                imports.add(
+                        "import "
+                                + (importTree.isStatic() ? "static " : "")
+                                + importTree.getQualifiedIdentifier()
+                                + ";");
+            }
+        }
+        return imports;
+    }
+
+    /**
+     * 把外来的 import 插到生成源码的 import 块末尾（JavaPoet 只给它自己 {@code $T} 用到的类型生成 import，
+     * 手动补的 import 只能自己插）；已有的不重复插。
+     */
+    private String injectImports(String source, Set<String> extra) {
+        if (extra.isEmpty()) {
+            return source;
+        }
+
+        String[] lines = source.split("\n", -1);
+        Set<String> existing = new LinkedHashSet<>();
+        int insertAt = 1; // 一行 import 都没有时，至少插在 package 后面
+        for (int i = 0; i < lines.length; i++) {
+            if (lines[i].startsWith("import ")) {
+                existing.add(lines[i].trim());
+                insertAt = i + 1;
+            }
+        }
+
+        List<String> fresh = new ArrayList<>();
+        for (String line : extra) {
+            if (!existing.contains(line)) {
+                fresh.add(line);
+            }
+        }
+        if (fresh.isEmpty()) {
+            return source;
+        }
+
+        StringBuilder out = new StringBuilder(source.length() + fresh.size() * 32);
+        for (int i = 0; i < lines.length; i++) {
+            if (i > 0) {
+                out.append('\n');
+            }
+            out.append(lines[i]);
+            if (i == insertAt - 1) {
+                for (String line : fresh) {
+                    out.append('\n').append(line);
+                }
+            }
+        }
+        return out.toString();
     }
 
     /**
@@ -1475,6 +1593,7 @@ public class ECProcessor extends Processor {
     private static final class EntityPlan {
         final AType entity;
         final String entityName;
+        final List<AType> components;
         final ObjectSet<String> componentNames;
         final Map<String, VariableElement> injectedFields;
         final List<UpdatePiece> pieces;
@@ -1483,12 +1602,14 @@ public class ECProcessor extends Processor {
         EntityPlan(
                 AType entity,
                 String entityName,
+                List<AType> components,
                 ObjectSet<String> componentNames,
                 Map<String, VariableElement> injectedFields,
                 List<UpdatePiece> pieces,
                 List<SerialPiece> serials) {
             this.entity = entity;
             this.entityName = entityName;
+            this.components = components;
             this.componentNames = componentNames;
             this.injectedFields = injectedFields;
             this.pieces = pieces;
