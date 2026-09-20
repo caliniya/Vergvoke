@@ -25,7 +25,6 @@ import caliniya.vergvoke.base.tool.Ar;
  *
  * @param <T> 实体类型，必须实现 {@link QuadTreeObject} 以提供碰撞盒(这样子弹也可以被加入到实体组中，尽管它并不属于实体)
  */
-@SuppressWarnings("unchecked")
 public class EntityAr<T extends QuadTreeObject> implements Iterable<T> {
 
     private static final int DEFAULT_CAPACITY = 32;

@@ -51,10 +51,10 @@ public class MoveComp {
     /** 正在走的路径节点下标 */
     public int pathIndex = 0;
 
-    @Import
+  
     public float x;
 
-    @Import
+  
     public float y;
 
     @Updata

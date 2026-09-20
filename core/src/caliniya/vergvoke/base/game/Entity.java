@@ -4,7 +4,9 @@ import java.util.*;
 import arc.math.geom.*;
 import arc.math.geom.QuadTree.QuadTreeObject;
 import arc.util.io.*;
+import arc.util.pooling.*;
 import arc.util.pooling.Pool.Poolable;
+import caliniya.vergvoke.base.api.*;
 import caliniya.vergvoke.base.tool.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.meta.stat.*;
@@ -16,7 +18,9 @@ import caliniya.vergvoke.type.enhance.api.*;
 import caliniya.vergvoke.type.module.*;
 
 /** 游戏实体基类。实现了 {@link QuadTreeObject}，以便放入 EntityGroup 的四叉树空间索引。 */
-public abstract class Entity implements Poolable, QuadTreeObject {
+public abstract class Entity<T extends EntityType, ContentType> implements Poolable, QuadTreeObject {
+
+    public T type;
 
     // --- 公共坐标 ---
     public float x, y;
@@ -27,18 +31,13 @@ public abstract class Entity implements Poolable, QuadTreeObject {
     public int id;
 
     public volatile TeamTypes team;
+
     public volatile TeamData teamData;
 
-    // --- 公共组件 ---
     public ItemModule item;
     public LiquidModule liquid;
     public PowerModule power;
 
-    /** 当前锁定的目标（没有目标时为 null）。 */
-    public Entity target;
-
-    // --- 战斗基础属性（特殊机制如护盾/过热走能力）---
-    /** 当前护甲容量（护甲血条，0 = 无护甲）。 */
     public float armor;
 
     /** 最大护甲容量。 */
@@ -56,13 +55,19 @@ public abstract class Entity implements Poolable, QuadTreeObject {
     /** 能量恢复速率（每秒）。 */
     public float energyRegen;
 
+    /// 能量恢复速率（每帧，60TPS 基准）。 */
+    public float energyRegenTick;
+
     /** 当前热量 / 过热阈值（heat 到顶触发锁定）。 */
     public float heat, heatMax;
 
     /** 散热速率（每秒）。 */
     public float heatSpeed;
 
-    /** 这个实体是否具有过热能力。 */
+    /** 散热速率（每帧，60TPS 基准）。 */
+    public float heatSpeedTick;
+
+    /** 这个实体是否具有过热机制 */
     public boolean heatable;
 
     /** 实体当前是否处于锁定状态（可能但不限于热量引起的）。 */
@@ -76,7 +81,6 @@ public abstract class Entity implements Poolable, QuadTreeObject {
         return armorResist[type.ordinal()];
     }
 
-    // --- 击退 ---
     /** 击退冲量分量（后台子弹线程写、主线程读，volatile 保证可见性）。 */
     public volatile float knockX, knockY;
 
@@ -91,7 +95,7 @@ public abstract class Entity implements Poolable, QuadTreeObject {
     /** 只需每帧更新的强化模组（实现 {@link Updatable} 接口的），避免空转。 */
     public Ar<Updatable> updatableEnhancements = new Ar<>();
 
-    public Entity() {
+    private Entity() {
     }
 
     public abstract void update(float delta);
@@ -106,7 +110,7 @@ public abstract class Entity implements Poolable, QuadTreeObject {
 
     public abstract void read(Reads r);
 
-    /** 子弹命中入口：结算伤害 + 动能击退。 */
+    // 通用式命中方法
     public void hit(Bullet b) {
         applyDamage(
                 b.type.damage,
@@ -131,7 +135,6 @@ public abstract class Entity implements Poolable, QuadTreeObject {
 
         float cool = heatSpeed / 60f * dt;
         if (locked) {
-            // 锁定期间持续散热，归零后恢复
             heat -= cool;
             if (heat <= 0f) {
                 heat = 0f;
@@ -142,7 +145,6 @@ public abstract class Entity implements Poolable, QuadTreeObject {
 
         heat = Math.max(0f, heat - cool);
 
-        // 净回复 = 基础回复 - 所有激活能力的能耗（避免能量条在满值附近抖动）
         float use = 0f;
         for (Ability a : abilities) {
             use += a.energyUse();
@@ -160,7 +162,7 @@ public abstract class Entity implements Poolable, QuadTreeObject {
         }
     }
 
-    /** 挂载一个强化模组（运行时安装/读档恢复）：绑实体 → 恢复绑定 → 入列表 → 需要每帧则入 updatable 列表 → 初始开启则应用。 */
+    /** 挂载一个强化模组 */
     public void addEnhancement(Enhancement enh) {
         if (enh == null)
             return;
@@ -175,7 +177,7 @@ public abstract class Entity implements Poolable, QuadTreeObject {
         }
     }
 
-    /** 附加一个能力（经 onCreate 初始化后入列表）。 */
+    /** 附加一个能力 */
     public void addAbility(Ability ability) {
         if (ability != null)
             abilities.add(ability.onCreate(this));
@@ -191,19 +193,14 @@ public abstract class Entity implements Poolable, QuadTreeObject {
         return null;
     }
 
-    /** 向实体添加热量（由武器/能力/模组等热源调用）；没有过热能力的实体忽略。 */
+    /** 标准式添加热量 */
     public void addHeat(float amount) {
         if (heatable) {
             heat += amount;
         }
     }
 
-    /** 是否处于过热锁定（热量到顶触发，归零后自动解除）。 */
-    public boolean overheated() {
-        return locked;
-    }
-
-    /** 所有护盾能力（单体护盾 + 力场等）的当前总容量。 */
+    /** 所有护盾容量 */
     public float totalShield() {
         float total = 0f;
         for (Ability a : abilities) {
@@ -214,7 +211,7 @@ public abstract class Entity implements Poolable, QuadTreeObject {
         return total;
     }
 
-    /** 批量开关所有可切换（toggleable）的能力。 */
+    /** 对所有可开关的能力的操作 */
     public void setAllAbilities(boolean enabled) {
         for (Ability a : abilities) {
             if (a.toggleable)
@@ -291,7 +288,6 @@ public abstract class Entity implements Poolable, QuadTreeObject {
 
     /** 把实体的实时状态（血量/护甲/护盾/能量/热量/电力……）注册为统计源，供 UI 每帧读取。 */
     public void stat(StatStack stat) {
-        // 构建统计结构并注册动态数值源（live）：渲染端每帧经 getData 自动取最新值，无需反复调用本方法
         stat.get(Stat.health, health, maxHealth).live = () -> health;
         stat.get(Stat.armor, armor, armorMax).live = () -> armor;
         stat.get(Stat.shield, totalShield(), totalShieldMax()).live = () -> totalShield();
@@ -315,6 +311,10 @@ public abstract class Entity implements Poolable, QuadTreeObject {
     public void hitbox(Rect out) {
         float half = hitboxSize() / 2f;
         out.set(x - half, y - half, hitboxSize(), hitboxSize());
+    }
+
+    public Entity create() {
+        return type.create(this);
     }
 
     @Override
@@ -350,6 +350,6 @@ public abstract class Entity implements Poolable, QuadTreeObject {
         item = null;
         liquid = null;
         power = null;
-        target = null;
     }
+
 }
