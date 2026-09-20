@@ -45,8 +45,6 @@ public class Vergvoke extends ApplicationCore {
         super.update();
         graphics.clear(Color.black);
 
-        // 本帧的帧时间只在这里取一次（Time.delta：60TPS 帧倍率，Arc 自带 3.0 上限），
-        // 往下全部靠参数传递：游戏更新 / 渲染 / 调试渲染都用同一个 delta
         float delta = Time.delta;
 
         // 资源加载完成后的初始化
@@ -59,8 +57,6 @@ public class Vergvoke extends ApplicationCore {
             UI.initAll();
             UI.Menu();
             UI.Debug();
-            // 平台输入：按平台二选一；相机 / 宇宙视图 / 选中 / 下令都在同一个对象里，
-            // 不再有"每个输入处理器各自维护运行 / 暂停状态"的麻烦
             platformInput = Core.app.isMobile() ? new MobileInput() : new DesktopInput();
             InputMultiplexer multiplexer = new InputMultiplexer(
                     scene,
@@ -91,7 +87,6 @@ public class Vergvoke extends ApplicationCore {
         } else {
             Draw.proj(camera);
 
-            // 平台输入每帧更新（WASD 平移 / 宇宙相机视口）
             platformInput.update(delta);
 
             Game.update(delta);
