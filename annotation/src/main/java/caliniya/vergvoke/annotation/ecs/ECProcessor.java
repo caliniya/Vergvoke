@@ -27,7 +27,7 @@ import caliniya.vergvoke.base.tool.Ar;
  * 生成物：
  *
  * <ul>
- * <li><b>实体类</b>（{@code caliniya.vergvoke.base.ecs.<name>Entity}）：继承 {@code
+ * <li><b>实体类</b>（{@code caliniya.vergvoke.base.ecs.<name>}）：继承 {@code
  *       caliniya.vergvoke.base.game.Entity}，字段为各组件的扁平字段；按
  * {@code @Component(proc=...)} 分两档注入
  * {@code @Updata}：
@@ -469,7 +469,8 @@ public class ECProcessor extends Processor {
 
     /** 校验一个实体并算出它的生成计划；返回 null 表示这个实体没通过校验（错误已经报出）。 */
     private EntityPlan planEntity(AType entity, Map<String, AType> components) {
-        String entityName = entity.annotation(Entity.class).name() + "Entity";
+        // 实体类名就是 @Entity(name = ...) 给的名字本身，不加后缀
+        String entityName = entity.annotation(Entity.class).name();
         if (!SourceVersion.isName(entityName)) {
             error("Invalid generated entity name: " + entityName, entity);
             return null;

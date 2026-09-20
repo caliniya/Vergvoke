@@ -42,7 +42,8 @@ public class Annotations {
     }
 
     /**
-     * 声明实体 = 一组组件的集合。编译期生成 {@code name + "Entity"} 类，把各组件字段拍平进去。
+     * 声明实体 = 一组组件的集合。编译期在 {@code caliniya.vergvoke.base.ecs} 包下生成<b>同名</b>类
+     * （名字就是 {@link #name()}，不加后缀），把各组件字段拍平进去。
      * 字段名、组件均不允许重复。
      */
     @Retention(RetentionPolicy.SOURCE)
@@ -52,7 +53,7 @@ public class Annotations {
         /** 包含的组件（{@code .class} 列表，每个必须是 {@link Component}）。 */
         Class<?>[] comps();
 
-        /** 实体名，生成类名为 {@code name + "Entity"}。 */
+        /** 实体名：生成的类名就是它本身（不加后缀），放在 {@code caliniya.vergvoke.base.ecs} 包。 */
         String name();
     }
 
