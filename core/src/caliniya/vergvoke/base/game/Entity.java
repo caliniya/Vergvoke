@@ -95,7 +95,7 @@ public abstract class Entity<T extends EntityType, ContentType> implements Poola
     /** 只需每帧更新的强化模组（实现 {@link Updatable} 接口的），避免空转。 */
     public Ar<Updatable> updatableEnhancements = new Ar<>();
 
-    private Entity() {
+    protected Entity() {
     }
 
     public abstract void update(float delta);
@@ -131,35 +131,8 @@ public abstract class Entity<T extends EntityType, ContentType> implements Poola
     }
 
     /** 每帧更新战斗基础属性：热量散热/锁定、能量恢复、能力与强化模组的更新。 */
-    public void updateBase(float dt) {
-
-        float cool = heatSpeed / 60f * dt;
-        if (locked) {
-            heat -= cool;
-            if (heat <= 0f) {
-                heat = 0f;
-                locked = false;
-            }
-            return;
-        }
-
-        heat = Math.max(0f, heat - cool);
-
-        float use = 0f;
-        for (Ability a : abilities) {
-            use += a.energyUse();
-        }
-        float net = energyRegen / 60f - use; // energyRegen 以秒设计，这里转成每帧
-        if (net != 0f) {
-            energy = Math.min(energyMax, energy + net * dt);
-        }
-        for (Ability a : abilities) {
-            a.update(this, dt);
-        }
-        // 强化模组：只需每帧更新的（实现 Updatable 接口的）
-        for (Updatable u : updatableEnhancements) {
-            u.update(this, dt);
-        }
+    public void sync(float dt){
+        type.sync(this, dt);
     }
 
     /** 挂载一个强化模组 */
@@ -313,8 +286,8 @@ public abstract class Entity<T extends EntityType, ContentType> implements Poola
         out.set(x - half, y - half, hitboxSize(), hitboxSize());
     }
 
-    public Entity create() {
-        return type.create(this);
+    public static Entity create() {
+        return type.create(Pools.obtain(null, null));
     }
 
     @Override
