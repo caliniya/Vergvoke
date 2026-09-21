@@ -129,8 +129,6 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
         }
         if (entity instanceof Unit u) {
             u.size = size;
-            u.region = region;
-            u.cell = cell;
             if (weapons != null) {
                 if (u.weapons == null) {
                     u.weapons = new Ar<>();
@@ -161,8 +159,8 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
         }
     }
 
+    /** 类型统一绘制：贴图资源在本类型上，实体只提供坐标/朝向等状态。 */
     public void draw(Unit u) {
-        // 默认的绘制逻辑
         if (u.isSelected) {
             Draw.color(Color.green);
             Lines.stroke(2f);
@@ -170,12 +168,16 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
             Draw.color();
         }
 
-        Draw.rect(u.region, u.x, u.y, u.rotation);
-        Draw.rect(u.cell, u.x, u.y, u.rotation);
+        // 绘制资源在类型上，实体不持有 region/cell
+        Draw.rect(region, u.x, u.y, u.rotation);
+        if (cell != null) {
+            Draw.rect(cell, u.x, u.y, u.rotation);
+        }
 
-        // 绘制武器
-        for (Weapon weapon : u.weapons) {
-            weapon.type.draw(weapon);
+        if (u.weapons != null) {
+            for (Weapon weapon : u.weapons) {
+                weapon.type.draw(weapon);
+            }
         }
         Draw.color();
     }

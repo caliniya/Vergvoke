@@ -1,6 +1,5 @@
 package caliniya.vergvoke.base.ecs;
 
-import arc.graphics.g2d.TextureRegion;
 import arc.math.geom.Point2;
 import arc.util.io.Reads;
 import arc.util.io.Writes;
@@ -41,17 +40,11 @@ public class Unit extends Entity<UnitType> {
 
   public int pathIndex;
 
-  public TextureRegion region;
-
-  public TextureRegion cell;
-
   public Ar<Weapon> weapons;
 
   public Entity<?> target;
 
   public boolean canShoot;
-
-  public float hitHalfWidth;
 
   /**
    * 按 {@code @Entity.type = UnitType} 创建实例，并委托类型填充配置（自动生成）。
@@ -74,19 +67,6 @@ public class Unit extends Entity<UnitType> {
     e.x = x;
     e.y = y;
     return e;
-  }
-
-  /**
-   * 覆写基类 boolean contains(worldX, worldY)（来自组件 HitComp，@OverrideEntity，自动生成）。
-   */
-  @Override
-  public boolean contains(float worldX, float worldY) {
-    {
-        float half = hitHalfWidth > 0.0F ? hitHalfWidth : (size > 0.0F ? size * 0.5F : 4.0F);
-        float dx = worldX - x;
-        float dy = worldY - y;
-        return dx * dx + dy * dy <= half * half;
-    }
   }
 
   /**
