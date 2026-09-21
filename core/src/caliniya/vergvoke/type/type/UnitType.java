@@ -103,7 +103,7 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
     /** {@link EntityType}：用本类型配置填充实体（生成工厂 create(type) 会调用）。 */
     @Override
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    public Unit create() {
+    public Unit create(float x, float y, TeamTypes team) {
 
         Unit u = Pools.obtain(Unit.class,Unit::new);
 

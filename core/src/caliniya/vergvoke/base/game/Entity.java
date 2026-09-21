@@ -127,7 +127,9 @@ public abstract class Entity<T extends EntityType> implements Poolable, QuadTree
 
     public abstract void update(float delta);
 
-    public abstract void draw();
+    public void draw(){
+        type.draw(this);
+    }
 
     public abstract void remove();
 
