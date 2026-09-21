@@ -18,22 +18,20 @@ import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.meta.stat.Stat;
 import caliniya.vergvoke.core.meta.stat.StatType;
 import caliniya.vergvoke.core.meta.stat.StatUnit;
+import caliniya.vergvoke.base.ecs.*;
+
 
 public class UnitType extends ContentType implements DrawType<Unit>, TechNodeContent {
 
-    // 约定：带 t 的是"格每秒"（设计值），不带 t 的是"像素/帧"（运行时用的）
     public float speedt = 60f, // 格每秒
             health = 100f,
             speed, // 像素每帧（load() 里由 speedt 换算出来）
-            rotationSpeend = 1f // 旋转速度(单位帧每度？)
+            rotationSpeend = 1f // 旋转速度(单位帧每度)
     ;
 
     // 物理数据，若碰撞盒为空 则使用size进行填充
     public float[] hitbox = null;
     public float size = 100f;
-
-    // 单位的探测距离，位于此范围内的敌方会被标记出来(todo)，没有被标记的敌人仍然可以被攻击
-    public float scanDistance = 200f;
 
     // 单位的容量，使用通用的模块规则
     public int itemCap = 50;
