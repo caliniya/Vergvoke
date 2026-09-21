@@ -89,7 +89,7 @@ public class ShieldAbility extends Ability implements Shield {
   public void update(Entity e, float dt) {
     if (!active) return;
     syncFrames();
-    // 能量扣减由 Entity.updateBase 统一按净回复处理（避免能量条抖动）
+    // 能量扣减由 Entity.sync 统一按净回复处理（避免能量条抖动）
     if (energyCostFrame > 0 && e.energy <= 0) {
       // 能量耗尽 → 自动关闭
       active = false;

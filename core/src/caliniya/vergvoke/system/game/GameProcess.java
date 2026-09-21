@@ -1,6 +1,7 @@
 package caliniya.vergvoke.system.game;
 
 import caliniya.vergvoke.annotation.Annotations.*;
+import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.base.tool.*;
 import caliniya.vergvoke.type.*;

@@ -41,7 +41,7 @@ public class HeatAbility extends Ability {
     this.heatMax = heatMax;
   }
 
-  // 散热操作和解锁操作在{@code Entity.updateBase} 中进行，这里只同步以及进行锁定
+  // 散热操作和解锁操作在{@code Entity.sync} 中进行，这里只同步以及进行锁定
   @Override
   public void update(Entity e, float dt) {
     heat = e.heat;

@@ -4,6 +4,7 @@ import arc.*;
 import arc.input.*;
 import arc.input.GestureDetector.GestureListener;
 import arc.math.geom.*;
+import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.type.EventType;
 import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.game.data.*;

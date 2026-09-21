@@ -2,6 +2,7 @@ package caliniya.vergvoke.game.data;
 
 import arc.func.Boolf;
 import arc.func.Cons;
+import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.tool.Ar;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.type.*;

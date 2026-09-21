@@ -11,7 +11,7 @@ import arc.scene.event.Touchable;
 import arc.scene.ui.layout.Cell;
 import arc.scene.ui.layout.Table;
 import caliniya.vergvoke.core.meta.ui.Pal;
-import caliniya.vergvoke.type.Unit;
+import caliniya.vergvoke.base.ecs.Unit;
 import arc.util.Log;
 import caliniya.vergvoke.core.UI;
 import caliniya.vergvoke.game.data.CommandData;
@@ -159,7 +159,7 @@ public class HUDFragment {
 
     /** 清空当前选中的单位列表。 */
     public void clearSelection() {
-        for (caliniya.vergvoke.type.Unit u : CommandData.checkedUnits) {
+        for (Unit u : CommandData.checkedUnits) {
             if (u != null)
                 u.isSelected = false;
         }
@@ -172,7 +172,7 @@ public class HUDFragment {
 
     /** 批量开关所有选中单位的可切换能力。 */
     private void toggleAllAbilities(boolean enabled) {
-        for (caliniya.vergvoke.type.Unit u : CommandData.checkedUnits) {
+        for (Unit u : CommandData.checkedUnits) {
             if (u != null)
                 u.setAllAbilities(enabled);
         }
@@ -194,7 +194,7 @@ public class HUDFragment {
 
         // 清理死亡/失效单位（null 或血量归零）并取消选中
         for (int i = CommandData.checkedUnits.size - 1; i >= 0; i--) {
-            caliniya.vergvoke.type.Unit u = CommandData.checkedUnits.get(i);
+            Unit u = CommandData.checkedUnits.get(i);
             if (u == null || u.health <= 0) {
                 CommandData.checkedUnits.remove(i);
                 if (u != null)
@@ -208,7 +208,7 @@ public class HUDFragment {
             selectedUnit = null;
             unitInfoTable.add("[gray]未选择单位[]").left().pad(2f);
         } else if (CommandData.checkedUnits.size == 1) {
-            caliniya.vergvoke.type.Unit u = CommandData.checkedUnits.first();
+            Unit u = CommandData.checkedUnits.first();
             selectedUnit = u;
             Table infoRow = new Table();
             infoRow.left();
@@ -228,7 +228,7 @@ public class HUDFragment {
             }
         } else {
             selectedUnit = null;
-            for (caliniya.vergvoke.type.Unit u : CommandData.checkedUnits) {
+            for (Unit u : CommandData.checkedUnits) {
                 unitInfoTable.add("[light]" + u.type.name + "[]").left().pad(1f).row();
             }
         }

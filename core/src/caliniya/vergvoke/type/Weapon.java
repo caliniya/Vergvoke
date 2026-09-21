@@ -1,6 +1,7 @@
 package caliniya.vergvoke.type;
 
 import arc.math.Angles;
+import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.type.type.WeaponType;
 

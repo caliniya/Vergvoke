@@ -7,7 +7,7 @@ import caliniya.vergvoke.content.UnitTypes;
 import caliniya.vergvoke.core.Render;
 import caliniya.vergvoke.core.UI;
 import caliniya.vergvoke.game.data.WorldData;
-import caliniya.vergvoke.type.Unit;
+import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.type.ability.ShieldAbility;
 import caliniya.vergvoke.ui.Button;
 import caliniya.vergvoke.base.type.*;

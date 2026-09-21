@@ -2,6 +2,7 @@ package caliniya.vergvoke.type.enhance.shield;
 
 import caliniya.vergvoke.base.type.DamageType;
 import caliniya.vergvoke.type.Enhancement;
+import caliniya.vergvoke.type.ability.Ability;
 import caliniya.vergvoke.type.ability.ShieldAbility;
 import caliniya.vergvoke.type.ability.ShieldFieldAbility;
 import caliniya.vergvoke.type.enhance.EnhancementType;
@@ -25,8 +26,11 @@ public class ShieldBoostEnhancementType extends EnhancementType {
 
   @Override
   public void rebind(Enhancement e) {
-    ShieldAbility sa = e.entity.getAbility(ShieldAbility.class);
-    e.ability = sa != null ? sa : e.entity.getAbility(ShieldFieldAbility.class);
+    Ability raw = e.entity.getAbility(ShieldAbility.class);
+    if (raw == null) {
+      raw = e.entity.getAbility(ShieldFieldAbility.class);
+    }
+    e.ability = raw;
   }
 
   @Override

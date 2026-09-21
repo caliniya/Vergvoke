@@ -8,7 +8,7 @@ import arc.scene.Element;
 import arc.scene.ui.Label;
 import arc.scene.ui.layout.Table;
 import arc.util.Align;
-import caliniya.vergvoke.type.Unit;
+import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.core.meta.stat.StatData;
 import caliniya.vergvoke.core.meta.stat.StatStack;
 import caliniya.vergvoke.core.meta.ui.Pal;

@@ -1,5 +1,6 @@
 package caliniya.vergvoke.game.data;
 
+import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.base.game.EntityAr;
 import caliniya.vergvoke.game.*;
