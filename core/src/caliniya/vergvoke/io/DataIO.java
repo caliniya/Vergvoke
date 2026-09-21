@@ -6,6 +6,7 @@ import arc.struct.StringMap;
 import arc.util.io.*;
 import arc.util.*;
 import caliniya.vergvoke.base.ecs.Unit;
+import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.system.*;
 import caliniya.vergvoke.system.world.*;
 import java.io.*;
@@ -146,7 +147,8 @@ public class DataIO {
       String typeName = r.str();
       UnitType type = Contents.get(typeName, UnitType.class);
       if (type != null) {
-        Unit u = type.create();
+        // TODO 读档：坐标 / 阵营暂时给占位，等基类 write/read 落地后从这里恢复
+        Unit u = type.create(0f, 0f, TeamTypes.Abort);
         u.read(r);
         skipToEndMarker(r); // 校验结束标记
       } else {

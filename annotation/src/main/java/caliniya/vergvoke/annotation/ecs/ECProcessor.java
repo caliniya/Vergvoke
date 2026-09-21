@@ -943,12 +943,7 @@ public class ECProcessor extends Processor {
         TypeSpec.Builder entityType = TypeSpec.classBuilder(plan.entityName)
                 .addModifiers(Modifier.PUBLIC)
                 .superclass(entityBase);
-
-        // 按类型目标生成工厂：create(type) / create(team, type, x, y)
-        if (plan.typeClass != null) {
-            addTypeFactories(entityType, plan);
-        }
-
+                
         for (VariableElement field : plan.injectedFields.values()) {
             entityType.addField(
                     FieldSpec.builder(
@@ -1208,47 +1203,6 @@ public class ECProcessor extends Processor {
                 entityType.addMethod(out.build());
             }
         }
-    }
-
-    /**
-     * 生成按 {@code @Entity.type} 创建实例的工厂：
-     * {@code create(type)} 委托 {@code type.create(e)} 填配置；{@code create(team, type, x, y)} 再写阵营坐标。
-     */
-    private void addTypeFactories(TypeSpec.Builder entityType, EntityPlan plan) {
-        ClassName self = ClassName.bestGuess(plan.entityName);
-        TypeName type = plan.typeClass;
-
-        entityType.addMethod(
-                MethodSpec.methodBuilder("create")
-                        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                        .returns(self)
-                        .addParameter(type, "type")
-                        .addJavadoc(
-                                "按 {@code @Entity.type = $T} 创建实例，并委托类型填充配置（自动生成）。\n",
-                                type)
-                        .addStatement("$L e = new $L()", plan.entityName, plan.entityName)
-                        .addStatement("e.type = type")
-                        .beginControlFlow("if (type != null)")
-                        .addStatement("type.create(e)")
-                        .endControlFlow()
-                        .addStatement("return e")
-                        .build());
-
-        entityType.addMethod(
-                MethodSpec.methodBuilder("create")
-                        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                        .returns(self)
-                        .addParameter(ClassName.bestGuess(TEAM_TYPES_CLASS), "team")
-                        .addParameter(type, "type")
-                        .addParameter(float.class, "x")
-                        .addParameter(float.class, "y")
-                        .addJavadoc("按类型创建并设置阵营与坐标（自动生成）。\n")
-                        .addStatement("$L e = create(type)", plan.entityName)
-                        .addStatement("e.team = team")
-                        .addStatement("e.x = x")
-                        .addStatement("e.y = y")
-                        .addStatement("return e")
-                        .build());
     }
 
     /** 实体各组件的源文件里有那些 import（原样搬到生成实体，方法体里才能用短名） */

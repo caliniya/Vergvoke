@@ -7,6 +7,7 @@ import arc.util.io.*;
 import arc.util.pooling.*;
 import arc.util.pooling.Pool.Poolable;
 import caliniya.vergvoke.base.api.*;
+import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.tool.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.meta.stat.*;
@@ -131,9 +132,13 @@ public abstract class Entity<T extends EntityType> implements Poolable, QuadTree
         type.draw(this);
     }
 
-    public abstract void remove();
+    public void remove(){
+        
+    }
 
-    public abstract void kill();
+    public void kill(){
+        type.kill(this);
+    }
 
     public abstract void write(Writes w);
 

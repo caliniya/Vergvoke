@@ -12,7 +12,6 @@ import caliniya.vergvoke.type.enhance.api.Updatable;
  * 生成实体继承 {@code Entity<XxxType>}，工厂 {@code create(type)} 委托 {@link #create} 填配置。
  */
 public interface EntityType {
-
     /** 用本类型配置填充实体（创建 / 读档后初始化），返回同一实例。 */
     Entity<?> create(float x, float y, TeamTypes team);
 
@@ -51,4 +50,11 @@ public interface EntityType {
 
     /** 类型级绘制。 */
     void draw(Entity<?> entity);
+
+    public default void kill(Entity<?> entity) {
+        entity.remove();
+    }
+
+    void remove(Entity<?> entity);
+
 }

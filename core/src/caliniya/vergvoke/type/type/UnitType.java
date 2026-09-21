@@ -96,10 +96,6 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
         abilities.each(e -> e.stats(stat));
     }
 
-    public Unit create(TeamTypes team, float x, float y) {
-        return Unit.create(team, this, x, y);
-    }
-
     /** {@link EntityType}：用本类型配置填充实体（生成工厂 create(type) 会调用）。 */
     @Override
     @SuppressWarnings({ "unchecked", "rawtypes" })
