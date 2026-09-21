@@ -3,6 +3,7 @@ package caliniya.vergvoke.type.type;
 import arc.*;
 
 import arc.util.*;
+import arc.util.pooling.*;
 import arc.graphics.*;
 import arc.math.geom.*;
 import arc.graphics.g2d.*;
@@ -99,35 +100,29 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
         return Unit.create(team, this, x, y);
     }
 
-    // 用于存档读取的创建
-    public Unit create() {
-        return Unit.create(this);
-    }
-
     /** {@link EntityType}：用本类型配置填充实体（生成工厂 create(type) 会调用）。 */
     @Override
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    public Entity<?> create(Entity<?> entity) {
-        if (entity == null) {
-            return null;
-        }
+    public Unit create() {
+
+        Unit u = Pools.obtain(Unit.class,Unit::new);
+
         // Entity<?> 的 type 是捕获类型，这里经 raw 写入本类型
-        ((Entity) entity).type = this;
-        entity.maxHealth = health;
-        entity.health = health;
-        entity.armorMax = armorMax;
-        entity.armorValue = armorValue;
+        ((Entity) u).type = this;
+        u.maxHealth = health;
+        u.health = health;
+        u.armorMax = armorMax;
+        u.armorValue = armorValue;
         if (armorResist != null) {
-            entity.armorResist = armorResist.clone();
+            u.armorResist = armorResist.clone();
         }
-        entity.energyMax = energyMax;
-        entity.energy = energyMax;
-        entity.energyRegen = energyRegen;
-        entity.abilities.clear();
+        u.energyMax = energyMax;
+        u.energy = energyMax;
+        u.energyRegen = energyRegen;
+        u.abilities.clear();
         for (Ability a : abilities) {
-            entity.addAbility(a.copy());
+            u.addAbility(a.copy());
         }
-        if (entity instanceof Unit u) {
             u.size = size;
             if (weapons != null) {
                 if (u.weapons == null) {
@@ -138,9 +133,8 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
                 for (WeaponType wt : weapons) {
                     u.weapons.add(new Weapon(wt, u));
                 }
-            }
         }
-        return entity;
+        return u;
     }
 
     /** {@link EntityType}：类型级每帧钩子（委托 {@link #update(Unit, float)}）。 */
@@ -159,7 +153,6 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
         }
     }
 
-    /** 类型统一绘制：贴图资源在本类型上，实体只提供坐标/朝向等状态。 */
     public void draw(Unit u) {
         if (u.isSelected) {
             Draw.color(Color.green);

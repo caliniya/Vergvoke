@@ -5,7 +5,7 @@ import caliniya.vergvoke.type.ability.Ability;
 import caliniya.vergvoke.type.enhance.api.Updatable;
 
 /**
- * 一种实体的类型（模板行为合同）。
+ * 一种实体的类型
  *
  * <p>实体定义注解 {@code @Entity(type = XxxType.class)} 必须指向实现本接口的类；
  * 生成实体继承 {@code Entity<XxxType>}，工厂 {@code create(type)} 委托 {@link #create} 填配置。
@@ -13,7 +13,7 @@ import caliniya.vergvoke.type.enhance.api.Updatable;
 public interface EntityType {
 
     /** 用本类型配置填充实体（创建 / 读档后初始化），返回同一实例。 */
-    Entity<?> create(Entity<?> entity);
+    Entity<?> create();
 
     /** 类型级每帧逻辑（实体自身 update 之后按需调用；类型对象共享，勿存每实例状态）。 */
     void update(Entity<?> entity, float dt);

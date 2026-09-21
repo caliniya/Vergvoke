@@ -119,6 +119,9 @@ public abstract class Entity<T extends EntityType> implements Poolable, QuadTree
     /** 只需每帧更新的强化模组（实现 {@link Updatable} 接口的），避免空转。 */
     public Ar<Updatable> updatableEnhancements = new Ar<>();
 
+
+    public float shield , shieldMax;
+
     protected Entity() {
     }
 
@@ -159,6 +162,8 @@ public abstract class Entity<T extends EntityType> implements Poolable, QuadTree
      * 生成侧 {@code Systems.updateAll} 与 Building 都走这里。
      */
     public void sync(float dt) {
+        shield = totalShield();
+        shieldMax = totalShieldMax();
         if (type != null) {
             type.sync(this, dt);
         }
@@ -195,7 +200,7 @@ public abstract class Entity<T extends EntityType> implements Poolable, QuadTree
         return null;
     }
 
-    /** 标准式添加热量 */
+
     public void addHeat(float amount) {
         if (heatable) {
             heat += amount;

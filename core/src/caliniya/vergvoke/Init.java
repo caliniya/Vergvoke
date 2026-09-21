@@ -1,6 +1,7 @@
 package caliniya.vergvoke;
 
-import java.io.Writer;
+import java.io.*;
+import java.nio.charset.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -43,10 +44,15 @@ public class Init {
   @SuppressWarnings("unused")
   public static void init() {
 
+    PrintStream out = new PrintStream(System.out, true, StandardCharsets.UTF_8);
+    System.setOut(out);
+
+    
 System.out.println("file.encoding = " + System.getProperty("file.encoding"));
 System.out.println("stdout.encoding = " + System.getProperty("stdout.encoding"));
 System.out.println("sun.stdout.encoding = " + System.getProperty("sun.stdout.encoding"));
 System.out.println("native.encoding = " + System.getProperty("native.encoding"));
+
 
     // assets.load("");
     inited = false;

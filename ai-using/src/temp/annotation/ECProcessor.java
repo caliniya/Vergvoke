@@ -1218,7 +1218,7 @@ public class ECProcessor extends Processor {
         ClassName self = ClassName.bestGuess(plan.entityName);
         TypeName type = plan.typeClass;
 
-        entityType.addMethod(
+/*         entityType.addMethod(
                 MethodSpec.methodBuilder("create")
                         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                         .returns(self)
@@ -1229,12 +1229,12 @@ public class ECProcessor extends Processor {
                         .addStatement("$L e = new $L()", plan.entityName, plan.entityName)
                         .addStatement("e.type = type")
                         .beginControlFlow("if (type != null)")
-                        .addStatement("type.create(e)")
+                        .addStatement("type.create()")
                         .endControlFlow()
                         .addStatement("return e")
-                        .build());
+                        .build()); */
 
-        entityType.addMethod(
+/*         entityType.addMethod(
                 MethodSpec.methodBuilder("create")
                         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                         .returns(self)
@@ -1248,7 +1248,7 @@ public class ECProcessor extends Processor {
                         .addStatement("e.x = x")
                         .addStatement("e.y = y")
                         .addStatement("return e")
-                        .build());
+                        .build()); */
     }
 
     /** 实体各组件的源文件里有那些 import（原样搬到生成实体，方法体里才能用短名） */
