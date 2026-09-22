@@ -9,7 +9,7 @@ import caliniya.vergvoke.type.enhance.api.Updatable;
  * 一种实体的类型
  *
  * <p>实体定义注解 {@code @Entity(type = XxxType.class)} 必须指向实现本接口的类；
- * 生成实体继承 {@code Entity<XxxType>}，工厂 {@code create(type)} 委托 {@link #create} 填配置。
+ * 生成实体继承 {@code Entity<XxxType, 自身>}，链式 API 返回实体自身类型。
  */
 public interface EntityType {
     /** 用本类型配置填充实体（创建 / 读档后初始化），返回同一实例。 */

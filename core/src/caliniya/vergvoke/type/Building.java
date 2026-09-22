@@ -3,6 +3,7 @@ package caliniya.vergvoke.type;
 import arc.func.*;
 import arc.util.io.*;
 import arc.util.pooling.*;
+import caliniya.vergvoke.base.api.EntityType;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.type.module.*;
@@ -10,7 +11,7 @@ import caliniya.vergvoke.world.*;
 import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.game.*;
 
-public class Building extends Entity {
+public class Building extends Entity<EntityType, Building> {
 
     // --- 锚点坐标 (左下角起始点) ---
     // 0:上, 1:右, 2:下, 3:左

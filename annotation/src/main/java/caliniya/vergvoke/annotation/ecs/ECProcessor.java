@@ -933,11 +933,12 @@ public class ECProcessor extends Processor {
 
     /** 按生成计划写出实体类 */
     private void generateEntity(EntityPlan plan) {
-        // extends Entity<Type>：基类已有 public T type，由 @Entity.type 泛型实例化
-        // JavaPoet 1.12 无 ClassName.parameterizedBy，用 ParameterizedTypeName.get
+        // extends Entity<Type, Self>：T = @Entity.type，E = 生成实体自身（链式调用 (E)this）
+        // 例：class Unit extends Entity<UnitType, Unit>
+        ClassName entityClass = ClassName.get(GENERATED_PACKAGE, plan.entityName);
         TypeName entityBase = ClassName.bestGuess(ENTITY_BASE_CLASS);
         if (plan.typeClass != null) {
-            entityBase = ParameterizedTypeName.get((ClassName) entityBase, plan.typeClass);
+            entityBase = ParameterizedTypeName.get((ClassName) entityBase, plan.typeClass, entityClass);
         }
 
         TypeSpec.Builder entityType = TypeSpec.classBuilder(plan.entityName)

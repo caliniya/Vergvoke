@@ -21,9 +21,10 @@ import caliniya.vergvoke.type.module.*;
 /**
  * 游戏实体基类。实现了 {@link QuadTreeObject}，以便放入 EntityGroup 的四叉树空间索引。
  *
- * <p>{@code T} = 该实体的类型目标（{@link EntityType} 实现类，由 {@code @Entity(type=...)} 声明）。
+ * <p>{@code T} = 该实体的类型目标（{@link EntityType} 实现类，由 {@code @Entity(type=...)} 声明）；
+ * {@code E} = 实体自身类型（生成实体传入自身，例如 {@code Entity<UnitType, Unit>}），便于链式调用返回 {@code E}。
  */
-public abstract class Entity<T extends EntityType , E extends Entity> implements Poolable, QuadTreeObject {
+public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> implements Poolable, QuadTreeObject {
 
     /** 类型目标（模板）：配置与类型级行为来源。 */
     public T type;
@@ -176,7 +177,8 @@ public abstract class Entity<T extends EntityType , E extends Entity> implements
         }
     }
 
-    /** 挂载一个强化模组 */
+    /** 挂载一个强化模组，返回自身（链式）。 */
+    @SuppressWarnings("unchecked")
     public E addEnhancement(Enhancement enh) {
         if (enh == null)
             return (E)this;
@@ -192,10 +194,12 @@ public abstract class Entity<T extends EntityType , E extends Entity> implements
         return (E)this;
     }
 
-    /** 附加一个能力 */
-    public void addAbility(Ability ability) {
+    /** 附加一个能力，返回自身（链式）。 */
+    @SuppressWarnings("unchecked")
+    public E addAbility(Ability ability) {
         if (ability != null)
             abilities.add(ability.onCreate(this));
+        return (E)this;
     }
 
     /** 取第一个指定类型的能力，没有则返回 null。 */

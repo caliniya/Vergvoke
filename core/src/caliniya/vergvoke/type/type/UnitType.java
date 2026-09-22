@@ -134,7 +134,7 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
 
     /** {@link EntityType}：类型级每帧钩子（委托 {@link #update(Unit, float)}）。 */
     @Override
-    public void update(Entity<?> entity, float dt) {
+    public void update(Entity<?, ?> entity, float dt) {
         if (entity instanceof Unit u) {
             update(u, dt);
         }
@@ -142,7 +142,7 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
 
     /** {@link EntityType}：类型级绘制（委托 {@link #draw(Unit)}）。 */
     @Override
-    public void draw(Entity<?> entity) {
+    public void draw(Entity<?, ?> entity) {
         if (entity instanceof Unit u) {
             draw(u);
         }
@@ -349,7 +349,7 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
     }
 
     @Override
-    public void remove(Entity<?> entity) {
+    public void remove(Entity<?, ?> entity) {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'remove'");
     }

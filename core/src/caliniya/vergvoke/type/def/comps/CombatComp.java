@@ -17,7 +17,7 @@ public class CombatComp {
     public Ar<Weapon> weapons;
 
     /** 当前锁定目标（固定武器跟随单位目标；炮塔武器自行锁敌）。 */
-    public Entity<?> target;
+    public Entity<?, ?> target;
 
     /** 是否允许开火（false = 瘫痪/停火时武器只跟位不射击）。 */
     public boolean canShoot = true;

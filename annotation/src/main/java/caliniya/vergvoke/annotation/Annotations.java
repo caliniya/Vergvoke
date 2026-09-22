@@ -46,7 +46,8 @@ public class Annotations {
      * （名字就是 {@link #name()}，不加后缀），把各组件字段拍平进去。
      * 字段名、组件均不允许重复。
      *
-     * <p>生成类继承 {@code Entity<type()>}，并持有基类 {@code type} 字段；处理器会生成
+     * <p>生成类继承 {@code Entity<type(), 生成类自身>}（例如 {@code Unit extends Entity<UnitType, Unit>}），
+     * 链式 API（{@code addEnhancement} 等）返回自身类型；并持有基类 {@code type} 字段。
      * {@code create(type)} / {@code create(team, type, x, y)} 工厂，委托该类型填充配置。
      */
     @Retention(RetentionPolicy.SOURCE)
