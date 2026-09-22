@@ -13,7 +13,7 @@ import caliniya.vergvoke.type.enhance.api.Updatable;
  */
 public interface EntityType {
     /** 用本类型配置填充实体（创建 / 读档后初始化），返回同一实例。 */
-    Entity<?,?> create(TeamTypes team, float y, float x);
+    Entity<?,?> create(TeamTypes team, float x, float y);
 
     /** 类型级每帧逻辑（实体自身 update 之后按需调用；类型对象共享，勿存每实例状态）。 */
     void update(Entity<?,?> entity, float dt);

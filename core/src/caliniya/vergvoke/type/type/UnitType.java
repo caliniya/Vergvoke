@@ -20,7 +20,6 @@ import caliniya.vergvoke.core.meta.stat.StatType;
 import caliniya.vergvoke.core.meta.stat.StatUnit;
 import caliniya.vergvoke.base.ecs.*;
 
-
 public class UnitType extends ContentType implements EntityType, DrawType<Unit>, TechNodeContent {
 
     public float speedt = 60f, // 格每秒
@@ -98,9 +97,9 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
     /** {@link EntityType}：用本类型配置填充实体（生成工厂 create(type) 会调用）。 */
     @Override
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    public Unit create(TeamTypes team, float x,float y) {
+    public Unit create(TeamTypes team, float x, float y) {
 
-        Unit u = Pools.obtain(Unit.class,Unit::new);
+        Unit u = Pools.obtain(Unit.class, Unit::new);
 
         // Entity<?> 的 type 是捕获类型，这里经 raw 写入本类型
         ((Entity) u).type = this;
@@ -118,17 +117,18 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
         for (Ability a : abilities) {
             u.addAbility(a.copy());
         }
-            u.size = size;
-            if (weapons != null) {
-                if (u.weapons == null) {
-                    u.weapons = new Ar<>();
-                } else {
-                    u.weapons.clear();
-                }
-                for (WeaponType wt : weapons) {
-                    u.weapons.add(new Weapon(wt, u));
-                }
+        u.size = size;
+        if (weapons != null) {
+            if (u.weapons == null) {
+                u.weapons = new Ar<>();
+            } else {
+                u.weapons.clear();
+            }
+            for (WeaponType wt : weapons) {
+                u.weapons.add(new Weapon(wt, u));
+            }
         }
+        EntityArs.Unit.add(u);
         return u;
     }
 

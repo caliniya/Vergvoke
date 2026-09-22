@@ -5,6 +5,7 @@ import arc.graphics.Camera;
 import arc.graphics.g2d.Draw;
 import arc.math.Mathf;
 import arc.math.geom.Vec2;
+import arc.util.*;
 import caliniya.vergvoke.base.tool.*;
 import caliniya.vergvoke.game.Game;
 import caliniya.vergvoke.game.data.WorldData;
@@ -58,6 +59,15 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
 
     /** 渲染管线：并入的子渲染器（按数组顺序逐个更新）。 */
     public static final Ar<caliniya.vergvoke.system.System<?>> renders = new Ar<>();
+
+    public static Render get() {
+        if (it == null) {
+            Log.info("Render system is null ,Created now(unexpected)");
+            it = new Render();
+            return it;
+        }
+        return it;
+    }
 
     /**
      * 初始化
@@ -183,6 +193,11 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
             uiShakeOffset.setZero();
             UI.camera.position.set(uiCenterX, uiCenterY);
         }
+
+        for (caliniya.vergvoke.system.System<?> render : renders) {
+            render.update(delta);
+        }
+        Draw.flush();
     }
 
     /**
@@ -200,14 +215,6 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
 
         universeCamera.position.x = Mathf.clamp(universeCamera.position.x, 0, Game.starMap.w);
         universeCamera.position.y = Mathf.clamp(universeCamera.position.y, 0, Game.starMap.h);
-    }
-
-    /** 驱动全部子渲染器（顺序 = renders 数组顺序，帧时间统一由主循环传进来），最后统一 flush。 */
-    public static void updateAll(float delta) {
-        for (caliniya.vergvoke.system.System<?> render : renders) {
-            render.update(delta);
-        }
-        Draw.flush();
     }
 
     /**

@@ -4,7 +4,6 @@ import arc.Core;
 import arc.scene.ui.layout.Table;
 import arc.struct.ObjectMap;
 import arc.struct.StringMap;
-import arc.util.Log;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.type.TeamTypes;
 import caliniya.vergvoke.content.*;
@@ -63,8 +62,9 @@ public class MenuFragment {
                                         WorldData.initWorld(100, 100, true);
                                         Data.loadSystems();
                                         EntityProces.it.init();
-                                        
-                                        Unit A = UnitTypes.test.create( TeamTypes.Evoke, 100,100);
+
+                                        Unit A = UnitTypes.test.create(TeamTypes.Evoke, 100, 100);
+
                                         A.addEnhancement(Enhancements.shieldBoost.create());
 
                                         Unit B = UnitTypes.test.create(TeamTypes.Mutex, 400, 100);

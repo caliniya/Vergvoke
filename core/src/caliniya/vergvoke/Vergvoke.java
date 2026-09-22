@@ -91,7 +91,7 @@ public class Vergvoke extends ApplicationCore {
 
             Game.update(delta);
 
-            Render.updateAll(delta);
+            Render.it.update(delta);
             camera.update();
         }
         scene.act();
