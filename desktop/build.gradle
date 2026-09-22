@@ -1,6 +1,5 @@
 sourceCompatibility = 17
 sourceSets.main.java.srcDirs = [ "src/" ]
-// 让 IDE（VS Code / AIDE）也能看到注解处理器生成的代码（Gradle 编译时生成到 build/generated）
 sourceSets.main.java.srcDir "$buildDir/generated/sources/annotationProcessor/java/main"
 sourceSets.main.resources.srcDirs = ["../assets"]
 
@@ -18,6 +17,8 @@ tasks.register('run', JavaExec) {
     ignoreExitValue = true
     // 强制 JVM 以 UTF-8 输出，避免 Windows 控制台中文乱码
     jvmArgs += ["-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dconsole.encoding=UTF-8"]
+    // 开发时数据目录固定到 build/run-data（发布包才用 <程序目录>/data）
+    jvmArgs += ["-Dvergvoke.datadir=${buildDir}/run-data".toString()]
 
     if (OperatingSystem.current() == OperatingSystem.MAC_OS) {
         // Required to run on macOS
@@ -35,6 +36,8 @@ tasks.register('debug', JavaExec) {
     debug = true
     // 强制 JVM 以 UTF-8 输出，避免 Windows 控制台中文乱码
     jvmArgs += ["-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encoding=UTF-8", "-Dconsole.encoding=UTF-8"]
+    // 开发时数据目录固定到 build/run-data（发布包才用 <程序目录>/data）
+    jvmArgs += ["-Dvergvoke.datadir=${buildDir}/run-data".toString()]
 }
 
 tasks.register('dist', Jar) {
