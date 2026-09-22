@@ -65,7 +65,7 @@ public class MenuFragment {
                                         EntityProces.it.init();
 
                                         // 两个测试单位，各自运行时安装强化模组（出厂无模组，由外部"安装"）
-                                        Unit A = UnitTypes.test.create(TeamTypes.Evoke, 100, 100);
+                                        Unit A = UnitTypes.test.create( TeamTypes.Evoke, 100,100);
                                         A.addEnhancement(Enhancements.shieldBoost.create());
 
                                         Unit B = UnitTypes.test.create(TeamTypes.Mutex, 400, 100);

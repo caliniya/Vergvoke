@@ -3,5 +3,14 @@
     "java.debug.settings.onBuildFailureProceed": true,
     "editor.tabSize": 4,
     "editor.insertSpaces": true,
-    "editor.detectIndentation": false
+    "editor.detectIndentation": false,
+    "terminal.integrated.profiles.windows": {
+        "Windows PowerShellr": {
+            "source": "PowerShell",
+            "args": [
+                "chcp 65001"
+            ]
+        }
+    },
+    "terminal.integrated.defaultProfile.windows": "Windows PowerShell"
 }

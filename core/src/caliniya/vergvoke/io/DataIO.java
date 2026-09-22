@@ -148,7 +148,7 @@ public class DataIO {
       UnitType type = Contents.get(typeName, UnitType.class);
       if (type != null) {
         // TODO 读档：坐标 / 阵营暂时给占位，等基类 write/read 落地后从这里恢复
-        Unit u = type.create(0f, 0f, TeamTypes.Abort);
+        Unit u = type.create(TeamTypes.Abort, 0f, 0f);
         u.read(r);
         skipToEndMarker(r); // 校验结束标记
       } else {

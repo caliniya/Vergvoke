@@ -1,7 +1,6 @@
 package caliniya.vergvoke.type.type;
 
 import arc.*;
-
 import arc.util.*;
 import arc.util.pooling.*;
 import arc.graphics.*;
@@ -99,7 +98,7 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
     /** {@link EntityType}：用本类型配置填充实体（生成工厂 create(type) 会调用）。 */
     @Override
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    public Unit create(float x, float y, TeamTypes team) {
+    public Unit create(TeamTypes team, float x,float y) {
 
         Unit u = Pools.obtain(Unit.class,Unit::new);
 
@@ -327,12 +326,6 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
         Draw.color();
     }
 
-    /**
-     * 类型级每帧钩子：在单位 update 的末尾调用（实体自身逻辑跑完之后）。
-     *
-     * <p>
-     * 留给模组等"不新建实体就扩展行为"的场景；注意类型对象是共享的，别在这里存每实例状态。
-     */
     public void update(Unit u, float dt) {
         // 实体侧逻辑跑完后的类型级钩子；默认空
     }
@@ -353,5 +346,11 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
                 weapons.add(copy);
             }
         }
+    }
+
+    @Override
+    public void remove(Entity<?> entity) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'remove'");
     }
 }
