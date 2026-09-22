@@ -213,8 +213,11 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
         Core.camera.position.x = Mathf.clamp(Core.camera.position.x, 0, mapW);
         Core.camera.position.y = Mathf.clamp(Core.camera.position.y, 0, mapH);
 
-        universeCamera.position.x = Mathf.clamp(universeCamera.position.x, 0, Game.starMap.w);
-        universeCamera.position.y = Mathf.clamp(universeCamera.position.y, 0, Game.starMap.h);
+        // 星图由 Data.enter() 赋值，比 WorldData.world 晚一帧，单独判空
+        if (Game.starMap != null) {
+            universeCamera.position.x = Mathf.clamp(universeCamera.position.x, 0, Game.starMap.w);
+            universeCamera.position.y = Mathf.clamp(universeCamera.position.y, 0, Game.starMap.h);
+        }
     }
 
     /**

@@ -2,7 +2,6 @@ package caliniya.vergvoke.type.def.comps;
 
 import caliniya.vergvoke.annotation.Annotations.*;
 
-/** 选择状态：指挥面板 / 选中圈。 */
 @Component(name = "State", index = 1, proc = "main")
 public class StateComp {
 

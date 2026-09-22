@@ -122,7 +122,8 @@ public class Init {
         camera = new Camera();
         UI.camera = new Camera();
         UI.vport = new ScreenViewport(UI.camera);
-        // Render.it = new
+        Render.it = new Render();
+        Render.it.init();
         scene = new Scene(UI.vport);
         batch = new SpriteBatch();
         input.addProcessor(scene);

@@ -17,16 +17,16 @@ import caliniya.vergvoke.base.tool.*;
 @Component(name = "Move", index = 2, proc = "main")
 public class MoveComp {
 
-    /** 当前移动速度（像素/帧，60TPS 基准；每帧位移按它算；抄 UnitType.speed） */
+    /** 当前移动速度（像素/帧，60TPS 基准；每帧位移按它算 */
     public float speed = 5f;
 
-    /** 类型速度（格每秒，抄 UnitType.speedt；像素/帧的 speed = speedt × TILE_SIZE ÷ 60） */
+    /** 格每秒，抄 UnitType.speedt；像素/帧的 speed = speedt × TILE_SIZE ÷ 60 */
     public float speedt = 5f;
 
     /** 期望速度向量（像素/帧，寻路系统每帧写入；到点后清 0） */
     public float speedX, speedY;
 
-    /** 移动目标点（指挥 / AI 下发的目的地） */
+    /** 移动目标点 */
     @Save(index = 1)
     public float targetX;
 
@@ -51,10 +51,8 @@ public class MoveComp {
     /** 正在走的路径节点下标 */
     public int pathIndex = 0;
 
-  
     public float x;
 
-  
     public float y;
 
     @Updata

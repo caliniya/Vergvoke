@@ -1,6 +1,7 @@
 package caliniya.vergvoke.system.render;
 
 import arc.*;
+import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.tool.Ar;
 import caliniya.vergvoke.type.ability.Ability;
 import caliniya.vergvoke.base.type.*;
@@ -29,7 +30,7 @@ public class UnitRender extends System<UnitRender> {
         if (!inited || paused)
             return;
         // 绘制单位：资源与画法都在类型上，实体本身不持有贴图
-        WorldData.units.each(
+        EntityArs.Unit.each(
                 u -> {
                     if (shouldDraw(u.x, u.y, u.size * 2) && u.type != null) {
                         u.type.draw(u);

@@ -9,7 +9,7 @@ public class Weapon {
     public final WeaponType type;
     public final Unit owner;
 
-    public Entity target; // 此武器所锁定的敌人
+    public Entity<?, ?> target;
 
     public float rotation;
     public float reloadTimer = 0f;

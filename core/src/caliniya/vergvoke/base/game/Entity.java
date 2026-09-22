@@ -21,8 +21,10 @@ import caliniya.vergvoke.type.module.*;
 /**
  * 游戏实体基类。实现了 {@link QuadTreeObject}，以便放入 EntityGroup 的四叉树空间索引。
  *
- * <p>{@code T} = 该实体的类型目标（{@link EntityType} 实现类，由 {@code @Entity(type=...)} 声明）；
- * {@code E} = 实体自身类型（生成实体传入自身，例如 {@code Entity<UnitType, Unit>}），便于链式调用返回 {@code E}。
+ * <p>
+ * {@code T} = 该实体的类型目标（{@link EntityType} 实现类，由 {@code @Entity(type=...)} 声明）；
+ * {@code E} = 实体自身类型（生成实体传入自身，例如 {@code Entity<UnitType, Unit>}），便于链式调用返回
+ * {@code E}。
  */
 public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> implements Poolable, QuadTreeObject {
 
@@ -32,21 +34,11 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
     // --- 公共坐标 ---
     public float x, y;
 
-    // --- 身体 / 碰撞（所有实体可碰撞，原 BodyComp） ---
     /** 碰撞/绘制尺寸（像素；0 时 hitboxSize 回退默认）。 */
     public float size;
 
     /** 渲染朝向（度）。 */
     public float rotation;
-
-    /** 运动朝向（度，寻路/速度向量用）。 */
-    public float angle;
-
-    /** 当前锁定目标的绝对角（固定武器射击判定等）。 */
-    public float angleToTarget;
-
-    /** 到目标距离缓存。 */
-    public float distToTarget;
 
     /** 旋转后碰撞盒缓存，世界坐标。格式: [x1, y1, size1, x2, y2, size2, ...] */
     public float[] hitboxData;
@@ -121,23 +113,22 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
     /** 只需每帧更新的强化模组（实现 {@link Updatable} 接口的），避免空转。 */
     public Ar<Updatable> updatableEnhancements = new Ar<>();
 
-
-    public float shield , shieldMax;
+    public float shield, shieldMax;
 
     protected Entity() {
     }
 
     public abstract void update(float delta);
 
-    public void draw(){
+    public void draw() {
         type.draw(this);
     }
 
-    public void remove(){
-        
+    public void remove() {
+
     }
 
-    public void kill(){
+    public void kill() {
         type.kill(this);
     }
 
@@ -181,7 +172,7 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
     @SuppressWarnings("unchecked")
     public E addEnhancement(Enhancement enh) {
         if (enh == null)
-            return (E)this;
+            return (E) this;
         enh.entity = this;
         enh.type.rebind(enh);
         enhancements.add(enh);
@@ -191,7 +182,7 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
         if (enh.enabled) {
             enh.type.onEnable(enh);
         }
-        return (E)this;
+        return (E) this;
     }
 
     /** 附加一个能力，返回自身（链式）。 */
@@ -199,7 +190,7 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
     public E addAbility(Ability ability) {
         if (ability != null)
             abilities.add(ability.onCreate(this));
-        return (E)this;
+        return (E) this;
     }
 
     /** 取第一个指定类型的能力，没有则返回 null。 */
@@ -211,7 +202,6 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
         }
         return null;
     }
-
 
     public void addHeat(float amount) {
         if (heatable) {
@@ -328,7 +318,8 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
     /**
      * 世界坐标点是否命中本实体。
      *
-     * <p>默认按 {@link #size} 外接圆判定（size≤0 时走 {@link #hitboxSize()} 兜底）。
+     * <p>
+     * 默认按 {@link #size} 外接圆判定（size≤0 时走 {@link #hitboxSize()} 兜底）。
      * 异形碰撞等由组件方法 {@code @OverrideEntity} 覆写本方法。
      */
     public boolean contains(float worldX, float worldY) {
@@ -351,9 +342,6 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
         y = 0;
         size = 0;
         rotation = 0;
-        angle = 0;
-        angleToTarget = 0;
-        distToTarget = 0;
         hitboxData = null;
         health = 0;
         maxHealth = 0;
