@@ -5,12 +5,17 @@
     "editor.insertSpaces": true,
     "editor.detectIndentation": false,
     "terminal.integrated.profiles.windows": {
-        "Windows PowerShellr": {
+        "PowerShell (UTF-8)": {
             "source": "PowerShell",
             "args": [
-                "chcp 65001"
+                "-NoExit",
+                "-Command",
+                "chcp 65001 > $null"
             ]
         }
     },
-    "terminal.integrated.defaultProfile.windows": "Windows PowerShell"
+    "terminal.integrated.defaultProfile.windows": "PowerShell (UTF-8)",
+    "terminal.integrated.env.windows": {
+        "GRADLE_OPTS": "-Dfile.encoding=UTF-8"
+    }
 }

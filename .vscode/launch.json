@@ -14,7 +14,7 @@
             "vmArgs": [
                 "-Dsun.stdout.encoding=UTF-8",
             ],
-            "console": "internalConsole"
+            "console": "integratedTerminal"
         },
     ]
 }
