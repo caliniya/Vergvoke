@@ -23,7 +23,7 @@ import caliniya.vergvoke.type.module.*;
  *
  * <p>{@code T} = 该实体的类型目标（{@link EntityType} 实现类，由 {@code @Entity(type=...)} 声明）。
  */
-public abstract class Entity<T extends EntityType> implements Poolable, QuadTreeObject {
+public abstract class Entity<T extends EntityType , E extends Entity> implements Poolable, QuadTreeObject {
 
     /** 类型目标（模板）：配置与类型级行为来源。 */
     public T type;
@@ -177,9 +177,9 @@ public abstract class Entity<T extends EntityType> implements Poolable, QuadTree
     }
 
     /** 挂载一个强化模组 */
-    public void addEnhancement(Enhancement enh) {
+    public E addEnhancement(Enhancement enh) {
         if (enh == null)
-            return;
+            return (E)this;
         enh.entity = this;
         enh.type.rebind(enh);
         enhancements.add(enh);
@@ -189,6 +189,7 @@ public abstract class Entity<T extends EntityType> implements Poolable, QuadTree
         if (enh.enabled) {
             enh.type.onEnable(enh);
         }
+        return (E)this;
     }
 
     /** 附加一个能力 */

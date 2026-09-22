@@ -1,5 +1,5 @@
 sourceCompatibility = 17
-sourceSets.main.java.srcDirs = [ "src/" ]
+sourceSets.main.java.srcDirs = [ "src/" ] 
 sourceSets.main.java.srcDir "$buildDir/generated/sources/annotationProcessor/java/main"
 sourceSets.main.resources.srcDirs = ["../assets"]
 

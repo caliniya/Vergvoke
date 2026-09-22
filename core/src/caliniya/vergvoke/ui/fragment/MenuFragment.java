@@ -63,8 +63,7 @@ public class MenuFragment {
                                         WorldData.initWorld(100, 100, true);
                                         Data.loadSystems();
                                         EntityProces.it.init();
-
-                                        // 两个测试单位，各自运行时安装强化模组（出厂无模组，由外部"安装"）
+                                        
                                         Unit A = UnitTypes.test.create( TeamTypes.Evoke, 100,100);
                                         A.addEnhancement(Enhancements.shieldBoost.create());
 
@@ -117,12 +116,9 @@ public class MenuFragment {
                                     "test3",
                                     () -> {
                                         Game.team = TeamTypes.Evoke;
-
-                                        // 保留原读档；加载完成后再放置实弹测试场景
                                         Data.load(
                                                 Core.settings.getDataDirectory().child("map/space.aevs"),
                                                 () -> {
-                                                    Log.info("[读档测试] 读档完成，查看上方 [单位创建] 日志确认能力与模组恢复");
                                                 });
                                     }));
                     menu.row();

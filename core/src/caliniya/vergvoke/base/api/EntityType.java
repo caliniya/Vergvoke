@@ -13,13 +13,13 @@ import caliniya.vergvoke.type.enhance.api.Updatable;
  */
 public interface EntityType {
     /** 用本类型配置填充实体（创建 / 读档后初始化），返回同一实例。 */
-    Entity<?> create(TeamTypes team, float y, float x);
+    Entity<?,?> create(TeamTypes team, float y, float x);
 
     /** 类型级每帧逻辑（实体自身 update 之后按需调用；类型对象共享，勿存每实例状态）。 */
-    void update(Entity<?> entity, float dt);
+    void update(Entity<?,?> entity, float dt);
 
     /** 公共战斗循环：散热/锁定、能量净回复、能力与可更新强化。 */
-    default void sync(Entity<?> e, float dt) {
+    default void sync(Entity<?,?> e, float dt) {
         float cool = e.heatSpeed / 60f * dt;
         if (e.locked) {
             e.heat -= cool;
@@ -49,12 +49,12 @@ public interface EntityType {
     }
 
     /** 类型级绘制。 */
-    void draw(Entity<?> entity);
+    void draw(Entity<?,?> entity);
 
-    public default void kill(Entity<?> entity) {
+    public default void kill(Entity<?,?> entity) {
         entity.remove();
     }
 
-    void remove(Entity<?> entity);
+    void remove(Entity<?,?> entity);
 
 }
