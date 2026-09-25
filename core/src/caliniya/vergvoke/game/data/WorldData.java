@@ -1,5 +1,6 @@
 package caliniya.vergvoke.game.data;
 
+import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.base.game.EntityAr;
@@ -12,7 +13,7 @@ public class WorldData {
     public static World world;
 
     // ========== 全局实体容器 ==========
-    public static EntityAr<Unit> units;
+    // 单位容器是生成的 EntityArs.Unit（带 id 提取器），树初始化/清理在下方 initAllTrees/clear 同步
     public static EntityAr<Building> buildings;
     public static EntityAr<Unit> moveunits;
     public static EntityAr<Bullet> bullets;
@@ -29,7 +30,11 @@ public class WorldData {
     public static void initWorld(int w, int h, boolean space) {
         Game.team = TeamTypes.Evoke;
 
-        units = new EntityAr<>(unit -> unit.id);
+        // 单位容器是 static final（生成的 EntityArs.Unit），跨存档加载存活，这里必须显式清空
+        EntityArs.Unit.clear();
+        // 上一局的选中单位全是失效对象，一并清掉
+        CommandData.init();
+
         buildings = new EntityAr<>(building -> building.id);
         moveunits = new EntityAr<>(unit -> unit.id);
         bullets = new EntityAr<>(bullet -> bullet.id);
@@ -48,8 +53,8 @@ public class WorldData {
     }
 
     public static void initAllTrees(float worldPixelW, float worldPixelH) {
-        if (units != null)
-            units.resize(0, 0, worldPixelW, worldPixelH);
+        if (EntityArs.Unit != null)
+            EntityArs.Unit.resize(0, 0, worldPixelW, worldPixelH);
         if (buildings != null)
             buildings.resize(0, 0, worldPixelW, worldPixelH);
         if (moveunits != null)
@@ -62,8 +67,8 @@ public class WorldData {
     }
 
     public static void clear() {
-        if (units != null)
-            units.clear(unit -> unit.reset());
+        if (EntityArs.Unit != null)
+            EntityArs.Unit.clear(unit -> unit.reset());
         if (buildings != null)
             buildings.clear(building -> building.remove());
         if (moveunits != null)

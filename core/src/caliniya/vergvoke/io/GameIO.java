@@ -14,7 +14,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class GameIO {
 
     public static final String MAGIC = "AEVS";
-    public static final int SAVE_VERSION = 1;
+    /** v2：单位序列化加入坐标（MoveComp.x/y）与阵营（StateComp），旧存档不兼容 */
+    public static final int SAVE_VERSION = 2;
 
     private static final BlockingQueue<Runnable> ioQueue = new LinkedBlockingQueue<>();
     private static volatile Thread ioThread;

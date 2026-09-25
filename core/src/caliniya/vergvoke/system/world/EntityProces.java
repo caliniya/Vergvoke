@@ -1,5 +1,6 @@
 package caliniya.vergvoke.system.world;
 
+import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.tool.Ar;
 import caliniya.vergvoke.world.Floor;
@@ -49,9 +50,17 @@ public class EntityProces extends System<EntityProces> {
   @Override
   public void update(float delta) {
     // --- 单位处理（战斗逻辑，每帧执行）---
-    WorldData.units.each(
+    EntityArs.Unit.each(
         u -> {
           if (u == null) return;
+
+          // --- 单位级索敌（TargetComp）：失效立即重搜，未失效按周期重搜以追踪更近目标 ---
+          u.retargetTimer -= delta;
+          if (!u.targetValid(u.x, u.y) || (u.retargetInterval > 0f && u.retargetTimer <= 0f)) {
+            if (u.retargetInterval > 0f) u.retargetTimer = u.retargetInterval;
+            u.findTarget(u.x, u.y, u.team);
+          }
+          u.updateAngle(u.x, u.y);
 
           for (Weapon w : u.weapons) {
 
@@ -142,7 +151,7 @@ public class EntityProces extends System<EntityProces> {
       // 任务三：写入实体（单位 + 建筑），再落盘
       // 先收集有效实体，保证写入的数量与实际条数一致（跳过 null / 已死亡）
       Ar<Unit> outUnits = new Ar<>();
-      WorldData.units.each(
+      EntityArs.Unit.each(
           u -> {
             if (u != null && u.health > 0) outUnits.add(u);
           });

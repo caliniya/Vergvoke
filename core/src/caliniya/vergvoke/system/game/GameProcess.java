@@ -1,6 +1,7 @@
 package caliniya.vergvoke.system.game;
 
 import caliniya.vergvoke.annotation.Annotations.*;
+import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.base.tool.*;
@@ -39,7 +40,7 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 
         // 读锁遍历执行逻辑（update 只更新位置字段，不写四叉树，避免读锁内写锁死锁）
         Ar<Unit> moved = new Ar<>();
-        WorldData.units.each(
+        EntityArs.Unit.each(
                 u -> {
                     if (u == null)
                         return;
@@ -56,7 +57,7 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
                 });
         // 对位置变化的单位逐个短暂写锁更新四叉树（写锁不长时间持有，读方几乎不阻塞）
         for (Unit u : moved) {
-            WorldData.units.move(u, u.x, u.y);
+            EntityArs.Unit.move(u, u.x, u.y);
             u.velocityDirty = false;
         }
         for (Unit u : deadUnits) {

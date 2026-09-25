@@ -1681,7 +1681,7 @@ public class ECProcessor extends Processor {
                             Modifier.STATIC,
                             Modifier.FINAL)
                             .addJavadoc("$L 实体的集合。\n", plan.entityName)
-                            .initializer("new $T<>()", entityAr)
+                            .initializer("new $T<>(e -> e.id)", entityAr)
                             .build());
         }
 

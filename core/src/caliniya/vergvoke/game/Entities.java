@@ -4,6 +4,7 @@ import arc.func.Boolf;
 import arc.func.Cons;
 import arc.math.Mathf;
 import arc.struct.IntQueue;
+import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.base.type.TeamTypes;
@@ -71,7 +72,7 @@ public class Entities {
     public static void add(Unit... entities) {
         if (entities == null || entities.length == 0)
             return;
-        WorldData.units.add(entities);
+        EntityArs.Unit.add(entities);
     }
 
     /** 注销实体 */
@@ -79,7 +80,7 @@ public class Entities {
         if (units == null || units.length == 0)
             return;
 
-        WorldData.units.remove(units);
+        EntityArs.Unit.remove(units);
     }
 
     public static void remove(Building... bs) {
@@ -92,7 +93,7 @@ public class Entities {
     /** 在指定范围内查找所有敌人实体 */
     public static void nearbyEnemies(
             TeamTypes sourceTeam, float x, float y, float r, Cons<Entity> consumer) {
-        WorldData.units.intersect(
+        EntityArs.Unit.intersect(
                 x - r,
                 y - r,
                 r * 2,

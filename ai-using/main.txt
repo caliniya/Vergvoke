@@ -1,58 +1,146 @@
 这个文件夹内的内容是给AI阅读项目辅助使用的，当然你可以看来了解项目结构。
 首先，项目还处于十分早期的阶段，有很多类似于test字样的变量或者占位的方法，类等。我不会在开发阶段为了追求规范性去改它们，AI在修改代码和阅读项目时也不要去随便修改以及指出这些，认为是错误。
 
-以下是正文(注意 该文章已经可能过时了，等我什么时候想起来 再重新更新一下)
+以下是正文(该文章由 AI 在 2026-09-24 重新整理过一遍，之后又可能过时)
 
 ## 项目概览
 
 一款基于 Arc 框架（Mindustry 底层引擎）的 RTS + 自动化多平台游戏。
 
-- 作者：caliniya
-- 引擎：Arc (https://github.com/Anuken/Arc)(具体版本去看构建脚本)
-- 语言：Java
-- 构建：Gradle 多模块
+- 作者：caliniya（AKA 十一舰队）
+- 引擎：Arc v157.1 (https://github.com/Anuken/Arc)（具体版本去看构建脚本）
+- 语言：Java 17
+- 构建：Gradle 8.10 多模块
+- 规模：主源码约 19.6k 行（core 107 个 java 文件）
 
 ## 模块结构
 
 | 模块 | 路径 | 说明 |
 |------|------|------|
 | core | core/ | 主逻辑，全平台共享 |
-| desktop | desktop/ | 桌面启动器 |
+| desktop | desktop/ | 桌面启动器（DesktopLauncher） |
 | android | android/ | Android 入口 |
 | android-old | android-old/ | sdk14的老安卓兼容版本，通常不用管他 |
-| tools | tools/ | 构建工具(AI一般用不上) |
+| tools | tools/ | 自研容器 Ar/IntAr/FloatAr/ObjectSet + 元注解处理器 AnnoProc/AutoProcessor + 构建工具 IconGen/TexturePackerTool |
+| annotation | annotation/ | ECS 编译期注解处理器（ECProcessor 两千多行，全项目最大的文件） |
+
+`annotation` 的产物是 JavaPoet 生成的代码，**不要手改**，要改就改处理器本身。
 
 ## 核心包结构 (core/src/caliniya/vergvoke/)
 
-Vergvoke.java —— ApplicationCore 入口，事件总线、场景切换
-Init.java —— 初始化引导
+Vergvoke.java —— ApplicationCore 入口，主循环、平台输入、场景驱动
+Init.java —— 初始化引导（数据目录、日志重定向、字体、图集、相机/场景）
 
 base/ —— 基础层
-game/ —— 运行时游戏状态 (Game, Contents, Entities, Teams, Unit, Building)
-core/ —— 非游戏内容的运行时关键数据，例如渲染
-type/ —— 游戏对象类型 (Weapon, Bullet, Item 及其模板)
-world/ —— 世界结构 (World, Block, Floor 等)
+  api/ —— EntityType（类型接口）、DrawType、TechNodeContent、StringApi
+  game/ —— Entity（实体基类）、EntityAr（实体集合+四叉树）、ContentType、WorldChunk、MapChunk
+  shaders/ —— 着色器
+  type/ —— TeamTypes、DamageType、EventType 等基础枚举
+game/ —— 运行时状态 (Game, Contents, Entities, Teams)
+  data/ —— WorldData、TeamData、RouteData、CommandData、ProgressData
+core/ —— 非游戏内容的运行时关键数据
+  Render（相机器 + 渲染管线）、Data（系统装载/进游戏）、UI（UI门面）
+  meta/ —— stat（统计/属性栈）、ui（Pal 调色板）
+type/ —— 游戏对象类型
+  def/ —— ECS 组件定义（UnitDef + comps/StateComp、MoveComp、CombatComp、TargetComp）
+  type/ —— UnitType 等类型类
+  ability/ —— 能力（护盾 Shield、力场 ForceField）
+  enhance/ —— 强化模组（Enhancement / EnhancementType）
+  module/ —— ItemModule / LiquidModule / PowerModule 容量模块
+world/ —— 世界结构 (World, blocks/, stars/ 星图)
 map/ —— 地图/存档 (Map, Maps)
-io/ —— IO相关
-system/ —— ECS 系统框架 (基类，访问点 + 各子系统)
-ui/ —— UI 组件 (Fonts, Styles, fragment, windows)
-content/ —— 内容声明 (Blocks, Items, UnitTypes 等静态注册)
+io/ —— IO 相关（GameIO/WorldIO/DataIO/ProgressIO/DataPaths）
+system/ —— ECS 系统框架（System 基类 + game/input/render/world 各子系统）
+ui/ —— UI（Fonts, Styles, Button, fragment/, windows/）
+content/ —— 内容静态注册（Blocks, ENVBlocks, Items, Liquids, Floors, UnitTypes, Enhancements, Stars, Maps, Techs）
+campaign/ —— 战役（数据目录副本优先，内置 assets 兜底）
 
-## 关键系统
+`base/tool/Ar.java` 等容器不在 core，在 **tools 模块**（tools/src/main/java/caliniya/vergvoke/base/tool/）。
 
-ECS 系统框架：System 抽象基类，支持主线程/独立线程、优先级排序、TPS 统计。通过 Systems 类持有所有系统静态引用。
+## 编译期 ECS（整个项目最有分量的设计）
 
-阵营：Evoke（玩家默认）, Veto, Abort, Mutex，共 4 个。(未来可能会修改)
+注解全部 `RetentionPolicy.SOURCE`，运行期零开销。
 
-内容注册：Contents.java 管理全局名称映射和 ID 分配。
+- 注解集（`annotation/.../Annotations.java`）：`@Component(name, proc, index)`、`@Entity(comps, name, type)`、`@SystemDef(name, thread, index)`、`@ThreadDef`、`@Updata`、`@Save(index)`、`@Import`、`@OverrideEntity`、`@Write`/`@Read`
+- `ECProcessor` 生成 `caliniya.vergvoke.base.ecs` 包下的三个类，产物在 `core/build/generated/sources/annotationProcessor/java/main/`：
+  - `Unit.java` —— 实体类，由 `@Entity` 的组件字段拼出来，继承 `Entity<UnitType, Unit>`
+  - `EntityArs.java` —— 每种实体一个 `EntityAr` 容器（目前只有 `Unit`）
+  - `Systems.java` —— 系统总览 + `updateAll()` 帧序驱动
+- `SystemProcessor` 只做校验：系统名唯一、thread 合法、index 线程内唯一、组件 index 在实体内不能撞、`@Updata` 方法必须且只能有一个 `float delta` 形参、组件字段名不能在实体里重复
+- `AutoProcessor`（tools 模块）扫 `@AnnoProc` 自动生成 META-INF/services SPI，省得手维护
+
+**固定帧序**（`Systems.updateAll`）：`e.sync(delta)`（热量/能量/能力/模组）→ 组件系统（按 index）→ `e.update(delta)`。
+
+`system/System<T>` 基类支持主线程 / 独立线程两种模式：线程模式自带 60 TPS 控制、TPS 平滑统计、暂停锁、`EventType.GamePause` 响应。
+
+当前已声明的东西：
+- 唯一 `@SystemDef`：GameProcess（thread=main, index=5）
+- 唯一 `@Entity`：UnitDef（comps = StateComp / MoveComp / CombatComp / TargetComp）
+- 组件 index：State=1、Move=2、Combat=5、Target=5（撞了，见下面的问题）
+
+**手写系统**（不通过注解，靠 `Data.loadSystems()` + `Data.enter()` 手动装载）：
+- 主线程、并入 `Systems.systems` 排序数组：GameProcess(5)、Render(9)
+- 并入 `Render.renders` 管线数组（不算独立系统）：MapRender(10)、BlockRender(12)、UnitRender(13)、UniverseRender(16)、DebugRender(14, 目前注释掉没启用)
+- 独立线程：`init()` 自带循环：BulletProcess、UnitMath、EntityProces
+
+## 主循环
+
+`Vergvoke.update()`：资源没加载完 → 画加载界面；加载完 → `platformInput.update` → `Game.update(delta)` → `if (Game.inGame) Render.it.update(delta)` → `camera.update()` → `scene.act/draw`。
+
+`Game.update` 只在 `Game.inGame` 为真时调 `Systems.updateAll(delta)`。`Render` 同样只在游戏内跑（相机 clamp 和星图渲染都需要游戏内数据）。
+
+进游戏的路径：`Data.load(file)` → `GameIO.load` → `DataIO.load`（IO 线程读档，`Core.app.post` 回主线程）→ `Data.loadSystems()` + `Data.enter()`。`Data.enter()` 里才给 `Game.starMap` 赋值、置 `Game.inGame = true`、切 `UI.Game()`。
+
+**注意时序**：`WorldData.initWorld()` 在 post 之前就跑，`Game.starMap` 在 post 之后的 `enter()` 才有值，中间存在「world 非空但 starMap 为 null」的窗口，任何每帧无条件读 `Game.starMap` 的代码都会炸。
+
+## 内容体系
+
+`Contents` 按 `CType` 分类存数组 + 名称映射，ID 从 1 起，`getByID` O(1)。加载顺序 Items→Liquids→Floors→ENVBlocks→Blocks→Units→Enhancements→Stars→各 `load()`→Techs。
+
+`type/` 与 `content/` 的关系：`content/Xxx.java` 是静态注册清单，`type/type/XxxType.java` 是类型类（配置 + 类型级行为）。`EntityType` 接口把两者接起来：`create(team, x, y)` / `sync` / `update` / `draw` / `kill` / `remove`。目前**只有 `UnitType` 实现了 `EntityType`**。
+
+伤害结算三层：能力拦截（护盾）→ 护甲（倍率 × 抗性 − 强度）→ 本体。护盾体系是 `Ability` / `Shield` / `ForceField` 三件套；Enhancement（增强）是纯数据，行为在 `EnhancementType`，目前唯一实现是 `ShieldBoostEnhancementType`。
+
+## 世界 / 宇宙
+
+- `World` 按区块（`WorldChunk.SHIFT/MASK`）存地板 / 环境方块 / 建筑，TILE_SIZE=32
+- `WorldData` 持有 `EntityAr<Unit> units`、`EntityAr<Building> buildings`（带四叉树）、`RouteData` 导航
+- `RouteData`（739 行）= NavLayer + 腐蚀/距离场 + `findPath` + JPS 剪枝，是除 ECS 外第二复杂的模块
+- `world/stars/`：StarMap / StarNode / StarRoad，节点和航路各一棵四叉树，`write/read` 序列化写得很完整（邻接只由 id 小的一侧 link 防重复边）
+
+## 存档
+
+全部自研二进制（不是 json），带 MAGIC：`AEVS`(GameIO/DataIO)、`AESS`(WorldIO)、`AEVP`(ProgressIO)；实体后写 8 字节 `0xAE` 结束标记。
+
+数据目录由 `io/DataPaths` 三级解析：`-Dvergvoke.datadir` → `<程序目录>/data`（带写探针）→ `%APPDATA%/Vergvoke` 兜底。desktop 的 run/debug 固定到 `build/run-data`。
+
+## UI
+
+`ui/windows/Window.java` 是窗口基类，7 个具体窗口（CommandInfo / Data / Maps / Pause / Progress / TechTree / UnitDetail）；`ui/fragment/` 4 个 Fragment（HUD / Menu / Universe / Debug）。由 `core/UI` 统一创建。`stat/StatStack` 做属性面板的实时数据源（`live` lambda）。
 
 ## 资源
 
 assets/ —— 字体(normal.ttf)、本地化(language_zh_CN.properties)、着色器、精灵图集
 assets-origin/ —— 原始素材(icon, sprites 子目录)(scheme不要去管那是我的IDE的配色文件)
 
+## 当前在途的重构 & 已知问题
+
+**（AI 改代码前先看这节，别撞车）**
+
+1. **实体容器正在合并**：目标是把 `WorldData.units` 全部换成生成的 `EntityArs.Unit`。已迁移：`UnitRender:33`、`UnitType:131`。还没迁：`GameProcess:42,59`、`EntityProces:52,145`、`TeamData:18`、`Entities:74,82,95`、`CommandInfoWindow:24`、`DebugFragment:44`。两边现在是**两个不同的容器**，加进 `EntityArs.Unit` 的单位不会被判死/索敌/选中。
+2. `EntityArs.Unit` 是 `new EntityAr<>()`，**没有 id 提取器**；`WorldData.units` 是 `new EntityAr<>(unit -> unit.id)`。迁完要么给 ECProcessor 的 `EntityArs` 模板补上，要么放弃 id 索引。
+3. `UnitType.create(team, x, y)` **三个参数一个都没用**：没有 `u.team =`、`u.x =`、`u.y =`、也没有 `assignID()`。现在所有单位堆在 (0,0)、team 为 null、id 全 0。
+4. **单位死了不会消失**：`kill()` → `type.kill()` → `Entity.remove()` 是**空方法**，`UnitType` 没覆盖；`UnitType.remove()` 直接 `throw UnsupportedOperationException`。死亡单位永久留在容器里被反复判死。
+5. **对象池只进不出**：`create` 用 `Pools.obtain`，全项目没有 `Pools.free(unit)`。
+6. 读档丢坐标和阵营：`DataIO` 里硬编码 `type.create(TeamTypes.Abort, 0f, 0f)`，等基类 write/read 落地。
+7. `Data.enter()` 里**硬编码随机生成 200 个名为「呃啊+随机数」的星节点**做测试，与 `content/Stars.java` 的 demo 星域冲突，是临时代码。
+8. 其他占位：`BulletType:81`（消失特效）、`UnitDetailWindow:98`、`HUDFragment:151`（"待命"/"停火"按钮只打日志）、`Universe.java`（13 行桩）、`content/Maps.java` 的 `load()` 整段被注释、`Module.java` 的 `read/write` 为空。
+
 ## 给 AI 的注意事项
 
 - 项目目前极早期，大量 test/占位符，不要动它们。
-- base/tool/Ar.java 是我从 Seq 克隆改名的，用这个我觉得名字好听(不要管什么规范)。
+- base/tool/Ar.java 是我从 Seq 克隆改名的，用这个我觉得名字好听(不要管什么规范)。注意它在 tools 模块里，不在 core。
 - 本地化键格式：statUnit.xxx，具体参照键名，翻译在 language_zh_CN.properties。
+- `caliniya.vergvoke.base.ecs` 下的 Unit / Systems / EntityArs 全是生成的，改了会被覆盖，要改去改 `annotation` 模块的 ECProcessor。
+- `android-old` 别动不动就要删掉。
+- 不要一天到晚追求规范。

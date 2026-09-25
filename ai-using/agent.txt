@@ -5,3 +5,34 @@
 pull的时候直接忽略本地修改，你又没法推送
 不要一天到晚追求规范呐
 android-old是用来兼容老旧版本安卓的构建，别动不动就要把他删掉
+
+---
+
+## 干活前先读
+
+项目结构、ECS 设计、已知问题都写在 ai-using/main.txt 里，动代码前先读一遍，尤其是「当前在途的重构 & 已知问题」那节，别改到一半的东西上撞车。
+
+## 编译
+
+    ./gradlew classes
+
+Gradle 8.10 已在本地缓存，正常 5~40 秒（改了注解会重跑处理器，慢一些）。
+`BUILD SUCCESSFUL` 就算过，唯一的 `ShieldBoostEnhancementType` unchecked 警告是已知的无害警告。
+
+## 这个环境的坑
+
+- bash 的 PATH 是坏的，跑任何命令前先 `export PATH="/usr/bin:/bin:$PATH"`，不然 ls/find/git 全找不到。
+- gradle 输出是 GBK，直接用 bash grep 会提示 "Binary file matches"，要看错误信息就重定向到文件再读，或者走 PowerShell。
+- 源码是 CRLF，git 报 "LF will be replaced by CRLF" 是正常的，别管。
+
+## 别乱动的地方
+
+- `caliniya.vergvoke.base.ecs` 包下的 Unit / Systems / EntityArs —— 全是注解处理器生成的（产物在 core/build/generated/...），改了下次编译就被覆盖。要改去改 annotation 模块的 ECProcessor。
+- `test` 字样的变量、占位方法/类 —— 早期阶段的正常现象，别当成 bug 去"修"。
+- `Ar` / `IntAr` / `FloatAr` —— 作者有意为之的命名，别以"不规范"为由去改。
+- `android-old` —— 老安卓兼容构建，别提议删。
+
+## 顺手记的
+
+- 写完代码自己跑一遍 `./gradlew classes` 确认能过，别把编译不过的工作区丢给我。
+- 我这边工作区经常有未提交的半成品（正在写的组件、正在迁的容器），动之前先 `git status` 看一眼。

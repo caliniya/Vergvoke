@@ -2,6 +2,7 @@ package caliniya.vergvoke.game.data;
 
 import arc.func.*;
 import arc.math.*;
+import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.base.type.*;
 
@@ -15,7 +16,7 @@ public class TeamData {
 
     // 查找此阵营中指定半径的实体
     public void find(float x, float y, float r, Cons<Entity> con) {
-        WorldData.units.intersect(
+        EntityArs.Unit.intersect(
                 x - r,
                 y - r,
                 r * 2,

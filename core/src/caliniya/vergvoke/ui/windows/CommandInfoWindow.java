@@ -2,8 +2,8 @@ package caliniya.vergvoke.ui.windows;
 
 import arc.Core;
 import arc.scene.ui.layout.Table;
+import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.game.Game;
-import caliniya.vergvoke.game.data.WorldData;
 import caliniya.vergvoke.ui.Button;
 
 /**
@@ -21,7 +21,7 @@ public class CommandInfoWindow extends Window {
     @Override
     public void main(Table t) {
         int[] count = { 0 };
-        WorldData.units.each(
+        EntityArs.Unit.each(
                 u -> {
                     if (u == null || u.team != Game.team)
                         return;

@@ -5,6 +5,8 @@ import arc.graphics.Color;
 import arc.scene.event.Touchable;
 import arc.scene.ui.layout.Table;
 import arc.util.OS;
+import caliniya.vergvoke.base.ecs.EntityArs;
+import caliniya.vergvoke.game.data.CommandData;
 import caliniya.vergvoke.game.data.WorldData;
 
 public class DebugFragment {
@@ -41,11 +43,12 @@ public class DebugFragment {
                                     sb.append("World Data: null\n");
                                 } else {
 
-                                    int unitCount = (WorldData.units != null) ? WorldData.units.size() : 0;
-                                    int moveUnitCount = (WorldData.buildings != null) ? WorldData.buildings.size() : 0;
+                                    int unitCount = EntityArs.Unit.size();
+                                    int buildingCount = (WorldData.buildings != null) ? WorldData.buildings.size() : 0;
 
                                     sb.append("Units: ").append(unitCount).append("\n");
-                                    sb.append("Buinding: ").append(moveUnitCount).append("\n");
+                                    sb.append("Selected: ").append(CommandData.checkedUnits.size).append("\n");
+                                    sb.append("Buildings: ").append(buildingCount).append("\n");
                                     sb.append("Map: ")
                                             .append(WorldData.world.W)
                                             .append("x")

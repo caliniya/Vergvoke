@@ -5,6 +5,7 @@ import arc.files.Fi;
 import arc.struct.StringMap;
 import arc.util.io.*;
 import arc.util.*;
+import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.system.*;
@@ -84,6 +85,9 @@ public class DataIO {
       if (!magic.equals(GameIO.MAGIC)) throw new IOException("Invalid file format");
 
       int ver = r.i();
+      if (ver != GameIO.SAVE_VERSION)
+        throw new IOException(
+            "Save version mismatch: file v" + ver + ", expected v" + GameIO.SAVE_VERSION);
       int width = r.i();
       int height = r.i();
 
@@ -102,6 +106,11 @@ public class DataIO {
                 () -> {
                   Data.loadSystems();
                   Data.enter();
+                  // 相机对准第一个恢复的单位，否则用户面对空地图找不到部队
+                  if (EntityArs.Unit.size() > 0) {
+                    Unit u0 = EntityArs.Unit.array.get(0);
+                    Core.camera.position.set(u0.x, u0.y);
+                  }
                   if (onEnter != null) onEnter.run();
                 });
           });
@@ -147,10 +156,11 @@ public class DataIO {
       String typeName = r.str();
       UnitType type = Contents.get(typeName, UnitType.class);
       if (type != null) {
-        // TODO 读档：坐标 / 阵营暂时给占位，等基类 write/read 落地后从这里恢复
+        // create 时坐标还是 (0,0)，read 恢复坐标/阵营后把四叉树节点挪到真实位置
         Unit u = type.create(TeamTypes.Abort, 0f, 0f);
         u.read(r);
         skipToEndMarker(r); // 校验结束标记
+        EntityArs.Unit.move(u, u.x, u.y);
       } else {
         Log.warn("Unknown unit type in save: @, skipping...", typeName);
         skipToEndMarker(r);

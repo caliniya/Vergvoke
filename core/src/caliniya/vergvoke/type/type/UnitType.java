@@ -19,6 +19,7 @@ import caliniya.vergvoke.core.meta.stat.Stat;
 import caliniya.vergvoke.core.meta.stat.StatType;
 import caliniya.vergvoke.core.meta.stat.StatUnit;
 import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.game.Entities;
 
 public class UnitType extends ContentType implements EntityType, DrawType<Unit>, TechNodeContent {
 
@@ -118,6 +119,22 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
             u.addAbility(a.copy());
         }
         u.size = size;
+        // 移动数据：实体字段的初始化表达式不会跟到生成类里，不从类型拷贝的话 speed 恒为 0，单位收令后走不动
+        u.speedt = speedt;
+        u.speed = speed;
+        // 阵营 / 坐标 / id（索敌与容器 idMap 依赖这些，之前一直没赋值）
+        u.team = team;
+        u.x = x;
+        u.y = y;
+        u.id = Entities.assignID();
+        // 单位级索敌半径默认取武器最大射程（无武器回落默认 400f）
+        float maxRange = 0f;
+        for (WeaponType wt : weapons) {
+            maxRange = Math.max(maxRange, wt.range);
+        }
+        if (maxRange > 0f) {
+            u.range = maxRange;
+        }
         if (weapons != null) {
             if (u.weapons == null) {
                 u.weapons = new Ar<>();
@@ -301,6 +318,12 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
             float s = 8f;
             Lines.line(u.targetX - s, u.targetY - s, u.targetX + s, u.targetY + s);
             Lines.line(u.targetX - s, u.targetY + s, u.targetX + s, u.targetY - s);
+        }
+        // 战斗目标（TargetComp）
+        if (u.target != null) {
+            Draw.color(Color.scarlet);
+            Lines.line(u.x, u.y, u.target.x, u.target.y);
+            Lines.circle(u.target.x, u.target.y, 6f);
         }
         if (u.path != null && !u.path.isEmpty()) {
             Draw.color(Color.cyan);

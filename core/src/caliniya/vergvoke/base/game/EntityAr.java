@@ -157,7 +157,7 @@ public class EntityAr<T extends QuadTreeObject> implements Iterable<T> {
             clearing = true;
 
             for (int i = array.size - 1; i >= 0; i--) {
-                entityRemoved.get(array.items[i]);
+                entityRemoved.get(array.get(i));
             }
             array.clear();
             tree.clear();
@@ -234,7 +234,7 @@ public class EntityAr<T extends QuadTreeObject> implements Iterable<T> {
         try {
             QuadTree<T> newTree = new QuadTree<>(new Rect(x, y, w, h));
             for (int i = 0; i < array.size; i++) {
-                T entity = array.items[i];
+                T entity = array.get(i);
                 newTree.insert(entity);
             }
             tree = newTree;
@@ -310,7 +310,7 @@ public class EntityAr<T extends QuadTreeObject> implements Iterable<T> {
         readLock.lock();
         try {
             for (int i = 0; i < array.size; i++) {
-                T item = array.items[i];
+                T item = array.get(i);
                 if (filter.get(item)) {
                     cons.get(item);
                 }

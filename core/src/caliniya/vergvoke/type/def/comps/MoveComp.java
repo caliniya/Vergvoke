@@ -26,12 +26,8 @@ public class MoveComp {
     /** 期望速度向量（像素/帧，寻路系统每帧写入；到点后清 0） */
     public float speedX, speedY;
 
-    /** 移动目标点 */
-    @Save(index = 1)
-    public float targetX;
-
-    @Save(index = 2)
-    public float targetY;
+    /** 运动朝向（度，由寻路系统按速度向量算出；原在 Entity 基类，拆组件后归这里）。 */
+    public float angle;
 
     /** 到达判定的容差（像素，直线移动时离目标小于它就直接贴过去） */
     public float arriveRange = 2f;
@@ -45,15 +41,25 @@ public class MoveComp {
     /** 位置变了、需要把新坐标写回空间索引（外部系统处理完自己清掉） */
     public boolean velocityDirty = true;
 
+    /** 移动目标点 */
+    @Save(index = 1)
+    public float targetX;
+
+    @Save(index = 2)
+    public float targetY;
+
+    /** 当前坐标（与 Entity 基类同名字段，处理器去重后实体用基类那一份；@Save 用于存档恢复位置） */
+    @Save(index = 3)
+    public float x;
+
+    @Save(index = 4)
+    public float y;
+
     /** 当前路径节点（寻路系统写；null = 直线移动） */
     public Ar<Point2> path;
 
     /** 正在走的路径节点下标 */
     public int pathIndex = 0;
-
-    public float x;
-
-    public float y;
 
     @Updata
     public void update(float delta) {
@@ -80,6 +86,11 @@ public class MoveComp {
         }
 
         moving = x != ox || y != oy;
+
+        // 注：初始化表达式不会跟到实体里（velocityDirty 声明处的 true 会丢），
+        // 移动过的单位必须在这里标脏，GameProcess 才会把新坐标写回四叉树——
+        // 否则移动过的单位永远选不中（选中/索敌都走四叉树 intersect）
+        if (moving) velocityDirty = true;
 
     }
 }
