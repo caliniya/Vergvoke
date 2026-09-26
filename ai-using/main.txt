@@ -42,7 +42,7 @@ core/ —— 非游戏内容的运行时关键数据
   Render（相机器 + 渲染管线）、Data（系统装载/进游戏）、UI（UI门面）
   meta/ —— stat（统计/属性栈）、ui（Pal 调色板）
 type/ —— 游戏对象类型
-  def/ —— ECS 组件定义（UnitDef + comps/StateComp、MoveComp、CombatComp、TargetComp）
+  def/ —— ECS 组件定义（UnitDef + comps/StateComp、MoveComp、WeaponComp、TargetComp）
   type/ —— UnitType 等类型类
   ability/ —— 能力（护盾 Shield、力场 ForceField）
   enhance/ —— 强化模组（Enhancement / EnhancementType）
@@ -75,7 +75,7 @@ campaign/ —— 战役（数据目录副本优先，内置 assets 兜底）
 
 当前已声明的东西：
 - 唯一 `@SystemDef`：GameProcess（thread=main, index=5）
-- 唯一 `@Entity`：UnitDef（comps = StateComp / MoveComp / CombatComp / TargetComp）
+- 唯一 `@Entity`：UnitDef（comps = StateComp / MoveComp / WeaponComp / TargetComp）
 - 组件 index：State=1、Move=2、Combat=5、Target=5（撞了，见下面的问题）
 
 **手写系统**（不通过注解，靠 `Data.loadSystems()` + `Data.enter()` 手动装载）：

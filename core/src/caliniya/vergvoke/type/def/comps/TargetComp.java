@@ -37,10 +37,10 @@ public class TargetComp {
 
     @Updata
     public void update(float delta) {
-        // 失效立即重搜；未失效按周期重搜以追踪更近目标（retargetInterval<=0 = 仅失效时重搜）
         retargetTimer -= delta;
         if (!targetValid(x, y) || (retargetInterval > 0f && retargetTimer <= 0f)) {
-            if (retargetInterval > 0f) retargetTimer = retargetInterval;
+            if (retargetInterval > 0f)
+                retargetTimer = retargetInterval;
             findTarget(x, y, team);
         }
         updateAngle(x, y);

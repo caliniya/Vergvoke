@@ -14,8 +14,8 @@ import caliniya.vergvoke.type.Weapon;
  * 单位级 {@link #target} 由 TargetComp.update 随主线程实体更新维护；
  * 武器级锁敌在 {@link #updateWeapons} 开头做，随后冷却 / 转向 / 开火——全在主线程（索敌线程已退役）。
  */
-@Component(name = "Combat", index = 5, proc = "main")
-public class CombatComp {
+@Component(name = "Weapon", index = 5, proc = "main")
+public class WeaponComp {
 
     public Ar<Weapon> weapons;
 

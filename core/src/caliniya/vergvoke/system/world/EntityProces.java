@@ -15,7 +15,7 @@ import caliniya.vergvoke.system.System;
  * 实体处理系统，运行在独立线程（60TPS）。
  *
  * <p>
- * 索敌已随索敌线程退役，移入各组件/块随主线程更新驱动（TargetComp.update / CombatComp.updateWeapons / Turret.update）。
+ * 索敌已随索敌线程退役，移入各组件/块随主线程更新驱动（TargetComp.update / WeaponComp.updateWeapons / Turret.update）。
  * 本类现在只负责跨帧的存档写入状态机：
  *
  * <pre>

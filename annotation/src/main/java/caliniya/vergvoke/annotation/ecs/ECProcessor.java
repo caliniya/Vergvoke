@@ -105,9 +105,6 @@ public class ECProcessor extends Processor {
     protected void process() {
         Map<String, AType> components = componentTypes();
 
-        // --- 组件级校验：只报错 + 记下"坏组件"，不再整体停摆 ---
-        // 用到坏组件的实体会被跳过（错误在组件那边已经报过），其余部分照常生成，
-        // 免得一处错误连累到"整个 base.ecs 包都不存在"那种一片红。
         validateImportTargets(components);
         validateUpdateTargets(components);
         validateSaveTargets(components);
@@ -944,7 +941,7 @@ public class ECProcessor extends Processor {
         TypeSpec.Builder entityType = TypeSpec.classBuilder(plan.entityName)
                 .addModifiers(Modifier.PUBLIC)
                 .superclass(entityBase);
-                
+
         for (VariableElement field : plan.injectedFields.values()) {
             entityType.addField(
                     FieldSpec.builder(
@@ -968,7 +965,8 @@ public class ECProcessor extends Processor {
         // @OverrideEntity：组件方法覆写实体基类同名方法
         injectOverrideEntityMethods(entityType, plan);
 
-        // 组件上的其他实例方法（含 private/protected/static，非 @Updata/@Write/@Read/@OverrideEntity）：保留修饰符原样铺进实体
+        // 组件上的其他实例方法（含 private/protected/static，非
+        // @Updata/@Write/@Read/@OverrideEntity）：保留修饰符原样铺进实体
         injectComponentHelpers(entityType, plan);
 
         // 实体 update()：轻量档片段按 @Component.index 顺序直接铺进来
@@ -1022,8 +1020,8 @@ public class ECProcessor extends Processor {
             for (AType component : plan.components) {
                 origins.add(component.e);
             }
-            Writer writer =
-                    createSourceFile(GENERATED_PACKAGE + "." + plan.entityName, origins.toArray(new Element[0]));
+            Writer writer = createSourceFile(GENERATED_PACKAGE + "." + plan.entityName,
+                    origins.toArray(new Element[0]));
             writer.write(source);
             writer.close();
 
@@ -1043,7 +1041,8 @@ public class ECProcessor extends Processor {
     /**
      * 组件上 {@code @OverrideEntity} 方法：铺进实体并打 {@code @Override}，替代基类默认实现。
      *
-     * <p>签名必须与 {@code Entity} 已有方法一致；同一实体内同签名只允许一个组件覆写。
+     * <p>
+     * 签名必须与 {@code Entity} 已有方法一致；同一实体内同签名只允许一个组件覆写。
      */
     private void injectOverrideEntityMethods(TypeSpec.Builder entityType, EntityPlan plan) {
         if (trees == null) {
@@ -1163,7 +1162,8 @@ public class ECProcessor extends Processor {
      * public/protected/包私有/private 一并注入，static 辅助方法也注入，并保留原可见性与
      * static/final 修饰符；这样任何被铺进来的方法体里调用的组件辅助方法，在生成实体里都存在。
      *
-     * <p>跳过：构造、abstract、@Updata、@Write、@Read、@OverrideEntity。
+     * <p>
+     * 跳过：构造、abstract、@Updata、@Write、@Read、@OverrideEntity。
      * 与 Entity 基类同签名的方法不允许直接声明（会跟基类方法撞车），要用 @OverrideEntity。
      */
     private void injectComponentHelpers(TypeSpec.Builder entityType, EntityPlan plan) {
@@ -1223,7 +1223,7 @@ public class ECProcessor extends Processor {
                     out.returns(TypeName.get(method.e.getReturnType()));
                 }
                 out.addJavadoc(
-                        "来自组件 $L#$L（自动生成，方法体字段已扁平到实体）。\n",
+                        "来自组件 $L#$L（自动生成）。\n",
                         component.simpleName(),
                         name);
                 out.addCode("$L\n", body);
@@ -1980,7 +1980,7 @@ public class ECProcessor extends Processor {
         final String writeParam;
         final String writeLabel;
 
-        /** true = {@code @Write} 方法体里有 return，需要套一层"中途 return 就抛异常"的守卫 */
+        /** true = {@code @Write} 方法体里有 return */
         final boolean writeHasReturn;
 
         final String readBody;
@@ -2032,8 +2032,6 @@ public class ECProcessor extends Processor {
         final String body;
         final String proc;
         final String entityName;
-
-        /** true = 轻量档（proc = "main" 或未指定）：方法体直接铺进实体 update() */
         final boolean mainTier;
 
         UpdatePiece(

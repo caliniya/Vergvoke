@@ -23,7 +23,7 @@ import caliniya.vergvoke.type.module.*;
  *
  * <p>
  * {@code T} = 该实体的类型目标（{@link EntityType} 实现类，由 {@code @Entity(type=...)} 声明）；
- * {@code E} = 实体自身类型（生成实体传入自身，例如 {@code Entity<UnitType, Unit>}），便于链式调用返回
+ * {@code E} = 实体自身类型（生成实体传入自身，例如 {@code Unit<UnitType, Unit>}），便于链式调用返回
  * {@code E}。
  */
 public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> implements Poolable, QuadTreeObject {
