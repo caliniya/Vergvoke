@@ -39,12 +39,11 @@ public class Turret extends Block {
 
     @Override
     public void update(Building b, float dt) {
-        // 目标由 EntityProces 后台线程维护，这里只做射程 + 血量校验
-        if (b.target != null) {
-            float dst2 = Mathf.dst2(b.x, b.y, b.target.x, b.target.y);
-            if (b.target.health <= 0 || dst2 > range * range) {
-                b.target = null;
-            }
+        // 索敌随主线程块更新驱动（索敌线程已退役）：失效 / 超射程 → 重搜
+        if (b.target == null
+                || b.target.health <= 0
+                || Mathf.dst2(b.x, b.y, b.target.x, b.target.y) > range * range) {
+            b.target = findTarget(b);
         }
 
         // 瞄准与射击

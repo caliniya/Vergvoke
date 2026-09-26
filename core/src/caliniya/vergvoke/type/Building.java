@@ -26,7 +26,7 @@ public class Building extends Entity<EntityType, Building> {
 
     public Block block;
 
-    /** 当前索敌目标（炮塔等在 EntityProces / Block.update 写）。 */
+    /** 当前索敌目标（炮塔等在 Block.update 随主线程维护）。 */
     public Entity target;
 
     protected Building() {

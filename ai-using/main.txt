@@ -81,7 +81,7 @@ campaign/ —— 战役（数据目录副本优先，内置 assets 兜底）
 **手写系统**（不通过注解，靠 `Data.loadSystems()` + `Data.enter()` 手动装载）：
 - 主线程、并入 `Systems.systems` 排序数组：GameProcess(5)、Render(9)
 - 并入 `Render.renders` 管线数组（不算独立系统）：MapRender(10)、BlockRender(12)、UnitRender(13)、UniverseRender(16)、DebugRender(14, 目前注释掉没启用)
-- 独立线程：`init()` 自带循环：BulletProcess、UnitMath、EntityProces
+- 独立线程：`init()` 自带循环：BulletProcess、UnitMath、EntityProces（索敌已迁出，只剩存档写入状态机）
 
 ## 主循环
 
@@ -127,12 +127,12 @@ assets-origin/ —— 原始素材(icon, sprites 子目录)(scheme不要去管�
 
 **（AI 改代码前先看这节，别撞车）**
 
-1. **实体容器正在合并**：目标是把 `WorldData.units` 全部换成生成的 `EntityArs.Unit`。已迁移：`UnitRender:33`、`UnitType:131`。还没迁：`GameProcess:42,59`、`EntityProces:52,145`、`TeamData:18`、`Entities:74,82,95`、`CommandInfoWindow:24`、`DebugFragment:44`。两边现在是**两个不同的容器**，加进 `EntityArs.Unit` 的单位不会被判死/索敌/选中。
-2. `EntityArs.Unit` 是 `new EntityAr<>()`，**没有 id 提取器**；`WorldData.units` 是 `new EntityAr<>(unit -> unit.id)`。迁完要么给 ECProcessor 的 `EntityArs` 模板补上，要么放弃 id 索引。
-3. `UnitType.create(team, x, y)` **三个参数一个都没用**：没有 `u.team =`、`u.x =`、`u.y =`、也没有 `assignID()`。现在所有单位堆在 (0,0)、team 为 null、id 全 0。
+1. ~~实体容器正在合并~~ **已完成（2026-09-26）**：`WorldData.units` 已删除，全部用生成的 `EntityArs.Unit`（ECProcessor 模板已带 `e -> e.id` 提取器）；`WorldData.initWorld` 会 `EntityArs.Unit.clear()` 重置。
+2. ~~id 提取器缺失~~ **已补（2026-09-26）**：ECProcessor 的 EntityArs 模板改为 `new EntityAr<>(e -> e.id)`。
+3. ~~create 参数没用~~ **已修（2026-09-26）**：`UnitType.create` 现在赋 `team/x/y/id`，还拷贝 `speed/speedt`（组件字段初始化不跟到生成类，speed 不拷就是 0，单位走不动）和索敌 `range`（取武器最大射程）。
 4. **单位死了不会消失**：`kill()` → `type.kill()` → `Entity.remove()` 是**空方法**，`UnitType` 没覆盖；`UnitType.remove()` 直接 `throw UnsupportedOperationException`。死亡单位永久留在容器里被反复判死。
 5. **对象池只进不出**：`create` 用 `Pools.obtain`，全项目没有 `Pools.free(unit)`。
-6. 读档丢坐标和阵营：`DataIO` 里硬编码 `type.create(TeamTypes.Abort, 0f, 0f)`，等基类 write/read 落地。
+6. ~~读档丢坐标和阵营~~ **已修（2026-09-26）**：MoveComp.x/y 加 `@Save`、StateComp 改 `@Write/@Read` 序列化阵营，存档版本 bump 到 v2（旧档拒载）；读档后 `EntityArs.Unit.move` 重插四叉树，相机对准第一个单位。
 7. `Data.enter()` 里**硬编码随机生成 200 个名为「呃啊+随机数」的星节点**做测试，与 `content/Stars.java` 的 demo 星域冲突，是临时代码。
 8. 其他占位：`BulletType:81`（消失特效）、`UnitDetailWindow:98`、`HUDFragment:151`（"待命"/"停火"按钮只打日志）、`Universe.java`（13 行桩）、`content/Maps.java` 的 `load()` 整段被注释、`Module.java` 的 `read/write` 为空。
 

@@ -9,7 +9,7 @@ import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.base.type.TeamTypes;
 import caliniya.vergvoke.game.Entities;
 
-/** 索敌组件：持有单位级战斗目标。索敌由 EntityProces 线程驱动写入，主线程只读消费。 */
+/** 索敌组件：持有并维护单位级战斗目标。update 随主线程实体更新驱动（索敌线程已退役）。 */
 @Component(index = 4, name = "target")
 public class TargetComp {
 
@@ -24,15 +24,26 @@ public class TargetComp {
     /** 周期性重索敌间隔（tick）。目标失效时无论如何都会立即重搜；<=0 表示仅在失效时重搜。 */
     public float retargetInterval = 60f;
 
-    /** 重索敌计时器，由索敌线程每帧递减。 */
+    /** 重索敌计时器。 */
     public float retargetTimer;
 
     /** 目标过滤器，null 表示不过滤。 */
     public Boolf<Entity<?, ?>> filter;
 
+    // 与 Entity 基类同名字段：仅作源码占位（处理器去重后实体用基类那一份），update 方法体里直接用短名
+    public float x;
+    public float y;
+    public TeamTypes team;
+
     @Updata
     public void update(float delta) {
-
+        // 失效立即重搜；未失效按周期重搜以追踪更近目标（retargetInterval<=0 = 仅失效时重搜）
+        retargetTimer -= delta;
+        if (!targetValid(x, y) || (retargetInterval > 0f && retargetTimer <= 0f)) {
+            if (retargetInterval > 0f) retargetTimer = retargetInterval;
+            findTarget(x, y, team);
+        }
+        updateAngle(x, y);
     }
 
     /** 目标是否仍然有效：存在、存活、且在索敌半径内。 */

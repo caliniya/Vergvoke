@@ -125,7 +125,7 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
     }
 
     public void remove() {
-
+        type.remove(this);
     }
 
     public void kill() {
@@ -136,7 +136,6 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
 
     public abstract void read(Reads r);
 
-    // 通用式命中方法
     public void hit(Bullet b) {
         applyDamage(
                 b.type.damage,
@@ -168,7 +167,7 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
         }
     }
 
-    /** 挂载一个强化模组，返回自身（链式）。 */
+    /** 挂载一个强化模组，返回自身 */
     @SuppressWarnings("unchecked")
     public E addEnhancement(Enhancement enh) {
         if (enh == null)
@@ -185,7 +184,7 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
         return (E) this;
     }
 
-    /** 附加一个能力，返回自身（链式）。 */
+    /** 附加一个能力，返回自身 */
     @SuppressWarnings("unchecked")
     public E addAbility(Ability ability) {
         if (ability != null)

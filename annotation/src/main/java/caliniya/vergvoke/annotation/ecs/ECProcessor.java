@@ -968,7 +968,7 @@ public class ECProcessor extends Processor {
         // @OverrideEntity：组件方法覆写实体基类同名方法
         injectOverrideEntityMethods(entityType, plan);
 
-        // 组件上的其他 public 实例方法（非 @Updata/@Write/@Read/@OverrideEntity）：方法体原样铺进实体
+        // 组件上的其他实例方法（含 private/protected/static，非 @Updata/@Write/@Read/@OverrideEntity）：保留修饰符原样铺进实体
         injectComponentHelpers(entityType, plan);
 
         // 实体 update()：轻量档片段按 @Component.index 顺序直接铺进来
@@ -1159,24 +1159,42 @@ public class ECProcessor extends Processor {
     }
 
     /**
-     * 把组件上除生命周期外的 public 实例方法铺进实体（字段已扁平化，方法体里用短名即可）。
+     * 把组件上除生命周期外的实例方法全部铺进实体（字段已扁平化，方法体里用短名即可）——
+     * public/protected/包私有/private 一并注入，static 辅助方法也注入，并保留原可见性与
+     * static/final 修饰符；这样任何被铺进来的方法体里调用的组件辅助方法，在生成实体里都存在。
      *
-     * <p>跳过：构造、static、abstract、@Updata、@Write、@Read、@OverrideEntity。
+     * <p>跳过：构造、abstract、@Updata、@Write、@Read、@OverrideEntity。
+     * 与 Entity 基类同签名的方法不允许直接声明（会跟基类方法撞车），要用 @OverrideEntity。
      */
     private void injectComponentHelpers(TypeSpec.Builder entityType, EntityPlan plan) {
         if (trees == null) {
             return;
         }
+        TypeElement base = elementUtils.getTypeElement(ENTITY_BASE_CLASS);
         Set<String> seen = new HashSet<>();
         for (AType component : plan.components) {
             for (AMethod method : component.methods()) {
-                if (method.isStatic() || method.isAbstract()) {
+                if (method.isAbstract()) {
                     continue;
                 }
                 if (method.has(Updata.class)
                         || method.has(Write.class)
                         || method.has(Read.class)
                         || method.has(OverrideEntity.class)) {
+                    continue;
+                }
+                String label = component.simpleName() + "#" + method.name();
+                if (base != null && findBaseMethod(base, method) != null) {
+                    error(
+                            "Component method '"
+                                    + method.fullSignature()
+                                    + "' ("
+                                    + label
+                                    + ") matches a method already on "
+                                    + ENTITY_BASE_CLASS
+                                    + " — annotate it with @OverrideEntity if you mean to override it, or rename it",
+                            method);
+                    markBroken(component.fullName());
                     continue;
                 }
                 String body = bodyOf(method);
@@ -1189,7 +1207,15 @@ public class ECProcessor extends Processor {
                     continue;
                 }
 
-                MethodSpec.Builder out = MethodSpec.methodBuilder(name).addModifiers(Modifier.PUBLIC);
+                MethodSpec.Builder out = MethodSpec.methodBuilder(name);
+                List<Modifier> mods = new ArrayList<>();
+                for (Modifier m : method.e.getModifiers()) {
+                    if (m == Modifier.ABSTRACT || m == Modifier.NATIVE || m == Modifier.DEFAULT) {
+                        continue;
+                    }
+                    mods.add(m);
+                }
+                out.addModifiers(mods.toArray(new Modifier[0]));
                 for (AVar param : method.parameters()) {
                     out.addParameter(TypeName.get(param.e.asType()), param.name());
                 }
