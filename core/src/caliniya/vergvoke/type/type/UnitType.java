@@ -119,7 +119,7 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
             u.addAbility(a.copy());
         }
         u.size = size;
-        // 移动数据：实体字段的初始化表达式不会跟到生成类里，不从类型拷贝的话 speed 恒为 0，单位收令后走不动
+        // 移动数据：speed/speedt 是类型级配置（组件默认值只是兜底），必须从类型拷贝
         u.speedt = speedt;
         u.speed = speed;
         // 阵营 / 坐标 / id（索敌与容器 idMap 依赖这些，之前一直没赋值）

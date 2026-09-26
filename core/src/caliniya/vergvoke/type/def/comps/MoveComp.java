@@ -63,8 +63,7 @@ public class MoveComp {
 
     @Updata
     public void update(float delta) {
-        // 注：注解处理器只搬字段声明，字段的初始化表达式不会跟到实体里，
-        // 所以 arriveRange 没被显式赋值时，这里按旧默认值 2f 兜底
+        // 初始化表达式现在会跟到生成实体里（2026-09-26 起），兜底保留防对象池复用出 0 值
         float range = arriveRange > 0f ? arriveRange : 2f;
 
         float ox = x;
@@ -87,8 +86,7 @@ public class MoveComp {
 
         moving = x != ox || y != oy;
 
-        // 注：初始化表达式不会跟到实体里（velocityDirty 声明处的 true 会丢），
-        // 移动过的单位必须在这里标脏，GameProcess 才会把新坐标写回四叉树——
+        // 移动过的单位在这里标脏（与初始化无关的运行时语义），GameProcess 才会把新坐标写回四叉树——
         // 否则移动过的单位永远选不中（选中/索敌都走四叉树 intersect）
         if (moving) velocityDirty = true;
 

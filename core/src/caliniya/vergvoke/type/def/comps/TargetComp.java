@@ -30,9 +30,11 @@ public class TargetComp {
     /** 目标过滤器，null 表示不过滤。 */
     public Boolf<Entity<?, ?>> filter;
 
-    // 与 Entity 基类同名字段：仅作源码占位（处理器去重后实体用基类那一份），update 方法体里直接用短名
+    @Import
     public float x;
+    @Import
     public float y;
+    @Import
     public TeamTypes team;
 
     @Updata

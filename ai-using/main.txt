@@ -61,7 +61,7 @@ campaign/ —— 战役（数据目录副本优先，内置 assets 兜底）
 
 注解全部 `RetentionPolicy.SOURCE`，运行期零开销。
 
-- 注解集（`annotation/.../Annotations.java`）：`@Component(name, proc, index)`、`@Entity(comps, name, type)`、`@SystemDef(name, thread, index)`、`@ThreadDef`、`@Updata`、`@Save(index)`、`@Import`、`@OverrideEntity`、`@Write`/`@Read`
+- 注解集（`annotation/.../Annotations.java`）：`@Component(name, proc, index)`、`@Entity(comps, name, type)`、`@SystemDef(name, thread, index)`、`@ThreadDef`、`@Updata`、`@Save(index)`、`@Import`（借其他组件或 Entity 基类的同名字段，不重复注入）、`@OverrideEntity`、`@Write`/`@Read`
 - `ECProcessor` 生成 `caliniya.vergvoke.base.ecs` 包下的三个类，产物在 `core/build/generated/sources/annotationProcessor/java/main/`：
   - `Unit.java` —— 实体类，由 `@Entity` 的组件字段拼出来，继承 `Entity<UnitType, Unit>`
   - `EntityArs.java` —— 每种实体一个 `EntityAr` 容器（目前只有 `Unit`）
@@ -129,7 +129,7 @@ assets-origin/ —— 原始素材(icon, sprites 子目录)(scheme不要去管�
 
 1. ~~实体容器正在合并~~ **已完成（2026-09-26）**：`WorldData.units` 已删除，全部用生成的 `EntityArs.Unit`（ECProcessor 模板已带 `e -> e.id` 提取器）；`WorldData.initWorld` 会 `EntityArs.Unit.clear()` 重置。
 2. ~~id 提取器缺失~~ **已补（2026-09-26）**：ECProcessor 的 EntityArs 模板改为 `new EntityAr<>(e -> e.id)`。
-3. ~~create 参数没用~~ **已修（2026-09-26）**：`UnitType.create` 现在赋 `team/x/y/id`，还拷贝 `speed/speedt`（组件字段初始化不跟到生成类，speed 不拷就是 0，单位走不动）和索敌 `range`（取武器最大射程）。
+3. ~~create 参数没用~~ **已修（2026-09-26）**：`UnitType.create` 现在赋 `team/x/y/id`，还拷贝 `speed/speedt`（类型级配置，组件默认值只是兜底）和索敌 `range`（取武器最大射程）。组件字段初始化表达式自 2026-09-26 起会跟到生成实体（ECProcessor.initializerOf）。
 4. **单位死了不会消失**：`kill()` → `type.kill()` → `Entity.remove()` 是**空方法**，`UnitType` 没覆盖；`UnitType.remove()` 直接 `throw UnsupportedOperationException`。死亡单位永久留在容器里被反复判死。
 5. **对象池只进不出**：`create` 用 `Pools.obtain`，全项目没有 `Pools.free(unit)`。
 6. ~~读档丢坐标和阵营~~ **已修（2026-09-26）**：MoveComp.x/y 加 `@Save`、StateComp 改 `@Write/@Read` 序列化阵营，存档版本 bump 到 v2（旧档拒载）；读档后 `EntityArs.Unit.move` 重插四叉树，相机对准第一个单位。

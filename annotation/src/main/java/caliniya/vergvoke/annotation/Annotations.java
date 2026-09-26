@@ -33,8 +33,9 @@ public class Annotations {
     }
 
     /**
-     * 字段从实体内其他组件借用，不注入实体（避免同名字段冲突）。
-     * 必须能在别的组件里找到同名同类型字段，否则编译报错。
+     * 字段从实体内其他组件或 Entity 基类借用，不注入实体（避免同名字段冲突）。
+     * 必须能在别的组件或基类上找到同名同类型字段，否则编译报错。
+     * 注意：不能与 @Save 同字段（@Save 只认组件自己的字段）。
      */
     @Retention(RetentionPolicy.SOURCE)
     @Target({ ElementType.FIELD })

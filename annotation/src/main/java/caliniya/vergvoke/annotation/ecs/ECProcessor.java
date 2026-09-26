@@ -646,25 +646,33 @@ public class ECProcessor extends Processor {
             }
         }
 
-        // --- @Import 必须在别的组件里有同名同类型的字段 ---
+        // --- @Import 必须在别的组件里有同名同类型的字段，或直接借 Entity 基类的同名字段 ---
+        TypeElement importBase = elementUtils.getTypeElement(ENTITY_BASE_CLASS);
         for (VariableElement imported : imports) {
-            VariableElement source = injectedFields.get(imported.getSimpleName().toString());
+            String name = imported.getSimpleName().toString();
+            VariableElement source = injectedFields.get(name);
+            if (source == null && importBase != null) {
+                source = findBaseField(importBase, name);
+            }
             if (source == null) {
                 error(
                         "@Import field '"
-                                + imported.getSimpleName()
-                                + "' has no matching field in another component",
+                                + name
+                                + "' has no matching field in another component or on "
+                                + ENTITY_BASE_CLASS,
                         imported);
                 valid = false;
                 continue;
             }
-            if (!typeUtils.isSameType(imported.asType(), source.asType())) {
+            // 基类字段可能带泛型（如 type 是类型参数），按擦除后比对
+            if (!typeUtils.isSameType(
+                    typeUtils.erasure(imported.asType()), typeUtils.erasure(source.asType()))) {
                 error(
                         "@Import field '"
-                                + imported.getSimpleName()
+                                + name
                                 + "' has type "
                                 + imported.asType()
-                                + ", but the entity field has type "
+                                + ", but the borrowed field has type "
                                 + source.asType(),
                         imported);
                 valid = false;
@@ -943,10 +951,16 @@ public class ECProcessor extends Processor {
                 .superclass(entityBase);
 
         for (VariableElement field : plan.injectedFields.values()) {
-            entityType.addField(
+            FieldSpec.Builder fieldSpec =
                     FieldSpec.builder(
-                            TypeName.get(field.asType()), field.getSimpleName().toString(), Modifier.PUBLIC)
-                            .build());
+                            TypeName.get(field.asType()), field.getSimpleName().toString(), Modifier.PUBLIC);
+            // 组件字段的初始化表达式原样跟到实体里（此前会丢：speed=0 / velocityDirty=false 那类坑）。
+            // 注意只对真正注入的字段生效——@Import 字段与基类去重字段不注入，初始化无从谈起。
+            String init = initializerOf(field);
+            if (init != null) {
+                fieldSpec.initializer("$L", init);
+            }
+            entityType.addField(fieldSpec.build());
         }
 
         // 独立更新方法：proc 指定了处理系统的片段
@@ -1125,6 +1139,31 @@ public class ECProcessor extends Processor {
                 entityType.addMethod(out.build());
             }
         }
+    }
+
+    /** 取组件字段的初始化表达式源码（没有初始化返回 null）。 */
+    private String initializerOf(VariableElement field) {
+        if (trees == null) {
+            return null;
+        }
+        Tree tree = trees.getTree(field);
+        if (!(tree instanceof VariableTree)) {
+            return null;
+        }
+        ExpressionTree init = ((VariableTree) tree).getInitializer();
+        return init == null ? null : init.toString();
+    }
+
+    /** 在 Entity 基类上找同名实例字段（供 @Import 回落借用），找不到返回 null。 */
+    private VariableElement findBaseField(TypeElement base, String name) {
+        for (Element member : base.getEnclosedElements()) {
+            if (member.getKind() == ElementKind.FIELD
+                    && !member.getModifiers().contains(Modifier.STATIC)
+                    && member.getSimpleName().contentEquals(name)) {
+                return (VariableElement) member;
+            }
+        }
+        return null;
     }
 
     /** 在 Entity 基类上找同名同参方法；找不到返回 null。 */

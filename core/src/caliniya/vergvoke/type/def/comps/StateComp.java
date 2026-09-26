@@ -12,7 +12,8 @@ public class StateComp {
     /** 是否被玩家选中。 */
     public boolean isSelected;
 
-    /** 阵营（与 Entity 基类同名字段，处理器去重后实体用基类那一份；方法式序列化用于存档恢复阵营）。 */
+    /** 阵营（@Import 借 Entity 基类字段；@Write/@Read 方法体里引用它做存档恢复）。 */
+    @Import
     public TeamTypes team;
 
     /** 组件里有 @Save 字段就不能再用 @Write/@Read，所以选中位 + 阵营一起走方法式序列化。 */
