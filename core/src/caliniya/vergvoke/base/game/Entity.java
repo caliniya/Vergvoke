@@ -193,6 +193,7 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
     }
 
     /** 取第一个指定类型的能力，没有则返回 null。 */
+    @SuppressWarnings("hiding")
     public <T extends Ability> T getAbility(Class<T> S) {
         for (Ability a : abilities) {
             if (S.isInstance(a)) {

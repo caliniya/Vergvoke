@@ -248,9 +248,6 @@ public class BulletProcess extends caliniya.vergvoke.system.System<BulletProcess
     /** 力场拦截复用的 AABB（后台线程专用，避免与其他线程的 Tmp 竞争）。 */
     private final Rect aabbRect = new Rect();
 
-    /** 诊断用：拦截帧计数。 */
-    private int interceptFrames = 0;
-
     private void interceptBullets() {
         synchronized (ForceField.force) {
             Ar<ForceField> list = ForceField.force;
