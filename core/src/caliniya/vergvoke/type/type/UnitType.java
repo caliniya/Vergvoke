@@ -97,7 +97,7 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
 
     /** {@link EntityType}：用本类型配置填充实体（生成工厂 create(type) 会调用）。 */
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @SuppressWarnings({ "unchecked" })
     public Unit create(TeamTypes team, float x, float y) {
 
         Unit u = Pools.obtain(Unit.class, Unit::new);
@@ -119,10 +119,8 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
             u.addAbility(a.copy());
         }
         u.size = size;
-        // 移动数据：speed/speedt 是类型级配置（组件默认值只是兜底），必须从类型拷贝
         u.speedt = speedt;
         u.speed = speed;
-        // 阵营 / 坐标 / id（索敌与容器 idMap 依赖这些，之前一直没赋值）
         u.team = team;
         u.x = x;
         u.y = y;

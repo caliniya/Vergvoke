@@ -5,6 +5,7 @@ import arc.math.geom.Rect;
 
 import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.game.data.WorldData;
+import caliniya.vergvoke.world.Block;
 
 /**
  * 建筑组件：瓦片锚点 + 占位形状。
@@ -18,6 +19,9 @@ import caliniya.vergvoke.game.data.WorldData;
  */
 @Component(index = 3, name = "Block")
 public class BlockComp {
+
+    /** 类型引用（放置侧填；Block 实现 EntityType 的接线拍板前，组件自持引用）。 */
+    public Block block;
 
     /** 瓦片锚点（左下角格坐标）。 */
     public int tx, ty;
