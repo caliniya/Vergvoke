@@ -11,7 +11,7 @@ import caliniya.vergvoke.content.*;
 import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.type.*;
-import caliniya.vergvoke.type.def.BuildingDef;
+import caliniya.vergvoke.type.type.BuildingType;
 import caliniya.vergvoke.game.data.RouteData;
 import caliniya.vergvoke.game.data.WorldData;
 import caliniya.vergvoke.io.DataIO;

@@ -10,18 +10,17 @@ import caliniya.vergvoke.world.Block;
 /**
  * 建筑组件：瓦片锚点 + 占位形状。
  *
- * <p>占位数据由放置侧填好：{@link #shapeOffsets} 是已按 {@link #angle} 旋转好的副本
+ * <p>
+ * 占位数据由放置侧填好：{@link #shapeOffsets} 是已按 {@link #angle} 旋转好的副本
  * （异形建筑非 null），方形建筑为 null，回落 {@link #tileSize}。
  *
- * <p>{@link #getOccupiedCoords} / {@link #occupies} 与 Building 的同名方法逻辑一致；
+ * <p>
+ * {@link #getOccupiedCoords} / {@link #occupies} 与 Building 的同名方法逻辑一致；
  * {@code contains / hitbox} 用 {@code @OverrideEntity} 覆写基类——基类默认按中心
  * 外接圆 / 外接方形判定，建筑改为按真实占位瓦片判定（异形建筑不再误判）。
  */
 @Component(index = 3, name = "Block")
 public class BlockComp {
-
-    /** 类型引用（放置侧填；Block 实现 EntityType 的接线拍板前，组件自持引用）。 */
-    public Block block;
 
     /** 瓦片锚点（左下角格坐标）。 */
     public int tx, ty;
@@ -73,13 +72,17 @@ public class BlockComp {
     @OverrideEntity
     public void hitbox(Rect out) {
         float ts = WorldData.TILE_SIZE;
-        int[] b = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
+        int[] b = { Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE };
         getOccupiedCoords(
                 (cx, cy) -> {
-                    if (cx < b[0]) b[0] = cx;
-                    if (cy < b[1]) b[1] = cy;
-                    if (cx > b[2]) b[2] = cx;
-                    if (cy > b[3]) b[3] = cy;
+                    if (cx < b[0])
+                        b[0] = cx;
+                    if (cy < b[1])
+                        b[1] = cy;
+                    if (cx > b[2])
+                        b[2] = cx;
+                    if (cy > b[3])
+                        b[3] = cy;
                 });
         if (b[0] > b[2]) {
             // 没有任何占位瓦片（未初始化）：退回锚点处一个零尺寸盒，别用哨兵值污染四叉树
