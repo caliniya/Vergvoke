@@ -42,7 +42,7 @@ core/ —— 非游戏内容的运行时关键数据
   Render（相机器 + 渲染管线）、Data（系统装载/进游戏）、UI（UI门面）
   meta/ —— stat（统计/属性栈）、ui（Pal 调色板）
 type/ —— 游戏对象类型
-  def/ —— ECS 组件定义（UnitDef + comps/StateComp、MoveComp、WeaponComp、TargetComp；BuildingDef + comps/BlockComp、TargetComp、TurretComp——建筑 C+B 方案验证中）
+  def/ —— ECS 组件定义（UnitDef + comps/StateComp、MoveComp、WeaponComp、TargetComp；BuildingDef + comps/BlockComp、TargetComp、TurretComp——建筑已跑通并全面接管）
   type/ —— UnitType 等类型类
   ability/ —— 能力（护盾 Shield、力场 ForceField）
   enhance/ —— 强化模组（Enhancement / EnhancementType）
@@ -75,8 +75,11 @@ campaign/ —— 战役（数据目录副本优先，内置 assets 兜底）
 
 当前已声明的东西：
 - 唯一 `@SystemDef`：GameProcess（thread=main, index=5）
-- `@Entity`：UnitDef（StateComp / MoveComp / WeaponComp / TargetComp）、BuildingDef（BlockComp / TargetComp / TurretComp，type 用占位 BuildingType——Block 实现 EntityType 未拍板；工厂 BuildingDef.create 手动做派生初始化）
-- 组件 index：State=1、Move=2、Combat=5、Target=5（撞了，见下面的问题）
+- `@Entity`：UnitDef（StateComp / MoveComp / WeaponComp / TargetComp）、BuildingDef（BlockComp / TargetComp / TurretComp，type = `BuildingType`，工厂在类型上）
+- 组件 index：State=1、Move=2、Block=3、Target=4（Unit+Building 共用）、Weapon=5、Turret=6
+- **`@Import` 借不到 `Entity.type`**：基类那个是泛型字段 `T`，处理器的类型校验过不去（`...has type XxxType, but the borrowed field has type T`）。
+  实体级错误会直接让整个 `@Entity` 不生成 —— 表现为满屏"找不到符号 类 Building"，根因是组件里那一条。
+  需要用 type 的逻辑（例如读档后按 block 配置重算派生数据）一律放到 XxxType 侧的方法里，由调用方显式调用。
 
 **手写系统**（不通过注解，靠 `Data.loadSystems()` + `Data.enter()` 手动装载）：
 - 主线程、并入 `Systems.systems` 排序数组：GameProcess(5)、Render(9)
@@ -97,7 +100,9 @@ campaign/ —— 战役（数据目录副本优先，内置 assets 兜底）
 
 `Contents` 按 `CType` 分类存数组 + 名称映射，ID 从 1 起，`getByID` O(1)。加载顺序 Items→Liquids→Floors→ENVBlocks→Blocks→Units→Enhancements→Stars→各 `load()`→Techs。
 
-`type/` 与 `content/` 的关系：`content/Xxx.java` 是静态注册清单，`type/type/XxxType.java` 是类型类（配置 + 类型级行为）。`EntityType` 接口把两者接起来：`create(team, x, y)` / `sync` / `update` / `draw` / `kill` / `remove`。目前**只有 `UnitType` 实现了 `EntityType`**。
+`type/` 与 `content/` 的关系：`content/Xxx.java` 是静态注册清单，`type/type/XxxType.java` 是类型类（配置 + 类型级行为）。`EntityType` 接口把两者接起来：`create(team, x, y)` / `sync` / `update` / `draw` / `kill` / `remove`。
+目前实现者是 **`UnitType` 与 `BuildingType`**。方块经 `Block.buildingType` 反向持有自己的 `BuildingType`
+（这也是当前的"过渡桥"：`BuildingType.block` 供 size/psize/health/形状，等配置搬进 type 后这层拆掉）。
 
 伤害结算三层：能力拦截（护盾）→ 护甲（倍率 × 抗性 − 强度）→ 本体。护盾体系是 `Ability` / `Shield` / `ForceField` 三件套；Enhancement（增强）是纯数据，行为在 `EnhancementType`，目前唯一实现是 `ShieldBoostEnhancementType`。
 
@@ -130,9 +135,21 @@ assets-origin/ —— 原始素材(icon, sprites 子目录)(scheme不要去管�
 1. ~~实体容器正在合并~~ **已完成（2026-09-26）**：`WorldData.units` 已删除，全部用生成的 `EntityArs.Unit`（ECProcessor 模板已带 `e -> e.id` 提取器）；`WorldData.initWorld` 会 `EntityArs.Unit.clear()` 重置。
 2. ~~id 提取器缺失~~ **已补（2026-09-26）**：ECProcessor 的 EntityArs 模板改为 `new EntityAr<>(e -> e.id)`。
 3. ~~create 参数没用~~ **已修（2026-09-26）**：`UnitType.create` 现在赋 `team/x/y/id`，还拷贝 `speed/speedt`（类型级配置，组件默认值只是兜底）和索敌 `range`（取武器最大射程）。组件字段初始化表达式自 2026-09-26 起会跟到生成实体（ECProcessor.initializerOf）。
-4. **单位死了不会消失**：`kill()` → `type.kill()` → `Entity.remove()` 是**空方法**，`UnitType` 没覆盖；`UnitType.remove()` 直接 `throw UnsupportedOperationException`。死亡单位永久留在容器里被反复判死。
-5. **对象池只进不出**：`create` 用 `Pools.obtain`，全项目没有 `Pools.free(unit)`。
-6. ~~读档丢坐标和阵营~~ **已修（2026-09-26）**：MoveComp.x/y 加 `@Save`、StateComp 改 `@Write/@Read` 序列化阵营，存档版本 bump 到 v2（旧档拒载）；读档后 `EntityArs.Unit.move` 重插四叉树，相机对准第一个单位。
+4. ~~单位死了不会消失~~ **已修（2026-10-01）**：`UnitType.remove()` / `BuildingType.remove()` 都实现了
+   「卸载持有者 → 注销容器 → `freeID` → `Pools.free`」。顺序不能反，否则回池后的对象会被下一个
+   create 复用，残留引用就成了操作到别人身上的野指针。
+   单位侧要摘三处：`CommandData.checkedUnits`（UI/指挥会持续对着它下命令）、
+   `WorldData.moveunits`（必须持 `synchronized (WorldData.moveunits)`，UnitMath/InputProcess 共用这把锁）、
+   `EntityArs.Unit`。
+   **注意**：这条路径会被 BulletProcess 线程直接触发——`Entity.applyDamage` 血量归零即 `kill()`，
+   并不走 freshKills 那条延迟到主线程的通道。
+5. ~~对象池只进不出~~ **已修（2026-10-01）**：Unit / Building 的销毁都会 `Pools.free`。
+   改对象池相关的 create 时记得：**复用不跑构造**，所以没有声明初始化式的运行时字段
+   （如 `StateComp.isSelected`）必须在 create 里显式托底，否则上一个实体的残留会串到下一个身上。
+   两个 `remove` 里都用 `type == null` 作「已回池」标志挡二次销毁
+   （同一单位会同时进 `deadUnits` 与 `freshKilled`，个別重复触发）。
+6. ~~读档丢坐标和阵营~~ **已修（2026-09-26）**：MoveComp.x/y 加 `@Save`、StateComp 改 `@Write/@Read` 序列化阵营，读档后 `EntityArs.Unit.move` 重插四叉树，相机对准第一个单位。
+   （改序列化**不要去 bump `GameIO.SAVE_VERSION`**——游戏还没到能玩的程度，没有真实旧档要保护。）
 7. `Data.enter()` 里**硬编码随机生成 200 个名为「呃啊+随机数」的星节点**做测试，与 `content/Stars.java` 的 demo 星域冲突，是临时代码。
 8. 其他占位：`BulletType:81`（消失特效）、`UnitDetailWindow:98`、`HUDFragment:151`（"待命"/"停火"按钮只打日志）、`Universe.java`（13 行桩）、`content/Maps.java` 的 `load()` 整段被注释、`Module.java` 的 `read/write` 为空。
 

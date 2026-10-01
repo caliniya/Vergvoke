@@ -4,6 +4,7 @@ import arc.Core;
 import arc.scene.ui.layout.Table;
 import arc.struct.ObjectMap;
 import arc.struct.StringMap;
+import caliniya.vergvoke.base.ecs.Building;
 import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.type.TeamTypes;

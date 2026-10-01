@@ -1,5 +1,7 @@
 package caliniya.vergvoke.world;
 
+import caliniya.vergvoke.base.ecs.Building;
+import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.type.*;
 import caliniya.vergvoke.base.game.*;
@@ -78,7 +80,8 @@ public class World {
         if (!isValidCoord(x, y) || block == null)
             return null;
 
-        Building newBuild = block.create(x, y, team);
+        Building newBuild = block.buildingType.create(team, x, y, 0);
+        Block blk = newBuild.type != null ? newBuild.type.block : null;
 
         newBuild.getOccupiedCoords(
                 (tx, ty) -> {
@@ -89,16 +92,20 @@ public class World {
                         }
                         WorldChunk chunk = getOrCreateChunk(tx, ty);
                         chunk.setBuilding(tx & WorldChunk.MASK, ty & WorldChunk.MASK, newBuild);
-                        RouteData.updateBlock(tx, ty, newBuild.block.solid);
+                        RouteData.updateBlock(tx, ty, blk != null && blk.solid);
                     }
                 });
-        Entities.add(newBuild);
         return newBuild;
     }
 
+    /** 把已有建筑实体（通常是读档还原出来的）落进世界瓦片 + 导航层。 */
     public void setBuilding(Building b) {
-        if (!isValidCoord(b.tx, b.ty) || b.block == null)
+        if (!isValidCoord(b.tx, b.ty))
             return;
+        Block blk = b.type != null ? b.type.block : null;
+        if (blk == null)
+            return;
+
         b.getOccupiedCoords(
                 (tx, ty) -> {
                     if (isValidCoord(tx, ty)) {
@@ -108,20 +115,25 @@ public class World {
                         }
                         WorldChunk chunk = getOrCreateChunk(tx, ty);
                         chunk.setBuilding(tx & WorldChunk.MASK, ty & WorldChunk.MASK, b);
-                        RouteData.updateBlock(tx, ty, b.block.solid);
+                        RouteData.updateBlock(tx, ty, blk.solid);
                     }
                 });
-        Entities.add(b);
     }
 
+    /** 按坐标拆除：找到占位的建筑，走它的销毁流程（{@code BuildingType.remove}）。 */
     public void removeBuilding(int x, int y) {
         Building build = getBuilding(x, y);
         if (build == null)
             return;
+        build.remove();
+    }
 
+    /** 清掉本建筑在所有占位瓦片上的引用，并撤销导航层标记（不碰实体容器）。 */
+    private void clearTiles(Building build) {
+        Block blk = build.type != null ? build.type.block : null;
         // 通知导航数据：先取消实心标记（必须在清除区块前调用）
-        if (build.block.solid) {
-            RouteData.updateBlock(x, y);
+        if (blk != null && blk.solid) {
+            RouteData.updateBlock(build.tx, build.ty);
         }
 
         build.getOccupiedCoords(
@@ -134,8 +146,17 @@ public class World {
                         }
                     }
                 });
+    }
 
-        Entities.remove(build);
+    /**
+     * 拆除实体：清瓦片 + 从实体容器注销。由 {@code BuildingType.remove} 调用，
+     * 之后才是回收 ID 与回对象池——顺序反过来会留下悬垂引用。
+     */
+    public void removeBuilding(Building build) {
+        if (build == null)
+            return;
+        clearTiles(build);
+        EntityArs.Building.remove(build);
     }
 
     public boolean isSolid(int x, int y) {
@@ -146,8 +167,10 @@ public class World {
             return true;
         }
         Building b = getBuilding(x, y);
-        if (b != null && b.block.solid) {
-            return true;
+        if (b != null) {
+            Block blk = b.type != null ? b.type.block : null;
+            if (blk != null && blk.solid)
+                return true;
         }
         return false;
     }

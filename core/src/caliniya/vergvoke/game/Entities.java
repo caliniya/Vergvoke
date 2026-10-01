@@ -4,6 +4,7 @@ import arc.func.Boolf;
 import arc.func.Cons;
 import arc.math.Mathf;
 import arc.struct.IntQueue;
+import caliniya.vergvoke.base.ecs.Building;
 import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.game.Entity;
@@ -61,11 +62,11 @@ public class Entities {
         freeIDs.clear();
     }
 
-    /** 注册实体 */
+    /** 注册实体（建筑已在 {@code BuildingType.create} 里入组，这里重复调用是幂等的） */
     public static void add(Building... entities) {
         if (entities == null || entities.length == 0)
             return;
-        WorldData.buildings.add(entities);
+        EntityArs.Building.add(entities);
     }
 
     // 处理 Unit
@@ -87,7 +88,7 @@ public class Entities {
         if (bs == null || bs.length == 0)
             return;
 
-        WorldData.buildings.remove(bs);
+        EntityArs.Building.remove(bs);
     }
 
     /** 在指定范围内查找所有敌人实体 */
@@ -103,7 +104,7 @@ public class Entities {
                         consumer.get(u);
                     }
                 });
-        WorldData.buildings.intersect(
+        EntityArs.Building.intersect(
                 x - r,
                 y - r,
                 r * 2,

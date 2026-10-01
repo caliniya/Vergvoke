@@ -2,9 +2,18 @@ package caliniya.vergvoke.type.def.comps;
 
 import arc.func.Intc2;
 import arc.math.geom.Rect;
+import arc.util.io.Reads;
+import arc.util.io.Writes;
 
 import caliniya.vergvoke.annotation.Annotations.*;
+import caliniya.vergvoke.base.type.TeamTypes;
+import caliniya.vergvoke.game.Entities;
+import caliniya.vergvoke.game.data.TeamData;
 import caliniya.vergvoke.game.data.WorldData;
+import caliniya.vergvoke.type.module.ItemModule;
+import caliniya.vergvoke.type.module.LiquidModule;
+import caliniya.vergvoke.type.module.PowerModule;
+import caliniya.vergvoke.type.type.BuildingType;
 import caliniya.vergvoke.world.Block;
 
 /**
@@ -18,6 +27,11 @@ import caliniya.vergvoke.world.Block;
  * {@link #getOccupiedCoords} / {@link #occupies} 与 Building 的同名方法逻辑一致；
  * {@code contains / hitbox} 用 {@code @OverrideEntity} 覆写基类——基类默认按中心
  * 外接圆 / 外接方形判定，建筑改为按真实占位瓦片判定（异形建筑不再误判）。
+ *
+ * <p>
+ * 存档走 {@code @Write/@Read}（本组件没有 {@code @Save} 字段，两者不能混用）：写瓦片身份
+ * + Entity 基类的战斗/归属字段 + 容量模块占位。读回来还要按恢复出的 angle 重算占位形状与中心坐标
+ * ——这两样是派生数据，工厂只按放置时的角度算过一次。
  */
 @Component(index = 3, name = "Block")
 public class BlockComp {
@@ -33,6 +47,21 @@ public class BlockComp {
 
     /** 旋转后的形状偏移副本 [dx0, dy0, dx1, dy1, ...]（相对锚点，格）；null = 方形。 */
     public int[] shapeOffsets;
+
+    // --- 借用 Entity 基类的公共字段（不重新注入，只为 slap 进方法体的序列化代码能引用到）---
+    // 注意：基类的 type 是泛型字段 T，@Import 取不到确切静态类型，序列化里要用它一律走 BuildingType 侧
+    @Import
+    public float health;
+    @Import
+    public int id;
+    @Import
+    public TeamTypes team;
+    @Import
+    public ItemModule item;
+    @Import
+    public LiquidModule liquid;
+    @Import
+    public PowerModule power;
 
     /** 建筑占据的所有瓦片坐标（世界格坐标）。 */
     public void getOccupiedCoords(Intc2 consumer) {
@@ -90,5 +119,52 @@ public class BlockComp {
             return;
         }
         out.set(b[0] * ts, b[1] * ts, (b[2] - b[0] + 1) * ts, (b[3] - b[1] + 1) * ts);
+    }
+
+    /** 存档写：瓦片身份 → 战斗/归属 → 容量模块占位。 */
+    @Write
+    public void write(Writes w) {
+        w.b((byte) angle);
+        w.i(tx);
+        w.i(ty);
+        w.f(health);
+        w.b((byte) (team == null ? -1 : team.ordinal()));
+        w.i(id);
+
+        w.bool(item != null);
+        if (item != null)
+            item.write(w);
+        w.bool(liquid != null);
+        if (liquid != null)
+            liquid.write(w);
+        w.bool(power != null);
+        if (power != null)
+            power.write(w);
+    }
+
+    /**
+     * 存档读：与 write 严格对称。
+     *
+     * <p>只恢复原始字段——占位形状 / 中心坐标 / 血上限这些是按 {@code angle} 算出来的派生数据，
+     * 得等 {@code BuildingType.rebuild} 拿到确定性 angle 后统一重算（放在这里会用到 type 的 block 配置，
+     * 而 {@code @Import} 借不到基类那个泛型 type 字段）。
+     */
+    @Read
+    public void read(Reads r) {
+        angle = r.b();
+        tx = r.i();
+        ty = r.i();
+        health = r.f();
+        int ord = r.b();
+        TeamTypes[] values = TeamTypes.values();
+        team = (ord >= 0 && ord < values.length) ? values[ord] : null;
+        id = Entities.checkoutID(r.i());
+
+        if (r.bool() && item != null)
+            item.read(r);
+        if (r.bool() && liquid != null)
+            liquid.read(r);
+        if (r.bool() && power != null)
+            power.read(r);
     }
 }

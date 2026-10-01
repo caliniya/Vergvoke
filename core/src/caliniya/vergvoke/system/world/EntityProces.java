@@ -1,8 +1,10 @@
 package caliniya.vergvoke.system.world;
 
+import caliniya.vergvoke.base.ecs.Building;
 import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.tool.Ar;
+import caliniya.vergvoke.world.Block;
 import caliniya.vergvoke.world.Floor;
 import arc.struct.ObjectIntMap;
 import caliniya.vergvoke.world.ENVBlock;
@@ -117,7 +119,7 @@ public class EntityProces extends System<EntityProces> {
             }
 
             Ar<Building> outBuildings = new Ar<>();
-            WorldData.buildings.each(
+            EntityArs.Building.each(
                     b -> {
                         if (b != null && b.health > 0)
                             outBuildings.add(b);
@@ -125,7 +127,9 @@ public class EntityProces extends System<EntityProces> {
             DataIO.w.i(outBuildings.size);
             for (int i = 0; i < outBuildings.size; i++) {
                 Building b = outBuildings.get(i);
-                DataIO.w.str(b.block.internalName);
+                // 读取端据此 Contents.get(name, Block.class) 还原类型，再拿它的 buildingType
+                Block blk = b.type != null ? b.type.block : null;
+                DataIO.w.str(blk == null ? "" : blk.internalName);
                 b.write(DataIO.w);
                 DataIO.w.b(DataIO.END_MARKER);
                 // 至此内存中的存档数据写入完成

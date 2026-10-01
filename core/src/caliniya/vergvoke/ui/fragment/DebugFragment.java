@@ -44,7 +44,7 @@ public class DebugFragment {
                                 } else {
 
                                     int unitCount = EntityArs.Unit.size();
-                                    int buildingCount = (WorldData.buildings != null) ? WorldData.buildings.size() : 0;
+                                    int buildingCount = EntityArs.Building.size();
 
                                     sb.append("Units: ").append(unitCount).append("\n");
                                     sb.append("Selected: ").append(CommandData.checkedUnits.size).append("\n");
@@ -54,7 +54,7 @@ public class DebugFragment {
                                             .append("x")
                                             .append(WorldData.world.H)
                                             .append("\n");
-                                    // sb.append(WorldData.buildings.isEmpty());
+                                    // sb.append(EntityArs.Building.isEmpty());
                                 }
 
                                 // sb.append("timedelta").append(Time.delta);

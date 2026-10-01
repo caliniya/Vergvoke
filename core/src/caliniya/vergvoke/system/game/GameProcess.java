@@ -1,11 +1,11 @@
 package caliniya.vergvoke.system.game;
 
 import caliniya.vergvoke.annotation.Annotations.*;
+import caliniya.vergvoke.base.ecs.Building;
 import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.base.tool.*;
-import caliniya.vergvoke.type.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.system.world.BulletProcess;
 
@@ -65,7 +65,7 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
         }
         deadUnits.clear();
 
-        WorldData.buildings.each(
+        EntityArs.Building.each(
                 b -> {
                     if (b == null)
                         return;
@@ -74,6 +74,9 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
                         return;
                     } else {
                         b.update(delta);
+                        // 类型级钩子（委托 Block.update，给非炮塔的自有行为留入口）
+                        if (b.type != null)
+                            b.type.update(b, delta);
                     }
                 });
         for (Building b : deadBuildings) {

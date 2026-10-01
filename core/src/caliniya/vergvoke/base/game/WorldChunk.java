@@ -1,6 +1,6 @@
 package caliniya.vergvoke.base.game;
 
-import caliniya.vergvoke.type.*;
+import caliniya.vergvoke.base.ecs.Building;
 
 public class WorldChunk {
   // 必须是 2 的 N 次幂

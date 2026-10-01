@@ -125,6 +125,9 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
         u.x = x;
         u.y = y;
         u.id = Entities.assignID();
+        // 运行时状态：对象池复用时不托底的话，上一个单位的残留会串到新单位身上
+        // （这些字段在 StateComp 里只有声明初始化，而复用是不跑构造的）
+        u.isSelected = false;
         // 单位级索敌半径默认取武器最大射程（无武器回落默认 400f）
         float maxRange = 0f;
         for (WeaponType wt : weapons) {
@@ -369,9 +372,37 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
         }
     }
 
+    /**
+     * 摧毁单位：把所有还握着它的地方逐一摘掉 → 回收 ID → 回池。
+     *
+     * <p>顺序不能反过来——回池后的对象立刻会被下一个 {@link #create} 复用，
+     * 任何残留引用都会变成"操作到别人身上"的野指针（选中态尤其危险：会对着别人下命令）。
+     *
+     * <p>注意这条路径会被 BulletProcess 线程直接触发（{@code applyDamage} 血量归零即 kill，
+     * 不走 freshKills 那条延迟通道），所以摸 {@code moveunits} 必须持它原有的那把锁；
+     * {@code EntityArs} 自带读写锁，这里不用额外加锁。
+     */
     @Override
     public void remove(Entity<?, ?> entity) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'remove'");
+        if (!(entity instanceof Unit u))
+            return;
+        // 双重击杀防护：同一单位会同时出现在 deadUnits 与 freshKilled 里。
+        // 回池时 reset() 已把 type 置空，第二次进来据此跳过，否则会对同一个对象 free 两次。
+        if (u.type == null)
+            return;
+
+        // 选中态（UI / 指挥会持续按它下命令）
+        CommandData.checkedUnits.remove(u, true);
+
+        // 寻路队列：UnitMath 与 InputProcess 都在各自的线程里持这把锁操作它
+        if (WorldData.moveunits != null) {
+            synchronized (WorldData.moveunits) {
+                WorldData.moveunits.remove(u);
+            }
+        }
+
+        EntityArs.Unit.remove(u);
+        u.id = Entities.freeID(u.id);
+        Pools.free(u);
     }
 }

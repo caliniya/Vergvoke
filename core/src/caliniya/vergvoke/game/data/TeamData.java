@@ -26,7 +26,7 @@ public class TeamData {
                         con.get(u);
                     }
                 });
-        WorldData.buildings.intersect(
+        EntityArs.Building.intersect(
                 x - r,
                 y - r,
                 r * 2,

@@ -5,6 +5,7 @@ import arc.files.Fi;
 import arc.struct.StringMap;
 import arc.util.io.*;
 import arc.util.*;
+import caliniya.vergvoke.base.ecs.Building;
 import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.type.*;
@@ -173,9 +174,11 @@ public class DataIO {
       String typeName = r.str();
       Block type = Contents.get(typeName, Block.class);
       if (type != null) {
-        Building b = type.create();
+        // 先按默认位置/阵营过一遍工厂（模块、self、容器入组都在这里），read 再把坐标阵营糊回来
+        Building b = type.buildingType.create(TeamTypes.Evoke, 0, 0, 0);
         b.read(r);
         skipToEndMarker(r); // 校验结束标记
+        type.buildingType.rebuild(b); // 坐标/阵营到手后重算占位形状与中心点
         WorldData.world.setBuilding(b);
       } else {
         Log.warn("Unknown block type in save: @, skipping...", typeName);

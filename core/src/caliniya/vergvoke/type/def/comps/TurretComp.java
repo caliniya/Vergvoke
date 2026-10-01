@@ -1,6 +1,8 @@
 package caliniya.vergvoke.type.def.comps;
 
 import arc.math.Angles;
+import arc.util.io.Reads;
+import arc.util.io.Writes;
 
 import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.base.game.Entity;
@@ -58,5 +60,18 @@ public class TurretComp {
         if (bullet != null) {
             Bullet.create(bullet, self, x, y, angle, 0f, 0f);
         }
+    }
+
+    /** 存档写：炮塔只要状态量（配置 reloadTime/rotateSpeed/bullet 由 {@code type} 重建）。 */
+    @Write
+    public void write(Writes w) {
+        w.f(rotation);
+        w.f(reload);
+    }
+
+    @Read
+    public void read(Reads r) {
+        rotation = r.f();
+        reload = r.f();
     }
 }

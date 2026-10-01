@@ -8,10 +8,12 @@ import arc.graphics.g2d.TextureRegion;
 import arc.util.*;
 import arc.util.io.*;
 import caliniya.vergvoke.base.api.*;
+import caliniya.vergvoke.base.ecs.Building;
 import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
+import caliniya.vergvoke.type.module.*;
 import caliniya.vergvoke.type.*;
 import caliniya.vergvoke.type.type.*;
 import caliniya.vergvoke.ui.*;
@@ -39,23 +41,20 @@ public class Block extends ContentType implements DrawType<Building>, TechNodeCo
     // 相对于锚点(0,0)的偏移量数组：[dx1, dy1, dx2, dy2, ...]
     public int[] shapeOffsets = null;
 
+    /**
+     * 本方块的建筑类型载体（过渡桥：实体的配置/工厂/绘制都经它）。
+     * 构造里就地建好，这样 {@code block.buildingType.create(...)} 随时可用。
+     */
+    public final BuildingType buildingType;
+
     public Block(String name) {
         super(name, CType.Block);
+        buildingType = new BuildingType(this);
     }
 
     @Override
     public TechNodeContent[] requirements() {
         return requirements; // ContentType 里的前置字段（默认 null）
-    }
-
-    public Building create() {
-        psize = size * WorldData.TILE_SIZE;
-        return Building.create(this);
-    }
-
-    public Building create(int tx, int ty, TeamTypes team) {
-        psize = size * WorldData.TILE_SIZE;
-        return Building.create(this, tx, ty, team);
     }
 
     public void load() {
@@ -71,10 +70,13 @@ public class Block extends ContentType implements DrawType<Building>, TechNodeCo
     }
 
     public void drawDebug(Building b) {
+        Block blk = b.type != null ? b.type.block : null;
+        float psize = blk != null ? blk.psize : b.tileSize * WorldData.TILE_SIZE;
+
         Draw.color(Color.green);
         Lines.stroke(4f);
         // 绘制基于 size 的包围盒
-        Lines.rect(b.x - b.block.psize / 2, b.y - b.block.psize / 2, b.block.psize, b.block.psize);
+        Lines.rect(b.x - psize / 2, b.y - psize / 2, psize, psize);
 
         // 3. 绘制占据的实际格子 (黄色细线)
         // 对于异形建筑，这比包围盒更准确
@@ -90,26 +92,13 @@ public class Block extends ContentType implements DrawType<Building>, TechNodeCo
 
         // 4. 绘制旋转角度 (青色文字)
         Fonts.def.draw(
-                b.x + "   " + b.y, b.x + b.block.psize / 2f, b.y + b.block.psize + 10f, Align.center);
+                b.x + "   " + b.y, b.x + psize / 2f, b.y + psize + 10f, Align.center);
         Fonts.def.draw(
                 Strings.format("" + b.health),
-                b.x - b.block.size,
-                b.y - b.block.size + b.block.size + 8f,
+                b.x - b.tileSize,
+                b.y + 8f,
                 Align.center);
         Draw.color(); // 重置颜色
-    }
-
-    public void write(Building b, Writes w) {
-    }
-
-    public void read(Building b, Reads r) {
-    }
-
-    // --- 目标查找 ---
-
-    /** 查找目标实体。默认空实现，子类（如炮塔）可覆写。 */
-    public Entity findTarget(Building b) {
-        return null;
     }
 
     // --- 物品相关 ---

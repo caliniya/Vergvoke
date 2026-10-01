@@ -1,20 +1,21 @@
 package caliniya.vergvoke.world.blocks.defence;
 
 import arc.graphics.g2d.Lines;
-import arc.math.Angles;
 import arc.graphics.g2d.Draw;
 import arc.graphics.g2d.TextureRegion;
 import arc.Core;
-import arc.math.Mathf;
-import arc.util.io.Writes;
-import arc.util.io.Reads;
-import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.core.meta.ui.Pal;
-import caliniya.vergvoke.game.*;
-import caliniya.vergvoke.type.*;
+import caliniya.vergvoke.base.ecs.Building;
 import caliniya.vergvoke.type.type.BulletType;
 import caliniya.vergvoke.world.Block;
 
+/**
+ * 炮塔：只保留「配置 + 绘制」，行为已全部迁标注给组件
+ * （TargetComp 索敌、TurretComp 瞄准/装填/开火），不再有 update / 一套自己的 write。
+ *
+ * <p>配置项在放置时由 {@code BuildingType.create} 拷进实例
+ * （range / rotateSpeed / reloadTime / bulletType）。
+ */
 public class Turret extends Block {
 
     public float range = 400f;
@@ -38,56 +39,9 @@ public class Turret extends Block {
     }
 
     @Override
-    public void update(Building b, float dt) {
-        // 索敌随主线程块更新驱动（索敌线程已退役）：失效 / 超射程 → 重搜
-        if (b.target == null
-                || b.target.health <= 0
-                || Mathf.dst2(b.x, b.y, b.target.x, b.target.y) > range * range) {
-            b.target = findTarget(b);
-        }
-
-        // 瞄准与射击
-        if (b.target != null) {
-            float targetAngle = Angles.angle(b.x, b.y, b.target.x, b.target.y);
-            b.rotation = Angles.moveToward(b.rotation, targetAngle, rotateSpeed * dt);
-
-            b.reload += dt;
-
-            if (b.reload >= reloadTime && Angles.angleDist(b.rotation, targetAngle) < 5f) {
-                shoot(b, b.rotation);
-                b.reload = 0;
-            }
-        }
-    }
-
-    @Override
     public void draw(Building b) {
         Draw.rect(baseRegion, b.x, b.y, b.angle * 90f);
         Draw.rect(region, b.x, b.y, b.rotation - 90f);
-    }
-
-    private void shoot(Building b, float angle) {
-        float x = b.x;
-        float y = b.y;
-        Bullet.create(bulletType, b, x, y, angle, 0, 0);
-    }
-
-    /** 覆写 */
-    @Override
-    public Entity findTarget(Building b) {
-        return Entities.closestEnemy(b.team, b.x, b.y, range);
-    }
-
-    @Override
-    public void write(Building b, Writes w) {
-        w.f(b.rotation);
-        w.f(b.reload);
-    }
-
-    @Override
-    public void read(Building b, Reads r) {
-        b.rotation = r.f();
-        b.reload = r.f();
     }
 
     @Override

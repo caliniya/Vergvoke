@@ -2,9 +2,10 @@ package caliniya.vergvoke.system.render;
 
 import arc.*;
 import arc.graphics.g2d.*;
-import caliniya.vergvoke.type.*;
+import caliniya.vergvoke.base.ecs.Building;
+import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.type.*;
-import caliniya.vergvoke.game.data.*;
+import caliniya.vergvoke.world.Block;
 
 public class BlockRender extends caliniya.vergvoke.system.System<BlockRender> {
 
@@ -21,17 +22,21 @@ public class BlockRender extends caliniya.vergvoke.system.System<BlockRender> {
     if (!inited || paused)
       return;
     // 遍历所有建筑
-    for (Building b : WorldData.buildings) {
-      if (b == null || b.block == null || b.health <= 0f)
+    for (Building b : EntityArs.Building) {
+      if (b == null || b.health <= 0f)
+        continue;
+
+      Block blk = b.type != null ? b.type.block : null;
+      if (blk == null)
         continue;
 
       // 剔除检测：如果不在视野内则跳过
-      if (shouldDraw(b.x, b.y, b.block.psize)) {
-        // 绘制建筑 (调用 Building 内部的 draw 逻辑，会处理旋转)
+      if (shouldDraw(b.x, b.y, blk.psize)) {
+        // 绘制建筑（走 Entity.draw → BuildingType.draw → Block.draw）
         b.draw();
         // 调试绘制
         if (UnitRender.debug) { // 复用 UnitRender 的 debug 开关
-          b.block.drawDebug(b);
+          blk.drawDebug(b);
         }
         Draw.color(); // 重置颜色
       }

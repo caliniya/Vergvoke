@@ -4,6 +4,7 @@ import arc.math.Mathf;
 import arc.math.geom.Point2;
 import arc.struct.IntQueue;
 import arc.struct.PQueue;
+import caliniya.vergvoke.base.ecs.Building;
 import caliniya.vergvoke.base.tool.Ar;
 import caliniya.vergvoke.world.*;
 import arc.util.pooling.Pools;
@@ -136,7 +137,8 @@ public class RouteData {
           });
 
       // 级联更新腐蚀层：以建筑包围盒为范围
-      int s = build.block != null ? build.block.size : 1;
+      Block blk = build.type != null ? build.type.block : null;
+      int s = blk != null ? blk.size : 1;
       int minX = Math.max(0, bx);
       int maxX = Math.min(W - 1, bx + s - 1);
       int minY = Math.max(0, by);
