@@ -52,7 +52,9 @@ public class WeaponType implements Cloneable, DrawType<Weapon> {
     public void findTarget(Weapon w, float wx, float wy) {
         w.target = null;
         // 因为lamba不可能会赋值出一个null，那么没有敌人的时候 下面这行代码实际上就会完全没有进行任何操作
-        Entities.closestEnemy(w.owner.team, wx, wy, range, e -> w.target = e);
+        // byEdge：武器挂载点偏离单位中心（type.x/y），射程再只算到目标中心的话，
+        // 单位明明站在射程内、武器却判定够不着，于是把目标丢掉——表现就是"有些敌人不打"。
+        Entities.closestEnemy(w.owner.team, wx, wy, range, true, e -> w.target = e);
     }
 
     // --- 镜像 ---

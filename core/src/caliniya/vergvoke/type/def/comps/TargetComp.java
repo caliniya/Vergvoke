@@ -48,11 +48,16 @@ public class TargetComp {
         updateAngle(x, y);
     }
 
-    /** 目标是否仍然有效：存在、存活、且在索敌半径内。 */
+    /**
+     * 目标是否仍然有效：存在、存活、且在索敌半径内。
+     *
+     * <p>射程算到目标边缘（{@code dst2Surface}）：按中心算的话，3×3 建筑的半边长 48 像素
+     * 全是"够不着"的死区，单位贴着墙站也不会开火。
+     */
     public boolean targetValid(float x, float y) {
         return target != null
                 && target.health > 0
-                && Mathf.dst2(x, y, target.x, target.y) <= range * range;
+                && target.dst2Surface(x, y) <= range * range;
     }
 
     /**
@@ -65,9 +70,9 @@ public class TargetComp {
         target = null;
         if (filter != null) {
             // 用适配 lambda 中转，避免 filter 的泛型实参（Entity<?,?>）与方法签名里的裸 Entity 不匹配
-            Entities.closestEnemy(team, x, y, range, e -> filter.get(e), e -> target = e);
+            Entities.closestEnemy(team, x, y, range, e -> filter.get(e), true, e -> target = e);
         } else {
-            target = Entities.closestEnemy(team, x, y, range);
+            target = Entities.closestEnemy(team, x, y, range, true);
         }
     }
 

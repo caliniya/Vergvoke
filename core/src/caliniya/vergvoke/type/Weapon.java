@@ -72,7 +72,8 @@ public class Weapon {
         }
 
         // 射击判定 - 提前检查目标有效性
-        if (target == null || target.health < 0f || reloadTimer > 0) {
+        // 血量归零后会被 clamp 到 0，所以这里必须是 <= 0，写成 < 0 会朝已经死了的目标继续开火
+        if (target == null || target.health <= 0f || reloadTimer > 0) {
             return;
         }
 

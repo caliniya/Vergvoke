@@ -1,7 +1,11 @@
 package caliniya.vergvoke.system.render;
 
 import arc.*;
+import arc.graphics.Color;
+import arc.graphics.g2d.Draw;
+import arc.util.Align;
 import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.base.tool.Ar;
 import caliniya.vergvoke.type.ability.Ability;
 import caliniya.vergvoke.base.type.*;
@@ -9,11 +13,15 @@ import caliniya.vergvoke.type.Bullet;
 import caliniya.vergvoke.game.data.WorldData;
 import caliniya.vergvoke.system.System;
 import caliniya.vergvoke.system.world.BulletProcess;
+import caliniya.vergvoke.ui.Fonts;
 
 public class UnitRender extends System<UnitRender> {
 
     // 调试开关
     public static boolean debug = true;
+
+    /** 是否在实体头顶挂阵营名（单位与建筑共用）。 */
+    public static boolean showTeam = true;
 
     public static Ar<Bullet> temp = new Ar<Bullet>(false, 1000);
 
@@ -39,6 +47,10 @@ public class UnitRender extends System<UnitRender> {
                             a.draw(u);
                         // 血条由单位类型绘制（可覆写）
                         u.type.drawHealthBar(u);
+                        // 阵营名（头顶）
+                        if (showTeam) {
+                            drawTeamTag(u, u.y + u.size * 0.9f);
+                        }
                         // 调试绘制（类型侧）
                         if (debug) {
                             u.type.drawDebug(u);
@@ -61,6 +73,18 @@ public class UnitRender extends System<UnitRender> {
                         b.type.draw(b);
                     }
                 });
+    }
+
+    /**
+     * 在实体头顶画一行阵营名（描边字体，底色是地板还是建筑都看得清）。
+     * 单位与建筑共用，{@code topY} 由调用方按各自包围盒算。
+     */
+    public static void drawTeamTag(Entity e, float topY) {
+        if (e == null || e.team == null || Fonts.outline == null)
+            return;
+        Draw.color(Color.white);
+        Fonts.outline.draw(e.team.localizedName(), e.x, topY, Align.center);
+        Draw.color();
     }
 
     // 通用的剔除方法

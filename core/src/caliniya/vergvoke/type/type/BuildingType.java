@@ -104,6 +104,11 @@ public class BuildingType implements EntityType {
      *
      * <p>组件的 {@code @Read} 只能恢复原始字段——派生数据要用 block 配置，而 {@code @Import}
      * 借不到基类那个泛型 {@code type} 字段，所以这一步留在类型侧，由给档路径显式调用。
+     *
+     * <p><b>必须在这里同步四叉树节点</b>：建筑是先在 (0,0) 落工厂（那时就插进了
+     * {@code EntityArs.Building} 的树），read 才把真实坐标糊回来。不 move 的话树里记的还是
+     * 左上角那个点，索敌查询在别处永远找不到它——表现就是"有些敌对建筑没人打"，
+     * 而它照样能渲染、能挡路、瓦片层也能查到。
      */
     public void rebuild(Building b) {
         float psize = psize();
@@ -119,6 +124,9 @@ public class BuildingType implements EntityType {
         b.maxHealth = block.health;
         b.teamData = b.team != null ? b.team.data() : null;
         b.self = b;
+
+        // 坐标（以及 size）变了，四叉树里的旧节点必须换掉，否则索敌查不到
+        EntityArs.Building.move(b, b.x, b.y);
     }
 
     // --- EntityType 接口 ---

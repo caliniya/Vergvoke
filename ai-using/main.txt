@@ -141,8 +141,11 @@ assets-origin/ —— 原始素材(icon, sprites 子目录)(scheme不要去管�
    单位侧要摘三处：`CommandData.checkedUnits`（UI/指挥会持续对着它下命令）、
    `WorldData.moveunits`（必须持 `synchronized (WorldData.moveunits)`，UnitMath/InputProcess 共用这把锁）、
    `EntityArs.Unit`。
-   **注意**：这条路径会被 BulletProcess 线程直接触发——`Entity.applyDamage` 血量归零即 `kill()`，
-   并不走 freshKills 那条延迟到主线程的通道。
+   **销毁只在主线程（2026-10-02 定案）**：伤害结算是 BulletProcess 线程发起的，
+   `Entity.applyDamage` 血量归零只做 `Entities.markDead(this)` 登记（用扣血前的 `wasAlive` 去重），
+   由 `GameProcess` 每帧开头 `Entities.drainDead` 后统一 `kill()`。
+   后台线程一旦自己去 free，实体回池后仍躺在待死队列里，下一帧主线程就对着 `type == null` 再杀一次
+   （开局第一枪必崩的 NPE）。`Entity.draw/remove/kill` 都有 `type == null` 的安全网兜底。
 5. ~~对象池只进不出~~ **已修（2026-10-01）**：Unit / Building 的销毁都会 `Pools.free`。
    改对象池相关的 create 时记得：**复用不跑构造**，所以没有声明初始化式的运行时字段
    （如 `StateComp.isSelected`）必须在 create 里显式托底，否则上一个实体的残留会串到下一个身上。

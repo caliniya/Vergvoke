@@ -11,6 +11,7 @@ import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.tool.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.meta.stat.*;
+import caliniya.vergvoke.game.Entities;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.type.*;
 import caliniya.vergvoke.type.ability.*;
@@ -121,14 +122,21 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
     public abstract void update(float delta);
 
     public void draw() {
+        // type == null 说明这个对象已经回池（reset() 置空），还在某张列表里被摸到就静默跳过
+        if (type == null)
+            return;
         type.draw(this);
     }
 
     public void remove() {
+        if (type == null)
+            return;
         type.remove(this);
     }
 
     public void kill() {
+        if (type == null)
+            return;
         type.kill(this);
     }
 
@@ -155,16 +163,11 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
     public void knock(float dir, float force) {
     }
 
-    /**
-     * 每帧公共战斗更新：热量散热/锁定、能量恢复、能力与强化模组（委托 {@link EntityType#sync}）。
-     * 生成侧 {@code Systems.updateAll} 与 Building 都走这里。
-     */
     public void sync(float dt) {
         shield = totalShield();
         shieldMax = totalShieldMax();
-        if (type != null) {
-            type.sync(this, dt);
-        }
+        type.sync(this, dt);
+
     }
 
     /** 挂载一个强化模组，返回自身 */
@@ -287,11 +290,19 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
         }
 
         // 3. 本体（无护甲或被穿甲跳过：无抗性减伤、无固定减伤）
+        boolean wasAlive = health > 0f;
         damage = damage * type.armorMult;
         health -= damage;
         if (health <= 0f) {
             health = 0f;
-            kill();
+            // 这里**不能**直接 kill()：本方法会被 BulletProcess 线程调用，
+            // 而销毁要动容器 / 回收 ID / 回池，只能在主线程做。
+            // 后台线程直接销毁 → 实体被 free 后仍躺在待死队列里 → 下一帧主线程
+            // 对着 type == null 的对象再杀一次 → NPE。
+            // wasAlive 保证只登记一次（血已归零后再挨打不重复入队）。
+            if (wasAlive) {
+                Entities.markDead(this);
+            }
         }
     }
 
@@ -327,6 +338,19 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
         float dx = worldX - x;
         float dy = worldY - y;
         return dx * dx + dy * dy <= r * r;
+    }
+
+    /**
+     * 点 {@code (px,py)} 到本实体包围盒的最短距离平方（落在盒子里算 0）。
+     *
+     * <p>「够不够得着」这类判定要用它，不能用到中心的距离：3×3 建筑的半边长就有 48 像素，
+     * 只按中心算会变成"贴着墙站着却判定超射程"。子弹命中那种"真要碰到"的场合才用中心距离。
+     */
+    public float dst2Surface(float px, float py) {
+        float half = hitboxSize() * 0.5f;
+        float dx = Math.max(Math.abs(px - x) - half, 0f);
+        float dy = Math.max(Math.abs(py - y) - half, 0f);
+        return dx * dx + dy * dy;
     }
 
     /** 填充实体的粗略包围盒：不能小于实体实际范围，但可以偏大。 */

@@ -378,9 +378,9 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
      * <p>顺序不能反过来——回池后的对象立刻会被下一个 {@link #create} 复用，
      * 任何残留引用都会变成"操作到别人身上"的野指针（选中态尤其危险：会对着别人下命令）。
      *
-     * <p>注意这条路径会被 BulletProcess 线程直接触发（{@code applyDamage} 血量归零即 kill，
-     * 不走 freshKills 那条延迟通道），所以摸 {@code moveunits} 必须持它原有的那把锁；
-     * {@code EntityArs} 自带读写锁，这里不用额外加锁。
+     * <p>只在主线程执行（伤害结算可能在后台线程，但那里只登记不销毁，
+     * 由 {@code GameProcess} 统一调到这里）。摸 {@code moveunits} 必须持它原有的那把锁
+     * （UnitMath / InputProcess 在各自线程里共用）；{@code EntityArs} 自带读写锁，不用额外加。
      */
     @Override
     public void remove(Entity<?, ?> entity) {

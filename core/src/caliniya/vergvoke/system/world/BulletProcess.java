@@ -3,7 +3,6 @@ package caliniya.vergvoke.system.world;
 import arc.math.geom.Rect;
 import arc.util.Log;
 import caliniya.vergvoke.type.ability.api.*;
-import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.base.tool.Ar;
 import caliniya.vergvoke.base.game.EntityAr;
 import caliniya.vergvoke.game.Entities;
@@ -68,11 +67,6 @@ public class BulletProcess extends caliniya.vergvoke.system.System<BulletProcess
 
     /** 待删除列表（避免遍历时修改） */
     private final Ar<Bullet> toRemove = new Ar<>(false, 256);
-
-    /** 本帧刚被击杀的实体（由 BulletProcess 写入，GameProcess 读出） */
-    private final Ar<Entity> freshKills = new Ar<>(false, 64);
-
-    private final Object KILL_LOCK = new Object();
 
     @Override
     public BulletProcess init() {
@@ -203,15 +197,11 @@ public class BulletProcess extends caliniya.vergvoke.system.System<BulletProcess
                             b.y,
                             b.type.size,
                             e -> {
-                                float prevHealth = e.health;
+                                // 命中即扣血；若血量归零，applyDamage 会把 e 登记进 Entities 的
+                                // 待死队列，由主线程 GameProcess 统一销毁（后台线程不能碰池子）
                                 b.type.hit(b, e);
                                 if (!toRemove.contains(b))
                                     toRemove.add(b);
-                                if (prevHealth > 0 && e.health <= 0) {
-                                    synchronized (KILL_LOCK) {
-                                        freshKills.add(e);
-                                    }
-                                }
                             });
                 });
 
@@ -283,14 +273,6 @@ public class BulletProcess extends caliniya.vergvoke.system.System<BulletProcess
                 for (ForceField f : toCleanup)
                     list.remove(f, true);
             }
-        }
-    }
-
-    /** 清空新鲜死亡队列，返回本帧新增的死亡实体列表（由 GameProcess 调用） */
-    public void drainFreshKills(Ar<Entity> out) {
-        synchronized (KILL_LOCK) {
-            out.add(freshKills);
-            freshKills.clear();
         }
     }
 

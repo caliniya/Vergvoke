@@ -38,9 +38,10 @@ public class WeaponComp {
             float wx = w.owner.x + w.type.x;
             float wy = w.owner.y + w.type.y;
             if (w.rotate) {
+                // 与 WeaponType.findTarget 一致：射程算到目标边缘（见 Entity.dst2Surface）
                 if (w.target == null
                         || w.target.health <= 0
-                        || Mathf.dst2(wx, wy, w.target.x, w.target.y) > w.type.range * w.type.range) {
+                        || w.target.dst2Surface(wx, wy) > w.type.range * w.type.range) {
                     w.type.findTarget(w, wx, wy);
                 }
             } else {

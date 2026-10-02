@@ -8,6 +8,7 @@ import caliniya.vergvoke.base.ecs.Building;
 import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.game.Entity;
+import caliniya.vergvoke.base.tool.Ar;
 import caliniya.vergvoke.base.type.TeamTypes;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.type.*;
@@ -62,6 +63,38 @@ public class Entities {
         freeIDs.clear();
     }
 
+    // --- 待销毁队列 ---
+    // 伤害结算可能在 BulletProcess 线程发生，但「注销容器 → 回收 ID → 回池」只能主线程做，
+    // 否则后台线程把对象 free 掉之后，主线程还会拿着同一个引用再操作一次。
+    private static final Ar<Entity> pendingKills = new Ar<>(false, 64);
+    private static final Object KILL_LOCK = new Object();
+
+    /** 登记一个已判死的实体，等主线程 {@code GameProcess} 统一销毁。任意线程可调。 */
+    public static void markDead(Entity e) {
+        if (e == null)
+            return;
+        synchronized (KILL_LOCK) {
+            if (!pendingKills.contains(e)) {
+                pendingKills.add(e);
+            }
+        }
+    }
+
+    /** 取出本帧登记的待死实体（同时清空队列）。由主线程调用。 */
+    public static void drainDead(Ar<Entity> out) {
+        synchronized (KILL_LOCK) {
+            out.add(pendingKills);
+            pendingKills.clear();
+        }
+    }
+
+    /** 丢弃全部待销毁登记（换局 / 清档时用，防止跨局残留把已回池的对象再杀一次）。 */
+    public static void clearDead() {
+        synchronized (KILL_LOCK) {
+            pendingKills.clear();
+        }
+    }
+
     /** 注册实体（建筑已在 {@code BuildingType.create} 里入组，这里重复调用是幂等的） */
     public static void add(Building... entities) {
         if (entities == null || entities.length == 0)
@@ -91,16 +124,32 @@ public class Entities {
         EntityArs.Building.remove(bs);
     }
 
-    /** 在指定范围内查找所有敌人实体 */
+    /**
+     * 在指定范围内查找所有敌人实体。
+     *
+     * <p>射程判定按到中心的距离（子弹命中这类"真要碰到"的场合用它）。
+     */
     public static void nearbyEnemies(
             TeamTypes sourceTeam, float x, float y, float r, Cons<Entity> consumer) {
+        nearbyEnemies(sourceTeam, x, y, r, false, consumer);
+    }
+
+    /**
+     * 在指定范围内查找所有敌人实体。
+     *
+     * @param byEdge true = 射程算到目标<b>边缘</b>（索敌用：大建筑的边伸进射程就算够得着）；
+     *               false = 只算到中心（子弹命中用，否则子弹会在离建筑老远的地方就炸）
+     */
+    public static void nearbyEnemies(
+            TeamTypes sourceTeam, float x, float y, float r, boolean byEdge, Cons<Entity> consumer) {
+        float r2 = r * r;
         EntityArs.Unit.intersect(
                 x - r,
                 y - r,
                 r * 2,
                 r * 2,
                 u -> {
-                    if (u.team != sourceTeam && Mathf.dst2(x, y, u.x, u.y) <= r * r) {
+                    if (u.team != sourceTeam && inRange(u, x, y, r2, byEdge)) {
                         consumer.get(u);
                     }
                 });
@@ -109,15 +158,26 @@ public class Entities {
                 y - r,
                 r * 2,
                 r * 2,
-                u -> {
-                    if (u.team != sourceTeam && Mathf.dst2(x, y, u.x, u.y) <= r * r) {
-                        consumer.get(u);
+                b -> {
+                    if (b.team != sourceTeam && inRange(b, x, y, r2, byEdge)) {
+                        consumer.get(b);
                     }
                 });
     }
 
+    /** 四叉树已按包围盒粗筛过，这里只做精确的射程判定。 */
+    private static boolean inRange(Entity e, float x, float y, float r2, boolean byEdge) {
+        return byEdge ? e.dst2Surface(x, y) <= r2 : Mathf.dst2(x, y, e.x, e.y) <= r2;
+    }
+
     /** 查找最近的敌人实体 */
     public static Entity closestEnemy(TeamTypes sourceTeam, float x, float y, float radius) {
+        return closestEnemy(sourceTeam, x, y, radius, false);
+    }
+
+    /** 查找最近的敌人实体（{@code byEdge} 见 {@link #nearbyEnemies}）。 */
+    public static Entity closestEnemy(
+            TeamTypes sourceTeam, float x, float y, float radius, boolean byEdge) {
         final Entity[] result = { null };
         final float[] minDst2 = { radius * radius };
 
@@ -126,8 +186,11 @@ public class Entities {
                 x,
                 y,
                 radius,
+                byEdge,
                 enemy -> {
-                    float dst2 = Mathf.dst2(x, y, enemy.x, enemy.y);
+                    float dst2 = byEdge
+                            ? enemy.dst2Surface(x, y)
+                            : Mathf.dst2(x, y, enemy.x, enemy.y);
                     if (dst2 < minDst2[0]) {
                         minDst2[0] = dst2;
                         result[0] = enemy;
@@ -141,6 +204,12 @@ public class Entities {
     /** 这个方法不会获得null值，如果没有敌人的话 就不会执行任何操作，所以不建议用这一个进行赋值 */
     public static void closestEnemy(
             TeamTypes sourceTeam, float x, float y, float radius, Cons<Entity> con) {
+        closestEnemy(sourceTeam, x, y, radius, false, con);
+    }
+
+    /** 查找最近的敌人实体（{@code byEdge} 见 {@link #nearbyEnemies}）。 */
+    public static void closestEnemy(
+            TeamTypes sourceTeam, float x, float y, float radius, boolean byEdge, Cons<Entity> con) {
         final Entity[] result = { null };
         final float[] minDst2 = { radius * radius };
 
@@ -149,8 +218,11 @@ public class Entities {
                 x,
                 y,
                 radius,
+                byEdge,
                 enemy -> {
-                    float dst2 = Mathf.dst2(x, y, enemy.x, enemy.y);
+                    float dst2 = byEdge
+                            ? enemy.dst2Surface(x, y)
+                            : Mathf.dst2(x, y, enemy.x, enemy.y);
                     if (dst2 < minDst2[0]) {
                         minDst2[0] = dst2;
                         result[0] = enemy;
@@ -174,6 +246,18 @@ public class Entities {
             float radius,
             Boolf<Entity> filter,
             Cons<Entity> consumer) {
+        closestEnemy(sourceTeam, x, y, radius, filter, false, consumer);
+    }
+
+    /** 带过滤的最近敌人（{@code byEdge} 见 {@link #nearbyEnemies}）。 */
+    public static void closestEnemy(
+            TeamTypes sourceTeam,
+            float x,
+            float y,
+            float radius,
+            Boolf<Entity> filter,
+            boolean byEdge,
+            Cons<Entity> consumer) {
         final Object[] result = { null };
         final float[] minDst2 = { radius * radius };
 
@@ -182,10 +266,13 @@ public class Entities {
                 x,
                 y,
                 radius,
+                byEdge,
                 enemy -> {
                     if (!filter.get(enemy))
                         return;
-                    float dst2 = Mathf.dst2(x, y, enemy.x, enemy.y);
+                    float dst2 = byEdge
+                            ? enemy.dst2Surface(x, y)
+                            : Mathf.dst2(x, y, enemy.x, enemy.y);
                     if (dst2 < minDst2[0]) {
                         minDst2[0] = dst2;
                         result[0] = enemy;

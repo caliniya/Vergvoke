@@ -34,6 +34,10 @@ public class BlockRender extends caliniya.vergvoke.system.System<BlockRender> {
       if (shouldDraw(b.x, b.y, blk.psize)) {
         // 绘制建筑（走 Entity.draw → BuildingType.draw → Block.draw）
         b.draw();
+        // 阵营名（头顶，b.size 是像素边长，上边缘 = 中心 + 半边长）
+        if (UnitRender.showTeam) {
+          UnitRender.drawTeamTag(b, b.y + b.size * 0.5f + 8f);
+        }
         // 调试绘制
         if (UnitRender.debug) { // 复用 UnitRender 的 debug 开关
           blk.drawDebug(b);

@@ -43,11 +43,17 @@
 `UnitType.remove` / `BuildingType.remove` 是唯一的销毁出口（`kill()` 默认转调 `remove()`）。铁律：
 
 - **顺序**：摘干净所有持有者 → 注销容器 → `freeID` → `Pools.free`。反了就是悬垂引用。
-- **会被后台线程直接触发**：`Entity.applyDamage` 血量归零即 `kill()`，不走 freshKills 延迟通道。
-  摸 `WorldData.moveunits` 必须 `synchronized (WorldData.moveunits)`（UnitMath / InputProcess 共用）。
+- **只在主线程销毁**（2026-10-02 定案，之前那套"后台线程直接销毁+加锁"是错的）：
+  伤害结算会在 BulletProcess 线程发生，`applyDamage` 血量归零只做 `Entities.markDead(this)` 登记，
+  真正的销毁由 `GameProcess` 每帧开头 `Entities.drainDead` 后统一 `kill()`。
+  后台线程碰对象池 = 实体 free 后仍躺在待死队列里 → 下一帧对着 `type == null` 再杀一次 → NPE。
+- 摸 `WorldData.moveunits` 仍要 `synchronized (WorldData.moveunits)`（UnitMath / InputProcess 共用）。
 - **防二次销毁**：同一实体会同时出现在 `deadUnits` 与 `freshKilled`，用 `type == null` 挡
   （`Pools.free` → `reset()` 会置空 type），否则 double-free 池。
 - **对象池复用不跑构造**：没有声明初始化式的运行时字段必须在 `create` 里显式托底，否则残留串味。
+- **改了实体坐标或 size 必须同步四叉树**：`EntityArs.X.move(e, e.x, e.y)`。
+  忘了的话实体仍会渲染/更新（走 array），但所有 `intersect` 查询都查不到它——
+  表现是"某些敌人永远打不到"，极难一眼看出来。读档路径尤其容易漏（先在原点 create，read 才填坐标）。
 
 ## 本地环境坑
 

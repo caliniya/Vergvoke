@@ -34,6 +34,8 @@ public class WorldData {
         EntityArs.Building.clear();
         // 上一局的选中单位全是失效对象，一并清掉
         CommandData.init();
+        // 上一局登记的待死实体可能已经回池，留着会让新一局对着别人的对象下杀手
+        Entities.clearDead();
 
         moveunits = new EntityAr<>(unit -> unit.id);
         bullets = new EntityAr<>(bullet -> bullet.id);

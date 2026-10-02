@@ -6,8 +6,8 @@ import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.base.tool.*;
+import caliniya.vergvoke.game.Entities;
 import caliniya.vergvoke.game.data.*;
-import caliniya.vergvoke.system.world.BulletProcess;
 
 // 在这里进行主线程游戏内容的更新
 @SystemDef(name = "GameProcess", thread = "main", index = 5)
@@ -18,7 +18,8 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 
     public Ar<Unit> deadUnits;
     public Ar<Building> deadBuildings;
-    public Ar<Entity> freshKilled; // 接收 BulletProcess 的即时击杀通知
+    /** 待销毁实体（伤害结算可能在后台线程登记，真正的销毁只在这里做）。 */
+    public Ar<Entity> freshKilled;
 
     @Override
     public GameProcess init() {
@@ -31,8 +32,10 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 
     @Override
     public void update(float delta) {
-        // 先处理 BulletProcess 线程刚击杀的实体（延迟最小化，防止血量变负才死）
-        BulletProcess.it.drainFreshKills(freshKilled);
+        // 先处理刚判死的实体（延迟最小化，防止血量变负才死）。
+        // 这是**唯一的销毁出口**：伤害结算可能在 BulletProcess 线程发生，那里只登记不销毁，
+        // 注销容器 / 回收 ID / 回池一律在这里（主线程）做。
+        Entities.drainDead(freshKilled);
         for (Entity e : freshKilled) {
             e.kill();
         }
