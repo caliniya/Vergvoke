@@ -92,17 +92,18 @@ public class MenuFragment {
                                                 i--;
                                                 continue;
                                             }
-                                            WorldData.world.setBuilding(bx, by, Blocks.TestBlock, TeamTypes.Mutex);
+                                            WorldData.placeBuilding(Blocks.TestBlock, bx, by, 0, TeamTypes.Mutex);
                                         }
 
                                         // --- 新增：在地图中心生成敌方测试炮塔 ---
                                         int centerX = WorldData.world.W / 2;
                                         int centerY = WorldData.world.H / 2;
 
-                                        Building enemyTurret = WorldData.world.setBuilding(
-                                                centerX, centerY, Blocks.testTurret, TeamTypes.Mutex);
+                                        Building enemyTurret =
+                                                WorldData.placeBuilding(
+                                                        Blocks.testTurret, centerX, centerY, 0, TeamTypes.Mutex);
 
-                                        RouteData.init();
+                                        // 导航增量更新已由 WorldData.placeBuilding 内部处理，不再手动全量重建
                                         ObjectMap<String, String> tag = new ObjectMap<String, String>();
                                         tag.put("author", "calinya");
                                         tag.put("name", "spaceTest");

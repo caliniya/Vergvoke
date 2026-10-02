@@ -76,66 +76,14 @@ public class World {
         return getBuilding(x, y) != null;
     }
 
-    public Building setBuilding(int x, int y, Block block, TeamTypes team) {
-        if (!isValidCoord(x, y) || block == null)
-            return null;
-
-        Building newBuild = block.buildingType.create(team, x, y, 0);
-        Block blk = newBuild.type != null ? newBuild.type.block : null;
-
-        newBuild.getOccupiedCoords(
-                (tx, ty) -> {
-                    if (isValidCoord(tx, ty)) {
-                        Building existing = getBuilding(tx, ty);
-                        if (existing != null && existing != newBuild) {
-                            removeBuilding(existing.tx, existing.ty);
-                        }
-                        WorldChunk chunk = getOrCreateChunk(tx, ty);
-                        chunk.setBuilding(tx & WorldChunk.MASK, ty & WorldChunk.MASK, newBuild);
-                        RouteData.updateBlock(tx, ty, blk != null && blk.solid);
-                    }
-                });
-        return newBuild;
+    /** 注册单个占位瓦片的 chunk 引用（由 WorldData 门面在放置流程中调用）。 */
+    public void registerTile(int x, int y, Building build) {
+        WorldChunk chunk = getOrCreateChunk(x, y);
+        chunk.setBuilding(x & WorldChunk.MASK, y & WorldChunk.MASK, build);
     }
 
-    /** 把已有建筑实体（通常是读档还原出来的）落进世界瓦片 + 导航层。 */
-    public void setBuilding(Building b) {
-        if (!isValidCoord(b.tx, b.ty))
-            return;
-        Block blk = b.type != null ? b.type.block : null;
-        if (blk == null)
-            return;
-
-        b.getOccupiedCoords(
-                (tx, ty) -> {
-                    if (isValidCoord(tx, ty)) {
-                        Building existing = getBuilding(tx, ty);
-                        if (existing != null && existing != b) {
-                            removeBuilding(existing.tx, existing.ty);
-                        }
-                        WorldChunk chunk = getOrCreateChunk(tx, ty);
-                        chunk.setBuilding(tx & WorldChunk.MASK, ty & WorldChunk.MASK, b);
-                        RouteData.updateBlock(tx, ty, blk.solid);
-                    }
-                });
-    }
-
-    /** 按坐标拆除：找到占位的建筑，走它的销毁流程（{@code BuildingType.remove}）。 */
-    public void removeBuilding(int x, int y) {
-        Building build = getBuilding(x, y);
-        if (build == null)
-            return;
-        build.remove();
-    }
-
-    /** 清掉本建筑在所有占位瓦片上的引用，并撤销导航层标记（不碰实体容器）。 */
-    private void clearTiles(Building build) {
-        Block blk = build.type != null ? build.type.block : null;
-        // 通知导航数据：先取消实心标记（必须在清除区块前调用）
-        if (blk != null && blk.solid) {
-            RouteData.updateBlock(build.tx, build.ty);
-        }
-
+    /** 注销建筑占位的全部瓦片引用（不碰导航与实体容器——那两步由门面编排）。 */
+    public void unregisterTiles(Building build) {
         build.getOccupiedCoords(
                 (tx, ty) -> {
                     if (isValidCoord(tx, ty)) {
@@ -146,17 +94,6 @@ public class World {
                         }
                     }
                 });
-    }
-
-    /**
-     * 拆除实体：清瓦片 + 从实体容器注销。由 {@code BuildingType.remove} 调用，
-     * 之后才是回收 ID 与回对象池——顺序反过来会留下悬垂引用。
-     */
-    public void removeBuilding(Building build) {
-        if (build == null)
-            return;
-        clearTiles(build);
-        EntityArs.Building.remove(build);
     }
 
     public boolean isSolid(int x, int y) {
@@ -186,13 +123,9 @@ public class World {
             if (chunk == null)
                 return;
             chunk.setENVBlock(x & WorldChunk.MASK, y & WorldChunk.MASK, 0);
-            // 通知导航数据：移除环境方块
-            RouteData.updateBlock(x, y, false);
         } else {
             WorldChunk chunk = getOrCreateChunk(x, y);
             chunk.setENVBlock(x & WorldChunk.MASK, y & WorldChunk.MASK, id);
-            // 通知导航数据：放置环境方块
-            RouteData.updateBlock(x, y, block.solid);
         }
     }
 

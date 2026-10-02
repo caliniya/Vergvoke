@@ -1,5 +1,8 @@
 package caliniya.vergvoke.game.data;
 
+import arc.util.pooling.Pools;
+
+import caliniya.vergvoke.base.ecs.Building;
 import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.type.*;
@@ -12,8 +15,6 @@ import caliniya.vergvoke.type.*;
 public class WorldData {
     public static World world;
 
-    // ========== 全局实体容器 ==========
-    // 实体容器统一用生成的 EntityArs（带 id 提取器），树初始化/清理在下方 initAllTrees/clear 同步
     public static EntityAr<Unit> moveunits;
     public static EntityAr<Bullet> bullets;
 
@@ -25,7 +26,6 @@ public class WorldData {
     private WorldData() {
     }
 
-    @SuppressWarnings("unchecked")
     public static void initWorld(int w, int h, boolean space) {
         Game.team = TeamTypes.Evoke;
 
@@ -65,6 +65,84 @@ public class WorldData {
         // 同步子弹处理系统的内部子弹树（力场拦截等依赖它的 intersect）
         if (BulletProcess.it != null)
             BulletProcess.it.resizeTree(worldPixelW, worldPixelH);
+    }
+
+    /** 放置建筑 */
+    public static Building placeBuilding(Block block, int tx, int ty, int angle, TeamTypes team) {
+        Building b = block.buildingType.create(team, tx, ty, angle);
+        placeTiles(b);
+        return b;
+    }
+
+    /**
+     * 把读档还原的建筑落进世界（工厂 + read + rebuild 之后调）：
+     * 占位瓦片/区块注册 + 导航更新 + 入容器（此时坐标已定，四叉树直接插在正确位置）。
+     */
+    public static void placeBuilding(Building b) {
+        placeTiles(b);
+    }
+
+    /**
+     * 移除建筑
+     *
+     * <p>
+     * 导航清占必须在瓦片注销前：{@code RouteData.updateBlock(bx,by)} 靠 world.getBuilding 找建筑。
+     */
+    public static void removeBuilding(Building b) {
+        if (b == null || b.type == null)
+            return; // type == null = 已回池（reset 置空的标志）
+        if (world != null && b.type.block != null && b.type.block.solid) {
+            RouteData.updateBlock(b.tx, b.ty);
+        }
+        if (world != null) {
+            world.unregisterTiles(b);
+        }
+        EntityArs.Building.remove(b);
+        b.id = Entities.freeID(b.id);
+        Pools.free(b);
+    }
+
+    /** 同步四叉树 */
+    public static void syncTree(Building b) {
+        EntityArs.Building.move(b, b.x, b.y);
+    }
+
+    /**
+     * 设置环境方块
+     */
+    public static void setEnvBlock(int x, int y, ENVBlock block) {
+        if (world == null)
+            return;
+        world.setENVBlock(x, y, block);
+        RouteData.updateBlock(x, y, block != null && block.solid);
+    }
+
+    /** 地图加载完成后的初始化 */
+    public static void mapLoaded() {
+        if (world != null) {
+            RouteData.init();
+        }
+    }
+
+    /** 占位瓦片注册 + 覆盖拆除 + 导航标记（放置两条路径共用）。 */
+    private static void placeTiles(Building b) {
+        if (world == null)
+            return;
+        Block blk = b.type != null ? b.type.block : null;
+        if (blk == null)
+            return;
+
+        b.getOccupiedCoords(
+                (tx, ty) -> {
+                    if (tx < 0 || ty < 0 || tx >= world.W || ty >= world.H)
+                        return;
+                    Building existing = world.getBuilding(tx, ty);
+                    if (existing != null && existing != b) {
+                        removeBuilding(existing);
+                    }
+                    world.registerTile(tx, ty, b);
+                    RouteData.updateBlock(tx, ty, blk.solid);
+                });
     }
 
     public static void clear() {

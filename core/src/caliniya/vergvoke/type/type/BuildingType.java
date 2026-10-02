@@ -4,7 +4,6 @@ import arc.util.pooling.Pools;
 
 import caliniya.vergvoke.base.api.EntityType;
 import caliniya.vergvoke.base.ecs.Building;
-import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.base.type.TeamTypes;
 import caliniya.vergvoke.game.Entities;
@@ -95,7 +94,7 @@ public class BuildingType implements EntityType {
         b.retargetTimer = 0f;
         b.filter = null;
 
-        EntityArs.Building.add(b);
+        // 容器注册 / 瓦片注册 / 导航更新由 WorldData 门面编排（placeBuilding）
         return b;
     }
 
@@ -105,10 +104,8 @@ public class BuildingType implements EntityType {
      * <p>组件的 {@code @Read} 只能恢复原始字段——派生数据要用 block 配置，而 {@code @Import}
      * 借不到基类那个泛型 {@code type} 字段，所以这一步留在类型侧，由给档路径显式调用。
      *
-     * <p><b>必须在这里同步四叉树节点</b>：建筑是先在 (0,0) 落工厂（那时就插进了
-     * {@code EntityArs.Building} 的树），read 才把真实坐标糊回来。不 move 的话树里记的还是
-     * 左上角那个点，索敌查询在别处永远找不到它——表现就是"有些敌对建筑没人打"，
-     * 而它照样能渲染、能挡路、瓦片层也能查到。
+     * <p>坐标在 read 后才最终确定，容器注册（含四叉树插入）由调用方接着调
+     * {@code WorldData.placeBuilding(b)} 完成——树直接插在正确位置，不存在 (0,0) 旧节点。
      */
     public void rebuild(Building b) {
         float psize = psize();
@@ -124,9 +121,6 @@ public class BuildingType implements EntityType {
         b.maxHealth = block.health;
         b.teamData = b.team != null ? b.team.data() : null;
         b.self = b;
-
-        // 坐标（以及 size）变了，四叉树里的旧节点必须换掉，否则索敌查不到
-        EntityArs.Building.move(b, b.x, b.y);
     }
 
     // --- EntityType 接口 ---
@@ -153,26 +147,11 @@ public class BuildingType implements EntityType {
         }
     }
 
-    /**
-     * 摧毁：先卸载瓦片与导航标记，再注销容器与 ID，最后回池。
-     *
-     * <p>顺序不能反过来——回池后的对象会被下一个建造复用，瓦片里留着它就是悬垂引用。
-     * 判死与 {@code World.setBuilding} 的覆盖都可能重复触发这里，故用 {@code type == null}
-     * 作"已回池"标志挡二次销毁（{@code reset()} 会把它置空）。
-     */
+    /** 摧毁：编排顺序（导航清占 → 瓦片注销 → 容器 → ID → 回池）封在 {@code WorldData.removeBuilding}。 */
     @Override
     public void remove(Entity<?, ?> entity) {
-        if (!(entity instanceof Building b))
-            return;
-        if (b.type == null)
-            return;
-
-        if (WorldData.world != null) {
-            WorldData.world.removeBuilding(b);
-        } else {
-            EntityArs.Building.remove(b);
+        if (entity instanceof Building b) {
+            WorldData.removeBuilding(b);
         }
-        b.id = Entities.freeID(b.id);
-        Pools.free(b);
     }
 }

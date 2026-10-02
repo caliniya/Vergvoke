@@ -2,6 +2,7 @@ package caliniya.vergvoke.game.data;
 
 import arc.math.Mathf;
 import arc.math.geom.Point2;
+import arc.struct.IntMap;
 import arc.struct.IntQueue;
 import arc.struct.PQueue;
 import caliniya.vergvoke.base.ecs.Building;
@@ -21,7 +22,14 @@ public class RouteData {
   private static final int UPDATE_RANGE = 24;
   private static final int MAX_DIST_VAL = 9999;
 
-  public static int W, H;
+  // --- HPA*：chunk 抽象层 ---
+  /** chunk 边长（格）。 */
+  public static final int CHUNK = 10;
+  /** 导航变更对寻路的波及半径（有界泛洪范围 + 腐蚀级联），脏 chunk 标记用。 */
+  private static final int NAV_DIRTY_REACH = UPDATE_RANGE + MAX_CAPABILITY + 2;
+
+  private static int W, H;
+  private static int chunksX, chunksY;
   public static NavLayer[] layers;
 
   // 用于增量更新的锁
@@ -35,12 +43,64 @@ public class RouteData {
     public int[] clearanceMap; // 距离场
     public boolean[][] sizeMaps; // [Radius][Index] 体积阻挡缓存
 
+    // --- HPA* 抽象层（惰性构建：chunkNav 标脏，findPath 触到才重算）---
+    public IntMap<Entrance> entrances; // 门口，key = ay * W + ax（A 侧瓦片）
+    public ChunkNav[] chunkNav; // chunksX * chunksY
+
     public NavLayer(int size) {
       baseSolidMap = new boolean[size];
       clearanceMap = new int[size];
       sizeMaps = new boolean[MAX_PRECALC_RADIUS + 1][size];
+      entrances = new IntMap<>();
+      chunkNav = new ChunkNav[chunksX * chunksY];
     }
   }
+
+  /** 门口：相邻 chunk 边界两侧的通行瓦片对（A = 左/上 chunk，B = 右/下 chunk）。 */
+  private static class Entrance {
+    int ax, ay, bx, by;
+  }
+
+  /** 抽象边：同一 chunk 内两个门口之间的路径缓存（无向；unitSize=0 搜索 + 最小 clearance 注解）。 */
+  private static class AbstractEdge {
+    int from, to; // 门口 key
+    float cost; // 入口瓦片间路径代价（= 格步数，与 JPS 的曼哈顿 g 一致）
+    int minClear; // 路径上的最小 clearance（体积注解：可用 iff minClear > unitSize）
+    Ar<Point2> path; // 入口瓦片间的格路径
+  }
+
+  /** 每个 chunk 的抽象边缓存 + 边界门口的本侧入口。 */
+  private static class ChunkNav {
+    final Ar<AbstractEdge> edges = new Ar<>();
+    final Ar<int[]> crossings = new Ar<>(); // {nodeKey, entryX, entryY}
+    boolean dirty = true;
+  }
+
+  /** 起点/终点到本 chunk 边界门口的连接。 */
+  private static class Conn {
+    int key;
+    float cost;
+    Ar<Point2> path; // 从单位位置到入口瓦片
+  }
+
+  /** 门口抽象图 A* 节点。 */
+  private static class ANode implements Comparable<ANode> {
+    int key;
+    float g, f;
+    ANode parent;
+    AbstractEdge edge; // 从 parent 走到本节点用的抽象边
+    boolean reversed; // 边是否反向使用（拼接时 path 要倒序）
+    Conn start; // 根节点持有的起点连接
+    int viaChunk; // 本节点经由哪个 chunk 到达（门口两侧入口的切换要记 1 步代价）
+
+    @Override
+    public int compareTo(ANode o) {
+      return Float.compare(f, o.f);
+    }
+  }
+
+  /** 局部搜索的边界限制（updateLock 内单线程，静态字段当参数传）。null = 不限。 */
+  private static int[] searchBounds;
 
   /** 初始化全图数据 */
   public static void init() {
@@ -48,6 +108,9 @@ public class RouteData {
     W = world.W;
     H = world.H;
     int size = W * H;
+
+    chunksX = (W + CHUNK - 1) / CHUNK;
+    chunksY = (H + CHUNK - 1) / CHUNK;
 
     layers = new NavLayer[MAX_CAPABILITY + 1];
 
@@ -111,6 +174,8 @@ public class RouteData {
           updateRegion(curr, minX, minY, maxX, maxY);
         }
       }
+
+      markNavDirty(x, y, x, y);
     }
   }
 
@@ -168,6 +233,8 @@ public class RouteData {
           updateRegion(curr, uminX, uminY, umaxX, umaxY);
         }
       }
+
+      markNavDirty(minX, minY, maxX, maxY);
     }
   }
 
@@ -240,7 +307,152 @@ public class RouteData {
           updateRegion(curr, uminX, uminY, umaxX, umaxY);
         }
       }
+
+      markNavDirty(minX[0], minY[0], maxX[0], maxY[0]);
     }
+  }
+
+  // ==================== HPA*：脏标记与 chunk 抽象层 ====================
+
+  /**
+   * 导航图变化后按波及范围标记脏 chunk（含泛洪/腐蚀外扩）。惰性重建：
+   * findPath 触到哪个 chunk 才重算哪个，放置建筑的代价被摊到后续查询里。
+   */
+  private static void markNavDirty(int minX, int minY, int maxX, int maxY) {
+    if (layers == null) return;
+    int cMinX = Math.max(0, minX - NAV_DIRTY_REACH) / CHUNK;
+    int cMinY = Math.max(0, minY - NAV_DIRTY_REACH) / CHUNK;
+    int cMaxX = Math.min(chunksX - 1, (maxX + NAV_DIRTY_REACH) / CHUNK);
+    int cMaxY = Math.min(chunksY - 1, (maxY + NAV_DIRTY_REACH) / CHUNK);
+    for (NavLayer layer : layers) {
+      for (int cy = cMinY; cy <= cMaxY; cy++) {
+        for (int cx = cMinX; cx <= cMaxX; cx++) {
+          layer.chunkNav[chunkIdx(cx, cy)].dirty = true;
+        }
+      }
+    }
+  }
+
+  private static int chunkIdx(int cx, int cy) {
+    return cy * chunksX + cx;
+  }
+
+  private static int chunkOfTile(int x, int y) {
+    int cx = Math.min(chunksX - 1, x / CHUNK);
+    int cy = Math.min(chunksY - 1, y / CHUNK);
+    return cy * chunksX + cx;
+  }
+
+  private static int[] chunkBounds(int cx, int cy) {
+    return new int[] {
+      cx * CHUNK, cy * CHUNK,
+      Math.min(W, (cx + 1) * CHUNK) - 1,
+      Math.min(H, (cy + 1) * CHUNK) - 1
+    };
+  }
+
+  /** chunk 的门口/边缓存脏了就重建：扫四条边界找门口，再门口两两预计算 chunk 内路径。 */
+  private static void ensureClean(NavLayer layer, int cIdx) {
+    ChunkNav nav = layer.chunkNav[cIdx];
+    if (!nav.dirty) return;
+    nav.dirty = false;
+    nav.edges.clear();
+    nav.crossings.clear();
+
+    int cx = cIdx % chunksX;
+    int cy = cIdx / chunksX;
+    collectBorder(layer, cx, cy, 1, 0, nav);
+    collectBorder(layer, cx, cy, -1, 0, nav);
+    collectBorder(layer, cx, cy, 0, 1, nav);
+    collectBorder(layer, cx, cy, 0, -1, nav);
+
+    // 门口两两连边（unitSize=0 搜索最宽通道，minClear 注解交给查询按体积过滤）
+    int[] bounds = chunkBounds(cx, cy);
+    for (int i = 0; i < nav.crossings.size; i++) {
+      int[] a = nav.crossings.get(i);
+      for (int j = i + 1; j < nav.crossings.size; j++) {
+        int[] b = nav.crossings.get(j);
+        Ar<Point2> p = findPathDirect(layer, a[1], a[2], b[1], b[2], 0, bounds);
+        if (p == null || p.size < 2) continue;
+        AbstractEdge edge = new AbstractEdge();
+        edge.from = a[0];
+        edge.to = b[0];
+        edge.cost = p.size - 1;
+        edge.minClear = minClearance(layer, p);
+        edge.path = p;
+        nav.edges.add(edge);
+      }
+    }
+  }
+
+  /**
+   * 扫描 chunk (cx,cy) 与 (cx+dx,cy+dy) 的公共边界：
+   * 每段连续可通行取中点一个门口（登记进 entrances，并记下本 chunk 侧的入口瓦片）。
+   */
+  private static void collectBorder(NavLayer layer, int cx, int cy, int dx, int dy, ChunkNav nav) {
+    int nx = cx + dx, ny = cy + dy;
+    if (nx < 0 || ny < 0 || nx >= chunksX || ny >= chunksY) return;
+
+    if (dx != 0) {
+      // 垂直边界：A 侧 = 左 chunk，B 侧 = 右 chunk
+      int leftCx = Math.min(cx, nx);
+      int ax = Math.min(W - 1, leftCx * CHUNK + CHUNK - 1);
+      int bx = ax + 1;
+      if (bx >= W) return;
+      int y0 = cy * CHUNK;
+      int y1 = Math.min(H, y0 + CHUNK) - 1;
+      int runStart = -1;
+      for (int y = y0; y <= y1 + 1; y++) {
+        boolean ok = y <= y1 && isPassable(layer, ax, y, 0) && isPassable(layer, bx, y, 0);
+        if (ok && runStart < 0) runStart = y;
+        if (!ok && runStart >= 0) {
+          int mid = (runStart + y - 1) / 2;
+          Entrance e = new Entrance();
+          e.ax = ax;
+          e.ay = mid;
+          e.bx = bx;
+          e.by = mid;
+          int key = coordToIndex(e.ax, e.ay);
+          layer.entrances.put(key, e);
+          nav.crossings.add(cx == leftCx ? new int[] {key, e.ax, e.ay} : new int[] {key, e.bx, e.by});
+          runStart = -1;
+        }
+      }
+    } else {
+      // 水平边界：A 侧 = 上 chunk，B 侧 = 下 chunk
+      int topCy = Math.min(cy, ny);
+      int ay = Math.min(H - 1, topCy * CHUNK + CHUNK - 1);
+      int by = ay + 1;
+      if (by >= H) return;
+      int x0 = cx * CHUNK;
+      int x1 = Math.min(W, x0 + CHUNK) - 1;
+      int runStart = -1;
+      for (int x = x0; x <= x1 + 1; x++) {
+        boolean ok = x <= x1 && isPassable(layer, x, ay, 0) && isPassable(layer, x, by, 0);
+        if (ok && runStart < 0) runStart = x;
+        if (!ok && runStart >= 0) {
+          int mid = (runStart + x - 1) / 2;
+          Entrance e = new Entrance();
+          e.ax = mid;
+          e.ay = ay;
+          e.bx = mid;
+          e.by = by;
+          int key = coordToIndex(e.ax, e.ay);
+          layer.entrances.put(key, e);
+          nav.crossings.add(cy == topCy ? new int[] {key, e.ax, e.ay} : new int[] {key, e.bx, e.by});
+          runStart = -1;
+        }
+      }
+    }
+  }
+
+  private static int minClearance(NavLayer layer, Ar<Point2> path) {
+    int min = MAX_DIST_VAL;
+    for (int i = 0; i < path.size; i++) {
+      Point2 p = path.get(i);
+      min = Math.min(min, layer.clearanceMap[coordToIndex(p.x, p.y)]);
+    }
+    return min;
   }
 
   /**
@@ -376,7 +588,9 @@ public class RouteData {
   }
 
   /**
-   * 获取路径
+   * 获取路径（HPA*）：
+   * 同 chunk 直接局部 JPS；跨 chunk 先把起点/终点连到本 chunk 的边界门口，
+   * 再在门口抽象图上跑 A*（边缓存的 chunk 内路径按 minClear 体积注解过滤），拼接后平滑。
    *
    * @param unitSize 单位半径 (0=1x1, 1=3x3...)
    * @param capability 跨越能力 (0=普通, 1=机甲...)
@@ -388,6 +602,173 @@ public class RouteData {
 
       if (!isPassable(layer, tx, ty, unitSize)) return null;
 
+      int cs = chunkOfTile(sx, sy);
+      int cg = chunkOfTile(tx, ty);
+
+      // 同 chunk：直接局部 JPS
+      if (cs == cg) {
+        return findPathDirect(layer, sx, sy, tx, ty, unitSize, null);
+      }
+
+      // 起点/终点各自连到本 chunk 的边界门口
+      Ar<Conn> startConns = connectFrom(layer, sx, sy, cs, unitSize);
+      Ar<Conn> goalConns = connectFrom(layer, tx, ty, cg, unitSize);
+      if (startConns.size == 0 || goalConns.size == 0) return null;
+
+      // --- 门口抽象图 A*（多源：起点连接全部入队）---
+      IntMap<Float> gScore = new IntMap<>();
+      PQueue<ANode> open = new PQueue<>();
+      for (int i = 0; i < startConns.size; i++) {
+        Conn c = startConns.get(i);
+        Entrance e = layer.entrances.get(c.key);
+        ANode n = new ANode();
+        n.key = c.key;
+        n.g = c.cost;
+        n.f = c.cost + dist(e.ax, e.ay, tx, ty);
+        n.start = c;
+        n.viaChunk = cs;
+        gScore.put(c.key, c.cost);
+        open.add(n);
+      }
+
+      float best = Float.MAX_VALUE;
+      ANode bestNode = null;
+      Conn bestGoal = null;
+
+      while (!open.empty()) {
+        ANode cur = open.poll();
+        if (cur.g >= best) continue;
+
+        // 到达终点 chunk 的门口：整链代价 = 抽象 g + 门口→终点连接
+        Conn gc = findConn(goalConns, cur.key);
+        if (gc != null) {
+          // 终点连接挂在终点 chunk 侧；从另一侧到达门口要补 1 步跨界
+          float cross = cur.viaChunk == cg ? 0f : 1f;
+          float total = cur.g + cross + gc.cost;
+          if (total < best) {
+            best = total;
+            bestNode = cur;
+            bestGoal = gc;
+          }
+        }
+
+        Entrance e = layer.entrances.get(cur.key);
+        if (e == null) continue;
+        // 门口两侧 chunk 的边缓存（惰性重建）；换侧通行要记 1 步跨界代价
+        int chunkA = chunkOfTile(e.ax, e.ay);
+        int chunkB = chunkOfTile(e.bx, e.by);
+        ensureClean(layer, chunkA);
+        ensureClean(layer, chunkB);
+        expand(layer, chunkA, cur, cur.viaChunk == chunkA ? 0f : 1f, gScore, open, best, tx, ty, unitSize);
+        expand(layer, chunkB, cur, cur.viaChunk == chunkB ? 0f : 1f, gScore, open, best, tx, ty, unitSize);
+      }
+
+      if (bestNode == null) return null;
+
+      // --- 拼接：起点段 + 抽象边段 + 终点段，最后平滑 ---
+      Ar<ANode> chain = new Ar<>();
+      for (ANode n = bestNode; n != null; n = n.parent) chain.add(n);
+      chain.reverse();
+
+      Ar<Point2> result = new Ar<>();
+      result.addAll(chain.first().start.path);
+      for (int i = 1; i < chain.size; i++) {
+        ANode n = chain.get(i);
+        if (!n.reversed) {
+          result.addAll(n.edge.path);
+        } else {
+          for (int j = n.edge.path.size - 1; j >= 0; j--) result.add(n.edge.path.get(j));
+        }
+      }
+      // 终点连接存的是 goal→entry，拼回来要倒序
+      for (int j = bestGoal.path.size - 1; j >= 0; j--) result.add(bestGoal.path.get(j));
+
+      return smoothPath(result, layer, unitSize);
+    }
+  }
+
+  /** 从单位位置连接到所在 chunk 的全部边界门口（任意线程约束：调用方持 updateLock）。 */
+  private static Ar<Conn> connectFrom(NavLayer layer, int x, int y, int cIdx, int unitSize) {
+    ensureClean(layer, cIdx);
+    ChunkNav nav = layer.chunkNav[cIdx];
+    Ar<Conn> conns = new Ar<>();
+    for (int i = 0; i < nav.crossings.size; i++) {
+      int[] c = nav.crossings.get(i);
+      Ar<Point2> p = findPathDirect(layer, x, y, c[1], c[2], unitSize, null);
+      if (p == null) continue;
+      Conn conn = new Conn();
+      conn.key = c[0];
+      conn.cost = p.size - 1;
+      conn.path = p;
+      conns.add(conn);
+    }
+    return conns;
+  }
+
+  private static Conn findConn(Ar<Conn> conns, int key) {
+    for (int i = 0; i < conns.size; i++) {
+      if (conns.get(i).key == key) return conns.get(i);
+    }
+    return null;
+  }
+
+  /** 在 chunk 的边缓存上扩展抽象搜索（minClear 体积注解过滤 + best 剪枝）。 */
+  private static void expand(
+      NavLayer layer,
+      int cIdx,
+      ANode cur,
+      float crossCost,
+      IntMap<Float> gScore,
+      PQueue<ANode> open,
+      float best,
+      int tx,
+      int ty,
+      int unitSize) {
+    ChunkNav nav = layer.chunkNav[cIdx];
+    for (int i = 0; i < nav.edges.size; i++) {
+      AbstractEdge edge = nav.edges.get(i);
+      if (edge.minClear <= unitSize) continue; // 这条内部通道对当前体积放不下
+
+      int next;
+      boolean reversed;
+      if (edge.from == cur.key) {
+        next = edge.to;
+        reversed = false;
+      } else if (edge.to == cur.key) {
+        next = edge.from;
+        reversed = true;
+      } else {
+        continue;
+      }
+
+      float g = cur.g + crossCost + edge.cost;
+      if (g >= best) continue;
+      Float old = gScore.get(next);
+      if (old != null && old <= g) continue;
+
+      Entrance ne = layer.entrances.get(next);
+      ANode n = new ANode();
+      n.key = next;
+      n.g = g;
+      n.f = g + dist(ne.ax, ne.ay, tx, ty);
+      n.parent = cur;
+      n.edge = edge;
+      n.reversed = reversed;
+      n.viaChunk = cIdx;
+      gScore.put(next, g);
+      open.add(n);
+    }
+  }
+
+  /**
+   * 局部 JPS（原 findPath 主体）：同 chunk 直连、门口连接、chunk 内边预计算共用。
+   * @param bounds 搜索边界 {minX, minY, maxX, maxY}，null = 不限（chunk 内预计算时传 chunk 范围）
+   */
+  private static Ar<Point2> findPathDirect(
+      NavLayer layer, int sx, int sy, int tx, int ty, int unitSize, int[] bounds) {
+    int[] prevBounds = searchBounds;
+    searchBounds = bounds;
+    try {
       PQueue<Node> openList = new PQueue<>();
       boolean[] closedMap = new boolean[W * H];
       Node[] nodeIndex = new Node[W * H];
@@ -426,6 +807,8 @@ public class RouteData {
         }
       }
       return null;
+    } finally {
+      searchBounds = prevBounds;
     }
   }
 
@@ -684,6 +1067,9 @@ public class RouteData {
 
   public static boolean isPassable(NavLayer layer, int x, int y, int unitSize) {
     if (!isValid(x, y)) return false;
+    // 局部搜索边界（findPathDirect 设置，updateLock 内单线程）
+    int[] b = searchBounds;
+    if (b != null && (x < b[0] || x > b[2] || y < b[1] || y > b[3])) return false;
     int index = coordToIndex(x, y);
     if (unitSize <= MAX_PRECALC_RADIUS) {
       return !layer.sizeMaps[unitSize][index];

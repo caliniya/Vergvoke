@@ -168,18 +168,22 @@ public class DataIO {
       }
     }
 
+    // 地图瓦片全部就位，重刷导航层（此前 RouteData.init 跑在空世界上，地图固体进不了导航图）
+    WorldData.mapLoaded();
+
     // --- Buildings ---
     int buildingCount = r.i();
     for (int i = 0; i < buildingCount; i++) {
       String typeName = r.str();
       Block type = Contents.get(typeName, Block.class);
       if (type != null) {
-        // 先按默认位置/阵营过一遍工厂（模块、self、容器入组都在这里），read 再把坐标阵营糊回来
+        // 工厂只管构造（模块/self/运行时状态复位），read 把坐标阵营糊回来，
+        // rebuild 重算派生数据，最后由门面注册瓦片/导航/容器
         Building b = type.buildingType.create(TeamTypes.Evoke, 0, 0, 0);
         b.read(r);
         skipToEndMarker(r); // 校验结束标记
         type.buildingType.rebuild(b); // 坐标/阵营到手后重算占位形状与中心点
-        WorldData.world.setBuilding(b);
+        WorldData.placeBuilding(b);
       } else {
         Log.warn("Unknown block type in save: @, skipping...", typeName);
         skipToEndMarker(r);
