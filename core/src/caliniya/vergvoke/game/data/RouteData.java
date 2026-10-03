@@ -57,6 +57,8 @@ public class RouteData {
       baseSolidMap = new boolean[size];
       clearanceMap = new int[size];
       entrances = new IntMap<>();
+      // chunkNav 元素惰性创建：markNavDirty 对 null 跳过（没有缓存就没有旧数据可失效），
+      // ensureClean 第一次触到才建——从「当下的导航数据」构建，天然无陈旧问题
       chunkNav = new ChunkNav[chunksX * chunksY];
     }
   }
@@ -347,7 +349,8 @@ public class RouteData {
     for (NavLayer layer : layers) {
       for (int cy = cMinY; cy <= cMaxY; cy++) {
         for (int cx = cMinX; cx <= cMaxX; cx++) {
-          layer.chunkNav[chunkIdx(cx, cy)].dirty = true;
+          ChunkNav nav = layer.chunkNav[chunkIdx(cx, cy)];
+          if (nav != null) nav.dirty = true; // 没建过 = 没缓存 = 无需失效
         }
       }
     }
@@ -378,10 +381,15 @@ public class RouteData {
    * 多路读者同时触雷由 {@link #rebuildLock} 串行化，后到者见到已换新直接返回。
    */
   private static ChunkNav ensureClean(NavLayer layer, int cIdx) {
-    ChunkNav nav = layer.chunkNav[cIdx];
-    if (!nav.dirty) return nav;
+    if (layer.chunkNav[cIdx] != null && !layer.chunkNav[cIdx].dirty) {
+      return layer.chunkNav[cIdx]; // 快路径：干净 chunk 无锁返回
+    }
     synchronized (rebuildLock) {
-      nav = layer.chunkNav[cIdx];
+      ChunkNav nav = layer.chunkNav[cIdx];
+      if (nav == null) {
+        nav = new ChunkNav(cIdx);
+        layer.chunkNav[cIdx] = nav;
+      }
       if (!nav.dirty) return nav;
 
       ChunkNav fresh = new ChunkNav(cIdx);

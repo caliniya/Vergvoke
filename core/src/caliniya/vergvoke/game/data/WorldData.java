@@ -71,6 +71,8 @@ public class WorldData {
     public static Building placeBuilding(Block block, int tx, int ty, int angle, TeamTypes team) {
         Building b = block.buildingType.create(team, tx, ty, angle);
         placeTiles(b);
+        // 容器注册：渲染/更新/索敌全走 EntityArs.Building，漏了建筑就会"消失"
+        EntityArs.Building.add(b);
         return b;
     }
 
@@ -80,6 +82,8 @@ public class WorldData {
      */
     public static void placeBuilding(Building b) {
         placeTiles(b);
+        // 同上；坐标此时已定，四叉树直接插在正确位置
+        EntityArs.Building.add(b);
     }
 
     /**
