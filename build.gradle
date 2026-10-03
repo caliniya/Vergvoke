@@ -2,7 +2,7 @@ import java.text.SimpleDateFormat
 
 buildscript {
     ext {
-        arcVersion = 'v1' // 自己维护的 Arc fork (github.com/caliniya/Arc)
+        arcVersion = 'frog' // 占位版本号：composite build 自动替换为 arc/ 源码，不会真的解析（Mindustry v9 同款写法）
     }
     
     repositories {
@@ -15,7 +15,7 @@ buildscript {
     dependencies {
         //classpath 'com.android.tools.build:gradle:8.1.2'
         // 构建脚本需要的 Arc 模块
-        classpath "com.github.caliniya.Arc:arc-core:$arcVersion"
+        classpath "com.github.Anuken:arc-core:$arcVersion"
     }
 }
 
@@ -73,9 +73,9 @@ project(":desktop") {
     dependencies {
         implementation project(":core")
         
-        implementation "com.github.caliniya.Arc:natives-desktop:$arcVersion"
-        implementation "com.github.caliniya.Arc:natives-freetype-desktop:$arcVersion"
-        implementation "com.github.caliniya.Arc:backend-sdl:$arcVersion"
+        implementation "com.github.Anuken:natives-desktop:$arcVersion"
+        implementation "com.github.Anuken:natives-freetype-desktop:$arcVersion"
+        implementation "com.github.Anuken:backend-sdl:$arcVersion"
     }
 }
 
@@ -87,7 +87,7 @@ project(":annotation") {
         implementation project(":tools")
         annotationProcessor project(":tools")
         implementation 'com.squareup:javapoet:1.12.1'
-        implementation "com.github.caliniya.Arc:arc-core:$arcVersion"
+        implementation "com.github.Anuken:arc-core:$arcVersion"
     }
 }
 
@@ -104,13 +104,13 @@ project(":core") {
         api "org.lz4:lz4-java:1.8.0"
         
         // Arc
-        api "com.github.caliniya.Arc:arc-core:$arcVersion"
-        api "com.github.caliniya.Arc:flabel:$arcVersion"
-        api "com.github.caliniya.Arc:freetype:$arcVersion"
-        api "com.github.caliniya.Arc:g3d:$arcVersion"
-        api "com.github.caliniya.Arc:fx:$arcVersion"
-        api "com.github.caliniya.Arc:arcnet:$arcVersion"
-        api "com.github.caliniya.Arc:filedialogs:$arcVersion"
+        api "com.github.Anuken:arc-core:$arcVersion"
+        api "com.github.Anuken:flabel:$arcVersion"
+        api "com.github.Anuken:freetype:$arcVersion"
+        api "com.github.Anuken:g3d:$arcVersion"
+        api "com.github.Anuken:fx:$arcVersion"
+        api "com.github.Anuken:arcnet:$arcVersion"
+        api "com.github.Anuken:filedialogs:$arcVersion"
     }
 }
 
@@ -120,8 +120,8 @@ project(":tools") {
     compileJava.options.fork = true
 
     dependencies {
-        implementation "com.github.caliniya.Arc:packer:$arcVersion"
+        implementation "com.github.Anuken:packer:$arcVersion"
         // api：annotation/core 通过 tools 拿到 Ar 等工具类时也需要 arc 类型
-        api "com.github.caliniya.Arc:arc-core:$arcVersion"
+        api "com.github.Anuken:arc-core:$arcVersion"
     }
 }

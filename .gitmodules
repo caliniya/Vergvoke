@@ -1,0 +1,4 @@
+[submodule "arc"]
+	path = arc
+	url = https://github.com/caliniya/Arc
+	branch = master

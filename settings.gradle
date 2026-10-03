@@ -1,3 +1,32 @@
 include 'desktop', 'android', 'core' , 'tools'
 include(":android-old")
 include(":annotation")
+
+// ---- Arc 子模块（github.com/caliniya/Arc，fork 自 Anuken/Arc）----
+// 接线方式与 Mindustry v9 一致：includeBuild + Gradle 自动替换。
+// 依赖坐标写 com.github.Anuken:<module>，group:name 与 arc 构建内的项目匹配时
+// 会自动替换为 arc 源码项目，版本号写什么都行（Mindustry 用 "frog" 占位）。
+// 更新 Arc：fork 仓库 master 推进后，构建时自动跟进（见下），主仓库提交 arc 指针即可固定。
+
+// 自动就绪（含离线降级）：
+// 1) arc/ 缺失（新 clone 未带子模块）时尝试初始化——只物化主仓库记录的版本，离线可用
+// 2) 联网时跟进 fork master 最新（会推进 arc 指针，主仓库 commit 即固定）
+// 3) 离线时更新检查失败不阻塞构建，用本地已有版本继续
+if(!file('arc/settings.gradle').exists()){
+    println '> Arc 子模块缺失，尝试初始化...'
+    try{
+        exec{ commandLine 'git', 'submodule', 'update', '--init', 'arc' }
+    }catch(Exception ignored){
+        println '> 初始化失败（可能离线）：git submodule update --init'
+    }
+}
+if(!file('arc/settings.gradle').exists()){
+    throw new GradleException('arc/ 子模块不可用：请联网执行一次 "git submodule update --init"，之后即可离线构建')
+}
+try{
+    exec{ commandLine 'git', 'submodule', 'update', '--remote', 'arc' }
+}catch(Exception ignored){
+    println '> Arc 更新检查跳过（离线），使用本地已有版本构建'
+}
+
+includeBuild('arc')
