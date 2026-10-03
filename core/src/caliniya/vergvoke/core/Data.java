@@ -2,8 +2,11 @@ package caliniya.vergvoke.core;
 
 import arc.files.Fi;
 import arc.math.Rand;
+import arc.Events;
 import caliniya.vergvoke.base.ecs.Systems;
+import caliniya.vergvoke.base.type.EventType;
 import caliniya.vergvoke.game.*;
+import caliniya.vergvoke.game.data.WorldData;
 import caliniya.vergvoke.io.DataIO;
 import caliniya.vergvoke.io.GameIO;
 import caliniya.vergvoke.system.game.GameProcess;
@@ -32,6 +35,13 @@ public class Data {
     // 这个方法会加载所有的系统
     // 所有渲染方法 在此阶段不应该启动
     public static void loadSystems() {
+        // 重载前先停掉上一局的线程系统：ThreadedStop 在重载路径上从未被触发过，
+        // 旧 BulletProcess/UnitMath/EntityProces 线程会泄漏并与新实例双跑——
+        // 旧子弹线程把上一帧的陈旧缓冲换进 WorldData.bullets，就是重载后子弹渲染错乱的根源
+        Events.fire(EventType.events.ThreadedStop);
+        // 旧的主线程系统实例还挂在生成侧列表上，不清理会被 updateAll 双重驱动
+        Systems.systems.clear();
+
         GameProcess.it = new GameProcess();
         Render.it = new Render();
 
@@ -46,6 +56,9 @@ public class Data {
         BulletProcess.it = new BulletProcess();
         UnitMath.it = new UnitMath();
         EntityProces.it = new EntityProces();
+
+        // 旧线程停透后重建瞬态容器（旧线程死前可能已把陈旧缓冲换进静态字段），并重刷四叉树范围
+        WorldData.rebuildTransientContainers();
     }
 
     /** 把手写系统初始化并挂进生成侧调度数组（重复调用不会重复添加）。 */

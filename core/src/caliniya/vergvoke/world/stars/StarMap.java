@@ -2,6 +2,7 @@ package caliniya.vergvoke.world.stars;
 
 import arc.func.*;
 import arc.graphics.Camera;
+import arc.math.Mathf;
 import arc.math.geom.*;
 import arc.struct.*;
 import arc.util.io.Reads;
@@ -84,6 +85,27 @@ public class StarMap {
     public void get(Camera cam, Cons<StarRoad> out) {
         cam.bounds(tempR);
         tree.intersect(tempR, out);
+    }
+
+    /**
+     * 拾取：命中半径内最近的节点（宇宙视图点击用）。
+     *
+     * @param radius 世界空间命中半径（调用方按缩放换算屏幕像素下限）
+     */
+    public StarNode pickNode(float x, float y, float radius) {
+        tempR.set(x - radius, y - radius, radius * 2, radius * 2);
+        StarNode[] best = {null};
+        float[] bestDst = {radius * radius};
+        nodeTree.intersect(
+                tempR,
+                node -> {
+                    float d2 = Mathf.dst2(x, y, node.x, node.y);
+                    if (d2 <= bestDst[0]) {
+                        bestDst[0] = d2;
+                        best[0] = node;
+                    }
+                });
+        return best[0];
     }
 
     // 节点查询

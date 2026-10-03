@@ -19,6 +19,14 @@ public class DesktopInput extends InputProcess {
 
     @Override
     public boolean tap(float x, float y, int count, KeyCode button) {
+        // 宇宙视图优先分流：点击拾取星域节点（此前宇宙点击会漏进指挥逻辑、误用游戏相机）
+        if (inUniverse) {
+            if (button == KeyCode.mouseLeft) {
+                return pickNodeAt(x, y);
+            }
+            return false;
+        }
+
         // 只有指挥模式才能选中 / 下令 / 中断
         if (!Game.inGame || !CommandData.commanding)
             return false;

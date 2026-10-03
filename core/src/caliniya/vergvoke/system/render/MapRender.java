@@ -7,9 +7,12 @@ import arc.graphics.Color;
 import arc.graphics.g2d.Draw;
 import arc.graphics.g2d.Fill;
 import arc.graphics.g2d.GlyphLayout;
+import arc.graphics.g2d.Lines;
 import arc.math.Mathf;
+import arc.math.geom.Point2;
 import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.base.type.EventType;
+import caliniya.vergvoke.core.UI;
 import caliniya.vergvoke.game.data.RouteData;
 import caliniya.vergvoke.game.data.WorldData;
 import caliniya.vergvoke.world.World;
@@ -128,6 +131,77 @@ public class MapRender extends caliniya.vergvoke.system.System<MapRender> {
             }
         }
         drawDebugInfo(viewLeft, viewBottom, viewRight, viewTop);
+
+        // 调试显示器开启时叠加导航可视化（chunk 网格 / 门口 / 缓存路径）
+        if (UI.debugShown()) {
+            drawNavDebug(viewLeft, viewBottom, viewRight, viewTop);
+        }
+    }
+
+    private static final Color navGrid = new Color(1f, 1f, 1f, 0.14f);
+    private static final Color navDoor = new Color(1f, 0.6f, 0f, 0.9f);
+    private static final Color navEdge = new Color(0.3f, 0.85f, 1f, 0.5f);
+
+    /**
+     * 导航算法可视化：HPA* 的 chunk 网格 / 边界门口 / 缓存的 chunk 内路径。
+     * 只画 layer 0（普通通行层）；门口和边按 chunk 级别做视野剔除。
+     */
+    private void drawNavDebug(float viewLeft, float viewBottom, float viewRight, float viewTop) {
+        if (RouteData.layers == null) return;
+        var layer = RouteData.layers[0];
+
+        int chunkTiles = RouteData.CHUNK;
+        float chunkPix = chunkTiles * TILE_SIZE;
+        int chunksX = Mathf.ceil((float) world.W / chunkTiles);
+        int chunksY = Mathf.ceil((float) world.H / chunkTiles);
+
+        int cMinX = Mathf.clamp((int) (viewLeft / chunkPix), 0, chunksX - 1);
+        int cMinY = Mathf.clamp((int) (viewBottom / chunkPix), 0, chunksY - 1);
+        int cMaxX = Mathf.clamp((int) (viewRight / chunkPix), 0, chunksX - 1);
+        int cMaxY = Mathf.clamp((int) (viewTop / chunkPix), 0, chunksY - 1);
+        float gridL = cMinX * chunkPix, gridB = cMinY * chunkPix;
+        float gridR = (cMaxX + 1) * chunkPix, gridT = (cMaxY + 1) * chunkPix;
+
+        // --- chunk 网格 ---
+        Lines.stroke(1f, navGrid);
+        for (int cy = cMinY; cy <= cMaxY + 1; cy++) {
+            float gy = cy * chunkPix;
+            Lines.line(gridL, gy, gridR, gy);
+        }
+        for (int cx = cMinX; cx <= cMaxX + 1; cx++) {
+            float gx = cx * chunkPix;
+            Lines.line(gx, gridB, gx, gridT);
+        }
+
+        // --- 门口 + 缓存的 chunk 内路径（仅视野内的 chunk）---
+        for (int cy = cMinY; cy <= cMaxY; cy++) {
+            for (int cx = cMinX; cx <= cMaxX; cx++) {
+                RouteData.debugWarmChunk(0, cx, cy); // 看一眼就有数据（构建一次后缓存）
+                RouteData.ChunkNav nav = layer.chunkNav[cy * chunksX + cx];
+                if (nav == null) continue;
+
+                // 门口入口瓦片（橙色方块）
+                Draw.color(navDoor);
+                for (int i = 0; i < nav.crossings.size; i++) {
+                    int[] c = nav.crossings.get(i);
+                    Fill.square(c[1] * TILE_SIZE + TILE_SIZE / 2f, c[2] * TILE_SIZE + TILE_SIZE / 2f, 8f);
+                }
+
+                // 缓存的 chunk 内路径（蓝色折线：门口 → 门口）
+                Lines.stroke(1.5f, navEdge);
+                for (int i = 0; i < nav.edges.size; i++) {
+                    RouteData.AbstractEdge edge = nav.edges.get(i);
+                    for (int j = 1; j < edge.path.size; j++) {
+                        Point2 a = edge.path.get(j - 1);
+                        Point2 b = edge.path.get(j);
+                        Lines.line(a.x * TILE_SIZE + TILE_SIZE / 2f, a.y * TILE_SIZE + TILE_SIZE / 2f,
+                                b.x * TILE_SIZE + TILE_SIZE / 2f, b.y * TILE_SIZE + TILE_SIZE / 2f);
+                    }
+                }
+            }
+        }
+        Draw.color();
+        Lines.stroke(1f);
     }
 
     private void drawDebugInfo(float viewLeft, float viewBottom, float viewRight, float viewTop) {

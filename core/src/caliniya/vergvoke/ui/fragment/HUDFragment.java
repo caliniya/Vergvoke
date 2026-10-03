@@ -18,6 +18,7 @@ import caliniya.vergvoke.game.data.CommandData;
 import caliniya.vergvoke.ui.Button;
 import caliniya.vergvoke.ui.Styles;
 import caliniya.vergvoke.ui.windows.CommandInfoWindow;
+import caliniya.vergvoke.ui.windows.DebugWindow;
 import caliniya.vergvoke.ui.windows.UnitDetailWindow;
 
 public class HUDFragment {
@@ -52,6 +53,11 @@ public class HUDFragment {
                             UI.pauseWindow.build();
                         }))
                 .size(120f, 50f);
+
+        // 调试测试窗入口（调试显示器关闭时隐藏）
+        if (UI.debugShown()) {
+            a.add(new Button("调试", DebugWindow::toggle)).size(80f, 50f).padLeft(6f);
+        }
 
         Button commandBtn = new Button(
                 () -> {

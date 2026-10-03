@@ -15,6 +15,11 @@ public class MobileInput extends InputProcess {
 
     @Override
     public boolean tap(float x, float y, int count, KeyCode button) {
+        // 宇宙视图优先分流：点按拾取星域节点
+        if (inUniverse) {
+            return pickNodeAt(x, y);
+        }
+
         // 使用全局指挥状态判断
         if (!CommandData.commanding)
             return false;

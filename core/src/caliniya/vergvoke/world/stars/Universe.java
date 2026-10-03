@@ -11,4 +11,7 @@ public class Universe {
 
     /** 是否有选中 */
     public static boolean hasSelection;
+
+    /** 当前选中的星域节点（宇宙视图点击拾取；渲染高亮与信息窗的数据源）。 */
+    public static StarNode selectedNode;
 }

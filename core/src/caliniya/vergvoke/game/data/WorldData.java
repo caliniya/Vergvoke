@@ -122,6 +122,19 @@ public class WorldData {
     }
 
     /** 地图加载完成后的初始化 */
+    /**
+     * 重建瞬态容器（寻路队列 / 子弹）并重刷四叉树范围。重载流程专用：
+     * 旧线程系统停透后调用——旧线程死前可能已把陈旧缓冲换进这些静态字段。
+     */
+    public static void rebuildTransientContainers() {
+        moveunits = new EntityAr<>(unit -> unit.id);
+        bullets = new EntityAr<>(bullet -> bullet.id);
+        Entities.clearDead();
+        if (world != null) {
+            initAllTrees(world.W * TILE_SIZE, world.H * TILE_SIZE);
+        }
+    }
+
     public static void mapLoaded() {
         if (world != null) {
             RouteData.init();

@@ -120,7 +120,12 @@ public class UI {
         win.build();
     }
 
-    public static void Debug() {
+    /** 调试显示器是否开启（渲染层叠加导航可视化时用）。 */
+  public static boolean debugShown() {
+    return isDebugShown;
+  }
+
+  public static void Debug() {
         if (isDebugShown) {
             debug.add();
         }

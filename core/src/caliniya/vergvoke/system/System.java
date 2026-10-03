@@ -247,9 +247,9 @@ public abstract class System<T extends System<T>> implements Comparable<System<?
                             }
 
                         } catch (InterruptedException e) {
+                            // stopThread 的正常停机路径：interrupt 落在 tick sleep 上，静默退出
+                            // （"thread stopped" 日志由循环出口打印，这里不打堆栈）
                             threadRunning = false;
-                            Thread.currentThread().interrupt();
-                            Log.err(e);
                         } catch (Exception e) {
                             Log.err("Critical error in system loop: @", this.getClass().getSimpleName(), e);
                         }

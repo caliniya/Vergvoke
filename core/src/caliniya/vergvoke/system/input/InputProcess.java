@@ -9,6 +9,9 @@ import caliniya.vergvoke.base.type.EventType;
 import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.type.*;
+import caliniya.vergvoke.game.Game;
+import caliniya.vergvoke.ui.windows.StarNodeWindow;
+import caliniya.vergvoke.world.stars.StarNode;
 import caliniya.vergvoke.world.stars.Universe;
 
 /**
@@ -224,6 +227,29 @@ public abstract class InputProcess implements InputProcessor, GestureListener {
     public boolean mouseMoved(int screenX, int screenY) {
         updateUniverseSelection(screenX, screenY);
         return false;
+    }
+
+    // ===== 宇宙视图：节点拾取 =====
+
+    /**
+     * 宇宙视图点击：拾取星域节点，命中则记入选中态并打开右侧信息窗。
+     *
+     * @return 是否命中节点
+     */
+    protected boolean pickNodeAt(float screenX, float screenY) {
+        if (Game.starMap == null) return false;
+        Vec2 v = universePos.set(screenX, screenY);
+        Render.universeCamera.unproject(v);
+        // 命中半径 = 世界空间下限 + 屏幕像素下限×缩放（缩放大了之后点得中小节点）
+        float radius = Math.max(40f, 24f * Render.universeZoom);
+        StarNode node = Game.starMap.pickNode(v.x, v.y, radius);
+        if (node == null) {
+            Universe.selectedNode = null;
+            return false;
+        }
+        Universe.selectedNode = node;
+        new StarNodeWindow(node).build();
+        return true;
     }
 
     // ===== 平台无关：选中 =====

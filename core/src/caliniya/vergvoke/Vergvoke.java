@@ -36,6 +36,10 @@ public class Vergvoke extends ApplicationCore {
 
     @Override
     public void init() {
+        // 巨帧防护：截图（Win+Shift+S）/焦点切换/系统卡顿会造成某一帧 deltaTime 异常大，
+        // 不钳制的话移动积分 x += speedX * delta 一帧把单位甩出地图——
+        // 然后寻路系统再把他们"从地图外面走回来"（恢复后 delta 钳到最多 10 帧 ≈ 1/6 秒的位移）
+        Time.setDeltaProvider(() -> Math.min(graphics.getDeltaTime() * 60f, 10f));
         Init.init();
         super.init();
     }
@@ -130,6 +134,7 @@ public class Vergvoke extends ApplicationCore {
 
     @Override
     public void pause() {
+        Game.focusPaused = true; // 主线程模拟冻结；背景线程监听 GamePause 自行挂起
         Events.fire(new EventType.GamePause(true));
         Log.info("Game Pause");
         super.pause();
@@ -137,6 +142,7 @@ public class Vergvoke extends ApplicationCore {
 
     @Override
     public void resume() {
+        Game.focusPaused = false;
         Events.fire(new EventType.GamePause(false));
         Log.info("Game Resume");
         super.resume();
