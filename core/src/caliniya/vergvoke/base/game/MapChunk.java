@@ -3,7 +3,7 @@ package caliniya.vergvoke.base.game;
 import arc.Core;
 import arc.graphics.Camera;
 import arc.graphics.Color;
-import arc.graphics.gl.FrameBuffer;
+import arc.graphics.FrameBuffer;
 import arc.graphics.g2d.Draw;
 import arc.graphics.g2d.TextureRegion;
 import arc.util.Disposable;

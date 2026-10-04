@@ -2,4 +2,10 @@ include 'desktop', 'android', 'core' , 'tools'
 include(":android-old")
 include(":annotation")
 
-includeBuild("arc")
+includeBuild("arc") {
+    dependencySubstitution {
+        substitute(module("com.github.caliniya.Arc:arc-core")).using(project(":arc-core"))
+        substitute(module("com.github.caliniya.Arc:backend-sdl3")).using(project(":backends:backend-sdl3"))
+        substitute(module("com.github.caliniya.Arc:natives-desktop")).using(project(":natives:natives-desktop"))
+    }
+}

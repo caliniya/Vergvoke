@@ -14,8 +14,6 @@ buildscript {
     }
     dependencies {
         //classpath 'com.android.tools.build:gradle:8.1.2'
-        // 构建脚本需要的 Arc 模块
-        classpath "com.github.caliniya.Arc:arc-core:$arcVersion"
     }
 }
 
@@ -72,10 +70,9 @@ project(":desktop") {
 
     dependencies {
         implementation project(":core")
-        
+
         implementation "com.github.caliniya.Arc:natives-desktop:$arcVersion"
-        implementation "com.github.caliniya.Arc:natives-freetype-desktop:$arcVersion"
-        implementation "com.github.caliniya.Arc:backend-sdl:$arcVersion"
+        implementation "com.github.caliniya.Arc:backend-sdl3:$arcVersion"
     }
 }
 
@@ -103,14 +100,8 @@ project(":core") {
         // 这是啥来着
         api "org.lz4:lz4-java:1.8.0"
         
-        // Arc
+        // Arc（经 settings.gradle 的 includeBuild 替换为本地 arc/ 源码）
         api "com.github.caliniya.Arc:arc-core:$arcVersion"
-        api "com.github.caliniya.Arc:flabel:$arcVersion"
-        api "com.github.caliniya.Arc:freetype:$arcVersion"
-        api "com.github.caliniya.Arc:g3d:$arcVersion"
-        api "com.github.caliniya.Arc:fx:$arcVersion"
-        api "com.github.caliniya.Arc:arcnet:$arcVersion"
-        api "com.github.caliniya.Arc:filedialogs:$arcVersion"
     }
 }
 
@@ -120,7 +111,6 @@ project(":tools") {
     compileJava.options.fork = true
 
     dependencies {
-        implementation "com.github.caliniya.Arc:packer:$arcVersion"
         // api：annotation/core 通过 tools 拿到 Ar 等工具类时也需要 arc 类型
         api "com.github.caliniya.Arc:arc-core:$arcVersion"
     }

@@ -13,7 +13,6 @@ import static arc.Core.batch;
 import static arc.Core.bundle;
 import static arc.Core.camera;
 import static arc.Core.files;
-import static arc.Core.gl30;
 import static arc.Core.graphics;
 import static arc.Core.input;
 import static arc.Core.scene;
@@ -105,11 +104,6 @@ public class Init {
         // 基本平台信息
         Log.info("Graphics init");
         Log.info("[GL] Version:" + graphics.getGLVersion());
-        Log.info("[GL] Using " + (gl30 != null ? "OpenGL 3" : "OpenGL 2"));
-        if (gl30 == null) {
-            Log.warn(
-                    "[Waning] device or video drivers do not support OpenGL 3. This will cause performance issues.");
-        }
         long ram = Runtime.getRuntime().maxMemory();
         boolean gb = ram >= 1024 * 1024 * 1024;
         Log.info(
@@ -133,7 +127,9 @@ public class Init {
         assets.finishLoading();
         // 在这里阻塞加载让加载界面能用
         atlas = new TextureAtlas();
-        atlas.addRegion("white", assets.get("sprites/white.png"), 1, 1, 1, 1);
+        TextureAtlas.AtlasRegion white = new TextureAtlas.AtlasRegion(assets.get("sprites/white.png"), 1, 1, 1, 1);
+        white.name = "white";
+        atlas.getRegionMap().put("white", white);
 
         scene.resize(graphics.getWidth(), graphics.getHeight());
         UI.Loading(0f);

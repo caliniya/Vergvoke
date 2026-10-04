@@ -4,9 +4,9 @@ import arc.Core;
 import arc.func.*;
 import arc.graphics.Camera;
 import arc.graphics.Texture;
-import arc.graphics.Texture.TextureWrap;
+import arc.graphics.TextureWrap;
 import arc.graphics.g2d.Draw;
-import arc.graphics.gl.Shader;
+import arc.graphics.Shader;
 import caliniya.vergvoke.core.Render;
 
 //在绑定着色器之前任何的的setUniformf是无效的
