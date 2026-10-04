@@ -20,19 +20,13 @@ public class Entities {
 
     /** 分配一个唯一的实体ID。 优先重用已回收的ID，否则生成新ID。 */
     public static int assignID() {
-        if (freeIDs.size > 0) {
-            return freeIDs.removeFirst();
-        }
+        if (freeIDs.size > 0) return freeIDs.removeFirst();
         return ++lastEntityID;
     }
 
     /** 回收一个实体ID，供后续实体重用。 同时直接返回-1便于调用 */
     public static int freeID(int id) {
-        if (id > 0 && id <= lastEntityID) {
-            freeIDs.addLast(id);
-        }
-
-
+        if (id > 0 && id <= lastEntityID) freeIDs.addLast(id);
         return -1;
     }
 
