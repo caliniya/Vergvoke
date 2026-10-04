@@ -1,13 +1,12 @@
 package caliniya.vergvoke.world.blocks.defence;
 
-import arc.graphics.g2d.Lines;
-import arc.graphics.g2d.Draw;
-import arc.graphics.g2d.TextureRegion;
-import arc.Core;
-import caliniya.vergvoke.core.meta.ui.Pal;
-import caliniya.vergvoke.base.ecs.Building;
-import caliniya.vergvoke.type.type.BulletType;
-import caliniya.vergvoke.world.Block;
+import arc.*;
+import arc.graphics.g2d.*;
+import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.core.meta.ui.*;
+import caliniya.vergvoke.type.type.*;
+import caliniya.vergvoke.world.*;
+import 
 
 /**
  * 炮塔：只保留「配置 + 绘制」，行为已全部迁标注给组件

@@ -2,35 +2,20 @@ package caliniya.vergvoke;
 
 import java.io.*;
 import java.nio.charset.*;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
+import java.text.*;
+import java.util.*;
 
-import static arc.Core.app;
-import static arc.Core.assets;
-import static arc.Core.atlas;
-import static arc.Core.batch;
-import static arc.Core.bundle;
-import static arc.Core.camera;
-import static arc.Core.files;
-import static arc.Core.graphics;
-import static arc.Core.input;
-import static arc.Core.scene;
-import static arc.Core.settings;
-import arc.assets.AssetManager;
-import arc.graphics.Camera;
-import arc.graphics.Texture;
-import arc.graphics.g2d.SpriteBatch;
-import arc.graphics.g2d.TextureAtlas;
-import arc.scene.Scene;
-import arc.util.I18NBundle;
-import arc.util.Log;
+import static arc.Core.*;
+import arc.assets.*;
+import arc.graphics.*;
+import arc.graphics.g2d.*;
+import arc.scene.*;
 import arc.util.Log.LogHandler;
-import arc.util.Strings;
-import arc.util.viewport.ScreenViewport;
+import arc.util.*;
+import arc.util.viewport.*;
 import caliniya.vergvoke.core.*;
-import caliniya.vergvoke.io.DataPaths;
-import caliniya.vergvoke.ui.Fonts;
+import caliniya.vergvoke.io.*;
+import caliniya.vergvoke.ui.*;
 
 public class Init {
 

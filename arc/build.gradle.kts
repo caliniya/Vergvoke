@@ -17,7 +17,7 @@ plugins{
 allprojects{
     apply(plugin = "maven-publish")
     group = "com.github.caliniya"
-    version = "1.0"
+    version = "v1"
 
     repositories{
         mavenCentral()
