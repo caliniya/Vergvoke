@@ -7,5 +7,7 @@ includeBuild("arc") {
         substitute(module("com.github.caliniya.Arc:arc-core")).using(project(":arc-core"))
         substitute(module("com.github.caliniya.Arc:backend-sdl3")).using(project(":backends:backend-sdl3"))
         substitute(module("com.github.caliniya.Arc:natives-desktop")).using(project(":natives:natives-desktop"))
+        substitute(module("com.github.caliniya.Arc:backend-android")).using(project(":backends:backend-android"))
+        substitute(module("com.github.caliniya.Arc:natives-android")).using(project(":natives:natives-android"))
     }
 }

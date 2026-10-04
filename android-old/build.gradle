@@ -71,9 +71,8 @@ dependencies{
         coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
         
         // Arc Android 特定模块
-        implementation "com.github.Anuken.Arc:backend-android:$arcVersion"
-        natives "com.github.Anuken.Arc:natives-android:$arcVersion"
-        natives "com.github.Anuken.Arc:natives-freetype-android:$arcVersion"
+        implementation "com.github.caliniya.Arc:backend-android:$arcVersion"
+        natives "com.github.caliniya.Arc:natives-android:$arcVersion"
         
         // 崩溃处理库
         implementation 'cat.ereza:customactivityoncrash:2.1.0'
