@@ -6,14 +6,14 @@ import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.type.type.*;
 import caliniya.vergvoke.world.*;
-import 
 
 /**
- * 炮塔：只保留「配置 + 绘制」，行为已全部迁标注给组件
- * （TargetComp 索敌、TurretComp 瞄准/装填/开火），不再有 update / 一套自己的 write。
+ * 炮塔：只保留「配置 + 绘制」，行为已全部迁标注给组件 （TargetComp 索敌、TurretComp 瞄准/装填/开火），不再有 update /
+ * 一套自己的 write。
  *
- * <p>配置项在放置时由 {@code BuildingType.create} 拷进实例
- * （range / rotateSpeed / reloadTime / bulletType）。
+ * <p>
+ * 配置项在放置时由 {@code BuildingType.create} 拷进实例 （range / rotateSpeed / reloadTime /
+ * bulletType）。
  */
 public class Turret extends Block {
 
@@ -33,8 +33,9 @@ public class Turret extends Block {
     public void load() {
         super.load();
         baseRegion = Core.atlas.find(name + "-base");
-        if (bulletType != null)
+        if (bulletType != null) {
             bulletType.load();
+        }
     }
 
     @Override

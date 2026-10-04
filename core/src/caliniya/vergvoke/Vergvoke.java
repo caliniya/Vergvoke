@@ -1,18 +1,18 @@
 package caliniya.vergvoke;
 
 import static arc.Core.*;
-
 import arc.*;
-import arc.assets.Loadable;
+import static arc.Core.*;
+import arc.assets.*;
 import arc.graphics.*;
 import arc.graphics.g2d.*;
 import arc.input.*;
-import arc.scene.ui.layout.Scl;
+import arc.scene.ui.layout.*;
 import arc.util.*;
 import caliniya.vergvoke.base.shaders.*;
-import caliniya.vergvoke.base.type.EventType;
+import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.*;
-import caliniya.vergvoke.core.meta.ui.Pal;
+import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.system.input.*;
 import caliniya.vergvoke.system.render.*;
@@ -36,9 +36,6 @@ public class Vergvoke extends ApplicationCore {
 
     @Override
     public void init() {
-        // 巨帧防护：截图（Win+Shift+S）/焦点切换/系统卡顿会造成某一帧 deltaTime 异常大，
-        // 不钳制的话移动积分 x += speedX * delta 一帧把单位甩出地图——
-        // 然后寻路系统再把他们"从地图外面走回来"（恢复后 delta 钳到最多 10 帧 ≈ 1/6 秒的位移）
         Time.setDeltaProvider(() -> Math.min(graphics.getDeltaTime() * 60f, 10f));
         Init.init();
         super.init();

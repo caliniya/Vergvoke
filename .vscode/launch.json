@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "java",
+            "type": "jdk",
             "request": "launch",
             "name": "启动",
             "mainClass": "caliniya.vergvoke.DesktopLauncher",

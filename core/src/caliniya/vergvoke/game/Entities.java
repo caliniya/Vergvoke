@@ -31,6 +31,8 @@ public class Entities {
         if (id > 0 && id <= lastEntityID) {
             freeIDs.addLast(id);
         }
+
+
         return -1;
     }
 
