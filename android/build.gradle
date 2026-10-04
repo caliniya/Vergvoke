@@ -74,6 +74,8 @@ dependencies{
 
 // 复制原生库到libs目录
 task copyAndroidNatives {
+    // natives 配置经 includeBuild 替换后指向 arc 子工程,需先触发其 jar 构建
+    dependsOn configurations.natives.buildDependencies
     doFirst {
         file("libs/").mkdirs()
         configurations.natives.files.each { jar ->

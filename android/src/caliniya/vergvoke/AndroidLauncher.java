@@ -44,7 +44,6 @@ public class AndroidLauncher extends AndroidApplication {
           {
             useImmersiveMode = true;
             hideStatusBar = true;
-            useGL30 = true;
           }
         });
 
