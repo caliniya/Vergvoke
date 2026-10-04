@@ -1,3 +1,5 @@
 include 'desktop', 'android', 'core' , 'tools'
 include(":android-old")
 include(":annotation")
+
+includeBuild("arc")
