@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "arc"
+		}
+	],
+    "settings": {
+        "terminal.integrated.profiles.windows": {
+            "PowerShell (UTF-8)": {
+                "source": "PowerShell",
+                "args": [
+                    "-NoExit",
+                    "-Command",
+                    "chcp 65001 > $null"
+                ]
+            }
+        },
+        "terminal.integrated.defaultProfile.windows": "PowerShell (UTF-8)",
+        "terminal.integrated.env.windows": {
+            "GRADLE_OPTS": "-Dfile.encoding=UTF-8"
+        }
+    }
+}
