@@ -1,19 +1,18 @@
 package caliniya.vergvoke.io;
 
-import java.io.File;
+import java.io.*;
 
-import arc.Core;
-import arc.files.Fi;
-import arc.util.Log;
-import arc.util.OS;
+import arc.*;
+import arc.files.*;
+import arc.util.*;
 
 /**
- * 数据目录解析（桌面端）：
+ * 数据目录解析：
  *
  * <ol>
  * <li>系统属性 {@code -Dvergvoke.datadir=<path>} 显式指定（开发 / CI / 玩家自定义）；
- * <li>便携：{@code <程序目录>/data} —— 程序目录取 jpackage 生成的 exe 所在目录
- * （用 {@code jpackage.app-path}），没有就用 jar / classes 目录；目录不可写时回退；
+ * <li>便携：{@code <程序目录>/data} —— 程序目录取 jpackage 生成的 exe 所在目录 （用
+ * {@code jpackage.app-path}），没有就用 jar / classes 目录；目录不可写时回退；
  * <li>回退：{@code %APPDATA%/Vergvoke}（Arc 默认，装到 Program Files 这种只读位置时用）。
  * </ol>
  *
@@ -21,10 +20,14 @@ import arc.util.OS;
  */
 public class DataPaths {
 
-    /** 显式指定数据目录的系统属性名。 */
+    /**
+     * 显式指定数据目录的系统属性名。
+     */
     public static final String OVERRIDE_PROPERTY = "vergvoke.datadir";
 
-    /** 解析并把数据目录设给 Arc settings（之后所有 {@code settings.getDataDirectory()} 都走这里）。 */
+    /**
+     * 解析并把数据目录设给 Arc settings（之后所有 {@code settings.getDataDirectory()} 都走这里）。
+     */
     public static Fi apply() {
         Fi dir = resolve();
         dir.mkdirs();
@@ -33,7 +36,9 @@ public class DataPaths {
         return dir;
     }
 
-    /** @return 最终采用的数据目录（不写 settings，方便测试）。 */
+    /**
+     * @return 最终采用的数据目录（不写 settings，方便测试）。
+     */
     public static Fi resolve() {
         String override = System.getProperty(OVERRIDE_PROPERTY);
         if (override != null && !override.isEmpty()) {
@@ -53,9 +58,8 @@ public class DataPaths {
     }
 
     /**
-     * 程序所在目录：
-     * jpackage 打出来的 exe 用 {@code jpackage.app-path} 的父目录；
-     * 否则用 jar（或开发时的 classes 目录）的位置。
+     * 程序所在目录： jpackage 打出来的 exe 用 {@code jpackage.app-path} 的父目录； 否则用 jar（或开发时的
+     * classes 目录）的位置。
      */
     private static Fi appDirectory() {
         try {
@@ -74,7 +78,9 @@ public class DataPaths {
         }
     }
 
-    /** 目录能建、而且真能写进去才算可写。 */
+    /**
+     * 目录能建、而且真能写进去才算可写。
+     */
     private static boolean canWrite(Fi dir) {
         try {
             dir.mkdirs();
