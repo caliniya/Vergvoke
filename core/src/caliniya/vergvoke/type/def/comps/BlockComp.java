@@ -1,51 +1,56 @@
 package caliniya.vergvoke.type.def.comps;
 
-import arc.func.Intc2;
-import arc.math.geom.Rect;
-import arc.util.io.Reads;
-import arc.util.io.Writes;
-
+import arc.func.*;
+import arc.math.geom.*;
+import arc.util.io.*;
 import caliniya.vergvoke.annotation.Annotations.*;
-import caliniya.vergvoke.base.type.TeamTypes;
-import caliniya.vergvoke.game.Entities;
-import caliniya.vergvoke.game.data.TeamData;
-import caliniya.vergvoke.game.data.WorldData;
-import caliniya.vergvoke.type.module.ItemModule;
-import caliniya.vergvoke.type.module.LiquidModule;
-import caliniya.vergvoke.type.module.PowerModule;
-import caliniya.vergvoke.type.type.BuildingType;
-import caliniya.vergvoke.world.Block;
+import caliniya.vergvoke.annotation.Annotations.Component;
+import caliniya.vergvoke.annotation.Annotations.Import;
+import caliniya.vergvoke.annotation.Annotations.OverrideEntity;
+import caliniya.vergvoke.annotation.Annotations.Read;
+import caliniya.vergvoke.annotation.Annotations.Write;
+import caliniya.vergvoke.base.type.*;
+import caliniya.vergvoke.game.*;
+import caliniya.vergvoke.game.data.*;
+import caliniya.vergvoke.type.module.*;
 
 /**
  * 建筑组件：瓦片锚点 + 占位形状。
  *
  * <p>
- * 占位数据由放置侧填好：{@link #shapeOffsets} 是已按 {@link #angle} 旋转好的副本
- * （异形建筑非 null），方形建筑为 null，回落 {@link #tileSize}。
+ * 占位数据由放置侧填好：{@link #shapeOffsets} 是已按 {@link #angle} 旋转好的副本 （异形建筑非 null），方形建筑为
+ * null，回落 {@link #tileSize}。
  *
  * <p>
  * {@link #getOccupiedCoords} / {@link #occupies} 与 Building 的同名方法逻辑一致；
- * {@code contains / hitbox} 用 {@code @OverrideEntity} 覆写基类——基类默认按中心
- * 外接圆 / 外接方形判定，建筑改为按真实占位瓦片判定（异形建筑不再误判）。
+ * {@code contains / hitbox} 用 {@code @OverrideEntity} 覆写基类——基类默认按中心 外接圆 /
+ * 外接方形判定，建筑改为按真实占位瓦片判定（异形建筑不再误判）。
  *
  * <p>
- * 存档走 {@code @Write/@Read}（本组件没有 {@code @Save} 字段，两者不能混用）：写瓦片身份
- * + Entity 基类的战斗/归属字段 + 容量模块占位。读回来还要按恢复出的 angle 重算占位形状与中心坐标
- * ——这两样是派生数据，工厂只按放置时的角度算过一次。
+ * 存档走 {@code @Write/@Read}（本组件没有 {@code @Save} 字段，两者不能混用）：写瓦片身份 + Entity
+ * 基类的战斗/归属字段 + 容量模块占位。读回来还要按恢复出的 angle 重算占位形状与中心坐标 ——这两样是派生数据，工厂只按放置时的角度算过一次。
  */
 @Component(index = 3, name = "Block")
 public class BlockComp {
 
-    /** 瓦片锚点（左下角格坐标）。 */
+    /**
+     * 瓦片锚点（左下角格坐标）。
+     */
     public int tx, ty;
 
-    /** 朝向：0 上 / 1 右 / 2 下 / 3 左（放置与存档用，占位形状由放置侧旋转好）。 */
+    /**
+     * 朝向：0 上 / 1 右 / 2 下 / 3 左（放置与存档用，占位形状由放置侧旋转好）。
+     */
     public int angle;
 
-    /** 方形建筑的边长（格）；{@link #shapeOffsets} 为 null 时生效。 */
+    /**
+     * 方形建筑的边长（格）；{@link #shapeOffsets} 为 null 时生效。
+     */
     public int tileSize = 1;
 
-    /** 旋转后的形状偏移副本 [dx0, dy0, dx1, dy1, ...]（相对锚点，格）；null = 方形。 */
+    /**
+     * 旋转后的形状偏移副本 [dx0, dy0, dx1, dy1, ...]（相对锚点，格）；null = 方形。
+     */
     public int[] shapeOffsets;
 
     // --- 借用 Entity 基类的公共字段（不重新注入，只为 slap 进方法体的序列化代码能引用到）---
@@ -63,7 +68,9 @@ public class BlockComp {
     @Import
     public PowerModule power;
 
-    /** 建筑占据的所有瓦片坐标（世界格坐标）。 */
+    /**
+     * 建筑占据的所有瓦片坐标（世界格坐标）。
+     */
     public void getOccupiedCoords(Intc2 consumer) {
         if (shapeOffsets != null) {
             for (int i = 0; i < shapeOffsets.length; i += 2) {
@@ -78,7 +85,9 @@ public class BlockComp {
         }
     }
 
-    /** 是否占据指定瓦片坐标。 */
+    /**
+     * 是否占据指定瓦片坐标。
+     */
     public boolean occupies(int worldX, int worldY) {
         if (shapeOffsets != null) {
             for (int i = 0; i < shapeOffsets.length; i += 2) {
@@ -91,27 +100,35 @@ public class BlockComp {
         return worldX >= tx && worldX < tx + tileSize && worldY >= ty && worldY < ty + tileSize;
     }
 
-    /** 覆写基类的外接圆判定：建筑按真实占位瓦片判定（世界像素坐标 → 瓦片 → occupies）。 */
+    /**
+     * 覆写基类的外接圆判定：建筑按真实占位瓦片判定（世界像素坐标 → 瓦片 → occupies）。
+     */
     @OverrideEntity
     public boolean contains(float worldX, float worldY) {
         return occupies((int) (worldX / WorldData.TILE_SIZE), (int) (worldY / WorldData.TILE_SIZE));
     }
 
-    /** 覆写基类的中心外接方形包围盒：建筑取所有占位瓦片的像素范围（四叉树插入与范围查询用）。 */
+    /**
+     * 覆写基类的中心外接方形包围盒：建筑取所有占位瓦片的像素范围（四叉树插入与范围查询用）。
+     */
     @OverrideEntity
     public void hitbox(Rect out) {
         float ts = WorldData.TILE_SIZE;
-        int[] b = { Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE };
+        int[] b = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
         getOccupiedCoords(
                 (cx, cy) -> {
-                    if (cx < b[0])
+                    if (cx < b[0]) {
                         b[0] = cx;
-                    if (cy < b[1])
+                    }
+                    if (cy < b[1]) {
                         b[1] = cy;
-                    if (cx > b[2])
+                    }
+                    if (cx > b[2]) {
                         b[2] = cx;
-                    if (cy > b[3])
+                    }
+                    if (cy > b[3]) {
                         b[3] = cy;
+                    }
                 });
         if (b[0] > b[2]) {
             // 没有任何占位瓦片（未初始化）：退回锚点处一个零尺寸盒，别用哨兵值污染四叉树
@@ -121,7 +138,9 @@ public class BlockComp {
         out.set(b[0] * ts, b[1] * ts, (b[2] - b[0] + 1) * ts, (b[3] - b[1] + 1) * ts);
     }
 
-    /** 存档写：瓦片身份 → 战斗/归属 → 容量模块占位。 */
+    /**
+     * 存档写：瓦片身份 → 战斗/归属 → 容量模块占位。
+     */
     @Write
     public void write(Writes w) {
         w.b((byte) angle);
@@ -132,22 +151,26 @@ public class BlockComp {
         w.i(id);
 
         w.bool(item != null);
-        if (item != null)
+        if (item != null) {
             item.write(w);
+        }
         w.bool(liquid != null);
-        if (liquid != null)
+        if (liquid != null) {
             liquid.write(w);
+        }
         w.bool(power != null);
-        if (power != null)
+        if (power != null) {
             power.write(w);
+        }
     }
 
     /**
      * 存档读：与 write 严格对称。
      *
-     * <p>只恢复原始字段——占位形状 / 中心坐标 / 血上限这些是按 {@code angle} 算出来的派生数据，
-     * 得等 {@code BuildingType.rebuild} 拿到确定性 angle 后统一重算（放在这里会用到 type 的 block 配置，
-     * 而 {@code @Import} 借不到基类那个泛型 type 字段）。
+     * <p>
+     * 只恢复原始字段——占位形状 / 中心坐标 / 血上限这些是按 {@code angle} 算出来的派生数据， 得等
+     * {@code BuildingType.rebuild} 拿到确定性 angle 后统一重算（放在这里会用到 type 的 block 配置， 而
+     * {@code @Import} 借不到基类那个泛型 type 字段）。
      */
     @Read
     public void read(Reads r) {
@@ -160,11 +183,14 @@ public class BlockComp {
         team = (ord >= 0 && ord < values.length) ? values[ord] : null;
         id = Entities.checkoutID(r.i());
 
-        if (r.bool() && item != null)
+        if (r.bool() && item != null) {
             item.read(r);
-        if (r.bool() && liquid != null)
+        }
+        if (r.bool() && liquid != null) {
             liquid.read(r);
-        if (r.bool() && power != null)
+        }
+        if (r.bool() && power != null) {
             power.read(r);
+        }
     }
 }

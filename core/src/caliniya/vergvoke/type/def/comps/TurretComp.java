@@ -1,30 +1,39 @@
 package caliniya.vergvoke.type.def.comps;
 
-import arc.math.Angles;
-import arc.util.io.Reads;
-import arc.util.io.Writes;
-
-import caliniya.vergvoke.annotation.Annotations.*;
-import caliniya.vergvoke.base.game.Entity;
-import caliniya.vergvoke.type.Bullet;
-import caliniya.vergvoke.type.type.BulletType;
+import arc.math.*;
+import arc.struct.*;
+import arc.util.io.*;
+import caliniya.vergvoke.annotation.Annotations.Component;
+import caliniya.vergvoke.annotation.Annotations.Import;
+import caliniya.vergvoke.annotation.Annotations.Read;
+import caliniya.vergvoke.annotation.Annotations.Updata;
+import caliniya.vergvoke.annotation.Annotations.Write;
+import caliniya.vergvoke.base.game.*;
+import caliniya.vergvoke.type.*;
+import caliniya.vergvoke.type.type.*;
 
 /**
- * 炮塔战斗组件（建筑用，C+B 方案）：TargetComp 管「打谁」，本组件管「怎么打」。
+ * 炮塔战斗组件：TargetComp 管「打谁」，本组件管「怎么打」。
  *
- * <p>状态（reload）与配置（reloadTime / rotateSpeed / bullet，放置时从 Turret 类型拷贝进实例）
+ * <p>
+ * 状态（reload）与配置（reloadTime / rotateSpeed / bullet，放置时从 Turret 类型拷贝进实例）
  * 都在组件上；索敌完全交给 TargetComp（失效/重搜/半径都是它的事），本组件只消费 target。
  *
- * <p>{@code self} 指向宿主实体：组件被拍平后源码里拿不到 this-as-Entity，
- * 而开火给子弹记击杀归属需要实体引用，工厂里赋 {@code b.self = b}。
+ * <p>
+ * {@code self} 指向宿主实体：组件被拍平后源码里拿不到 this-as-Entity， 而开火给子弹记击杀归属需要实体引用，工厂里赋
+ * {@code b.self = b}。
  */
 @Component(index = 6, name = "Turret")
 public class TurretComp {
 
-    /** 宿主实体（工厂里赋 b.self = b）。 */
+    /**
+     * 宿主实体（工厂里赋 b.self = b）。
+     */
     public Entity<?, ?> self;
 
-    /** 装填进度。 */
+    /**
+     * 装填进度。
+     */
     public float reload;
 
     // --- 配置（放置时从 Turret 类型拷贝，B 方案：配置进实例）---
@@ -32,7 +41,8 @@ public class TurretComp {
     public float rotateSpeed = 500f;
     public BulletType bullet;
 
-    // --- 借用 ---
+    public Ar<Bullet> bullets;
+
     @Import
     public Entity<?, ?> target; // TargetComp 维护
     @Import
@@ -62,7 +72,9 @@ public class TurretComp {
         }
     }
 
-    /** 存档写：炮塔只要状态量（配置 reloadTime/rotateSpeed/bullet 由 {@code type} 重建）。 */
+    /**
+     * 存档写：炮塔只要状态量（配置 reloadTime/rotateSpeed/bullet 由 {@code type} 重建）。
+     */
     @Write
     public void write(Writes w) {
         w.f(rotation);
