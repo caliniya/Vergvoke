@@ -20,7 +20,7 @@
 | desktop | desktop/ | 桌面启动器（SDL3） |
 | android | android/ | Android 入口 |
 | android-old | android-old/ | sdk14 的老安卓兼容版本，通常不用管，也别提议删 |
-| tools | tools/ | 元注解处理器 AnnoProc/AutoProcessor + 构建工具 IconGen/TexturePackerTool（原自研容器已并入 arc fork，见下） |
+| tools | tools/ | 纯构建工具 IconGen/TexturePackerTool（容器与注解处理设施都已并入 arc fork） |
 | annotation | annotation/ | ECS 编译期注解处理器（ECProcessor 两千多行，全项目最大的文件） |
 | arc | arc/ | Arc fork 的 git submodule，经 composite build 源码接入（见下）；**容器家族也在里面** |
 
@@ -46,7 +46,7 @@
   - `EntityArs.java` —— 每种实体一个 `EntityAr` 容器（static final，带 `e -> e.id` 提取器），是实体的唯一权威容器
   - `Systems.java` —— 系统总览 + `updateAll()` 帧序驱动
 - `SystemProcessor` 只做校验：系统名唯一、thread 合法、index 线程内唯一、组件 index 在实体内不能撞、`@Updata` 方法必须且只能有一个 float delta 形参、组件字段名不能在实体里重复
-- `AutoProcessor`（tools 模块）扫 `@AnnoProc` 自动生成 META-INF/services SPI
+- `AutoProcessor`（2026-10-05 起在 **arc fork** 里：`arc.util.anno.AutoProcessor` + `@AnnoProc`）扫 `@AnnoProc` 自动生成 META-INF/services SPI；任何模块把 arc-core 放上 `annotationProcessor` 路径即自动激活，无 `@AnnoProc` 类时零干扰。annotation 模块的 `annotationProcessor` 就是 arc-core 坐标，tools 不再参与处理器链
 
 **处理器行为要点（2026-10 版）**：
 - 组件方法**全量注入**：private/protected/包私有/static 辅助方法都铺进生成实体并保留原修饰符；与 Entity 基类同签名的方法直接报错并提示用 `@OverrideEntity`

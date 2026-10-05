@@ -7,7 +7,7 @@ import javax.lang.model.element.*;
 import caliniya.vergvoke.annotation.Processor;
 import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.annotation.tool.*;
-import caliniya.vergvoke.base.anno.auto.*;
+import arc.util.anno.*;
 
 /**
  * 系统与线程侧的注解处理器：

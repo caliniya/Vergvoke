@@ -3,7 +3,7 @@ package caliniya.vergvoke.core.meta.stat;
 import arc.func.Floatp;
 import arc.func.Cons;
 import arc.util.Nullable;
-import caliniya.vergvoke.base.api.*;
+import arc.util.Strings;
 import arc.struct.Ar;
 
 /** 统计值单元 */
@@ -166,7 +166,7 @@ public class StatData {
   }
 
   public String indent() {
-    return level <= 0 ? "   " : "   " + StringApi.repeat("\u3000\u3000", level);
+    return level <= 0 ? "   " : "   " + Strings.repeat("\u3000\u3000", level);
   }
 
   /** 对于查找命中的 会自动设置，未命中的则会新建并插入 */
@@ -245,7 +245,7 @@ public class StatData {
           .append(" / ")
           .append(unit.format(valueMax))
           .append(" (")
-          .append(StringApi.autoFixed(value / valueMax * 100f, 1))
+          .append(Strings.autoFixed(value / valueMax * 100f, 1))
           .append("%)");
       return builder;
     }

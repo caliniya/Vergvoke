@@ -13,7 +13,7 @@ import arc.struct.*;
 import caliniya.vergvoke.annotation.Processor;
 import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.annotation.tool.*;
-import caliniya.vergvoke.base.anno.auto.*;
+import arc.util.anno.*;
 import arc.struct.ObjectSet;
 import arc.struct.Ar;
 

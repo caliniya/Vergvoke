@@ -81,8 +81,8 @@ project(":annotation") {
     sourceSets.main.java.srcDir "$buildDir/generated/sources/annotationProcessor/java/main"
     dependencies {
         //compileOnly gradleApi()
-        implementation project(":tools")
-        annotationProcessor project(":tools")
+        // AutoProcessor 已并入 arc-core:经下面这行激活,@AnnoProc 标记的处理器自动生成 SPI
+        annotationProcessor "com.github.caliniya.Arc:arc-core:$arcVersion"
         implementation 'com.squareup:javapoet:1.12.1'
         implementation "com.github.caliniya.Arc:arc-core:$arcVersion"
     }
@@ -95,8 +95,7 @@ project(":core") {
 
         implementation project(":annotation")
         annotationProcessor project(":annotation")
-        implementation project(":tools")
-        
+
         // 这是啥来着
         api "org.lz4:lz4-java:1.8.0"
         
@@ -111,7 +110,7 @@ project(":tools") {
     compileJava.options.fork = true
 
     dependencies {
-        // api：annotation/core 通过 tools 拿到 Ar 等工具类时也需要 arc 类型
+        // api：IconGen/TexturePackerTool 是纯构建工具,引入 arc 类型即可编译
         api "com.github.caliniya.Arc:arc-core:$arcVersion"
     }
 }
