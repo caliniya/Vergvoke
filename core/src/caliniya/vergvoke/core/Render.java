@@ -6,7 +6,7 @@ import arc.graphics.g2d.Draw;
 import arc.math.Mathf;
 import arc.math.geom.Vec2;
 import arc.util.*;
-import caliniya.vergvoke.base.tool.*;
+import arc.struct.*;
 import caliniya.vergvoke.game.Game;
 import caliniya.vergvoke.game.data.WorldData;
 

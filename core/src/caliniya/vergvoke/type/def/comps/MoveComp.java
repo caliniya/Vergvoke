@@ -2,7 +2,7 @@ package caliniya.vergvoke.type.def.comps;
 
 import arc.math.geom.*;
 import caliniya.vergvoke.annotation.Annotations.*;
-import caliniya.vergvoke.base.tool.*;
+import arc.struct.*;
 
 /**
  * 移动组件：目标点 + 速度向量 + 每帧位移积分（"走"的那一半）。

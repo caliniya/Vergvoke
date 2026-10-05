@@ -1,7 +1,7 @@
 package caliniya.vergvoke.campaign;
 
 import caliniya.vergvoke.base.api.TechNodeContent;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 
 /**
  * 科技树节点。

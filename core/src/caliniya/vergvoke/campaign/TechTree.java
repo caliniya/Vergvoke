@@ -3,7 +3,7 @@ package caliniya.vergvoke.campaign;
 import arc.util.io.Reads;
 import arc.util.io.Writes;
 import caliniya.vergvoke.base.api.TechNodeContent;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 
 /**
  * 科技树。

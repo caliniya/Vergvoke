@@ -7,7 +7,7 @@ import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 
 /**
  * 实体组 —— 管理同一类型实体的集合。

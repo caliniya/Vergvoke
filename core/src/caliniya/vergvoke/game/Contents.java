@@ -2,7 +2,7 @@ package caliniya.vergvoke.game;
 
 import arc.struct.ObjectMap;
 import caliniya.vergvoke.base.game.ContentType;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 import caliniya.vergvoke.base.type.CType;
 import caliniya.vergvoke.content.*;
 import caliniya.vergvoke.type.type.ItemType;

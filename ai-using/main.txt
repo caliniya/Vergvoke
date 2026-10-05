@@ -20,9 +20,9 @@
 | desktop | desktop/ | 桌面启动器（SDL3） |
 | android | android/ | Android 入口 |
 | android-old | android-old/ | sdk14 的老安卓兼容版本，通常不用管，也别提议删 |
-| tools | tools/ | 自研容器 Ar/IntAr/FloatAr/ObjectSet + 元注解处理器 AnnoProc/AutoProcessor + 构建工具 IconGen/TexturePackerTool |
+| tools | tools/ | 元注解处理器 AnnoProc/AutoProcessor + 构建工具 IconGen/TexturePackerTool（原自研容器已并入 arc fork，见下） |
 | annotation | annotation/ | ECS 编译期注解处理器（ECProcessor 两千多行，全项目最大的文件） |
-| arc | arc/ | Arc fork 的 git submodule，经 composite build 源码接入（见下） |
+| arc | arc/ | Arc fork 的 git submodule，经 composite build 源码接入（见下）；**容器家族也在里面** |
 
 `annotation` 的产物是 JavaPoet 生成的代码，**不要手改**，要改就改处理器本身。
 
@@ -30,6 +30,7 @@
 
 - Arc 不再走 Anuken 官方坐标（com.github.Anuken.Arc v157.1），全部换成 `com.github.caliniya.Arc:*:v1`。
 - `settings.gradle` 里 `includeBuild("arc")` + `dependencySubstitution` 把五个坐标替换到本地 submodule 源码工程：`arc-core`、`backend-sdl3`、`natives-desktop`、`backend-android`、`natives-android`。Gradle 依赖声明照常写坐标，实际编译用的是本地源码；改 Arc 行为直接改 `arc/` 里的源码即可。
+- **容器家族（2026-10-04 起）**：`arc.struct` 下是 Ar 家族——`Ar/IntAr/FloatAr/BoolAr/ByteAr/LongAr/ShortAr`（原 Seq/IntSeq/FloatSeq 等全面替换而来，游戏代码 import `arc.struct.Ar` 即可，tools 模块里已没有容器）。`ObjectSet` 是用户的布谷鸟哈希版本（老 libGDX 算法）替换了 arc 原版，迭代器保留了 arc 的静态结构。游戏里别再引 `caliniya.vergvoke.base.tool.*`，那个包已删除。
 - 依赖已瘦身：core 只 `api arc-core`，desktop 额外引 `natives-desktop` + `backend-sdl3`（桌面后端已从 SDL 换成 SDL3），不再引 freetype/flabel/g3d 等官方附加包。
 - 验证编译：`./gradlew classes`（`BUILD SUCCESSFUL` 即过；改了注解会重跑处理器，慢一些）。
 - 发布：`./gradlew dist` 打 fat jar 到 `desktop/build/output/Vergvoke-1.0.jar`，直接 `java -jar` 跑。
@@ -120,7 +121,7 @@ DebugWindow：HUD 左上「调试」按钮开关；`DebugWindow.register("名字
 
 - 项目目前极早期，大量 test/占位符，不要动它们。
 - `caliniya.vergvoke.base.ecs` 包下的 Unit / Building / Systems / EntityArs 全是生成的，改了会被覆盖，要改去改 annotation 模块的 ECProcessor。
-- base/tool/Ar.java 是我从 Seq 克隆改名的（在 tools 模块，不在 core），Ar/IntAr/FloatAr 命名是有意为之，别以"不规范"为由去改。
+- 容器统一用 `arc.struct.Ar` 家族（Ar/IntAr/FloatAr/BoolAr/ByteAr/LongAr/ShortAr）；命名风格沿用用户的习惯，别以"不规范"为由去改。`ObjectSet` 是布谷鸟哈希实现，与 Mindustry 上游不同，别"修"回去。
 - android-old 别动不动就要删掉。
 - 不要一天到晚追求规范。
 - 本地化键格式：statUnit.xxx，翻译在 language_zh_CN.properties。

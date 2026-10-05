@@ -13,7 +13,7 @@ import caliniya.vergvoke.type.*;
 import caliniya.vergvoke.base.api.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.base.game.*;
-import caliniya.vergvoke.base.tool.*;
+import arc.struct.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.meta.stat.Stat;
 import caliniya.vergvoke.core.meta.stat.StatType;

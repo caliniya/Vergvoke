@@ -4,7 +4,7 @@ import arc.func.Floatp;
 import arc.func.Cons;
 import arc.util.Nullable;
 import caliniya.vergvoke.base.api.*;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 
 /** 统计值单元 */
 public class StatData {

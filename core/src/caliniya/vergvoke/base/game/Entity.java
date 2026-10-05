@@ -8,7 +8,7 @@ import arc.util.pooling.*;
 import arc.util.pooling.Pool.Poolable;
 import caliniya.vergvoke.base.api.*;
 import caliniya.vergvoke.base.ecs.*;
-import caliniya.vergvoke.base.tool.*;
+import arc.struct.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.meta.stat.*;
 import caliniya.vergvoke.game.Entities;

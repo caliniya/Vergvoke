@@ -2,7 +2,7 @@ package caliniya.vergvoke.map;
 
 import arc.Core;
 import arc.files.Fi;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 import caliniya.vergvoke.io.GameIO;
 
 public class Maps {

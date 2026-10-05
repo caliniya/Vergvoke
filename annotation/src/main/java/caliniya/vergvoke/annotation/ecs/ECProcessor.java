@@ -14,8 +14,8 @@ import caliniya.vergvoke.annotation.Processor;
 import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.annotation.tool.*;
 import caliniya.vergvoke.base.anno.auto.*;
-import caliniya.vergvoke.base.tool.ObjectSet;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.ObjectSet;
+import arc.struct.Ar;
 
 /**
  * EC 注解处理器
@@ -1811,7 +1811,7 @@ public class ECProcessor extends Processor {
     private void generateSystems(
             List<EntityPlan> plans, Map<String, Map<String, List<UpdatePiece>>> bySystem) {
         ClassName systemBase = ClassName.get("caliniya.vergvoke.system", "System");
-        ClassName ar = ClassName.get("caliniya.vergvoke.base.tool", "Ar");
+        ClassName ar = ClassName.get("arc.struct", "Ar");
         ClassName entityArs = ClassName.get(GENERATED_PACKAGE, "EntityArs");
 
         TypeSpec.Builder systems = TypeSpec.classBuilder("Systems")

@@ -2,7 +2,6 @@ package caliniya.vergvoke;
 
 import static arc.Core.*;
 import arc.*;
-import static arc.Core.*;
 import arc.assets.*;
 import arc.graphics.*;
 import arc.graphics.g2d.*;

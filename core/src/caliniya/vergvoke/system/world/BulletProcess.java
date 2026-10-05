@@ -3,7 +3,7 @@ package caliniya.vergvoke.system.world;
 import arc.math.geom.Rect;
 import arc.util.Log;
 import caliniya.vergvoke.type.ability.api.*;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 import caliniya.vergvoke.base.game.EntityAr;
 import caliniya.vergvoke.game.Entities;
 import caliniya.vergvoke.game.data.WorldData;

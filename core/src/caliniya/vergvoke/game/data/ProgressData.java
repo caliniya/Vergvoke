@@ -2,7 +2,7 @@ package caliniya.vergvoke.game.data;
 
 import arc.util.io.Reads;
 import arc.util.io.Writes;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 
 /**
  * 游戏进度。

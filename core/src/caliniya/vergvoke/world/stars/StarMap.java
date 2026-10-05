@@ -7,7 +7,7 @@ import arc.math.geom.*;
 import arc.struct.*;
 import arc.util.io.Reads;
 import arc.util.io.Writes;
-import caliniya.vergvoke.base.tool.ObjectSet;
+import arc.struct.ObjectSet;
 import caliniya.vergvoke.base.type.CType;
 import caliniya.vergvoke.game.Contents;
 

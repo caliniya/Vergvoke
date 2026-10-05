@@ -5,7 +5,7 @@ import caliniya.vergvoke.base.ecs.Building;
 import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.game.Entity;
-import caliniya.vergvoke.base.tool.*;
+import arc.struct.*;
 import caliniya.vergvoke.game.Entities;
 import caliniya.vergvoke.game.data.*;
 

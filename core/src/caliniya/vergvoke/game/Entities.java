@@ -7,7 +7,7 @@ import arc.struct.IntQueue;
 import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.game.Entity;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 import caliniya.vergvoke.base.type.TeamTypes;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.type.*;

@@ -2,7 +2,7 @@ package caliniya.vergvoke.type.ability.api;
 
 import arc.math.geom.Rect;
 import caliniya.vergvoke.base.game.Entity;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 import caliniya.vergvoke.type.Bullet;
 
 /**

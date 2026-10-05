@@ -4,7 +4,7 @@ import arc.math.Mathf;
 
 import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.base.game.Entity;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 import caliniya.vergvoke.type.Weapon;
 
 /**

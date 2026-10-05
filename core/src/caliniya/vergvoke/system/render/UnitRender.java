@@ -6,7 +6,7 @@ import arc.graphics.g2d.Draw;
 import arc.util.Align;
 import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.game.Entity;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 import caliniya.vergvoke.type.ability.Ability;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.type.Bullet;

@@ -1,6 +1,6 @@
 package caliniya.vergvoke.annotation.tool;
 
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 import java.util.*;
 import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;

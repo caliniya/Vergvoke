@@ -19,7 +19,6 @@ import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.world.*;
 import caliniya.vergvoke.core.*;
 
-import java.io.*;
 import java.util.concurrent.*;
 
 // 负责和游戏数据交互

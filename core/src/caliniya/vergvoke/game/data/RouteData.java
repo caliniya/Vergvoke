@@ -7,7 +7,7 @@ import arc.struct.IntMap;
 import arc.struct.IntQueue;
 import arc.struct.PQueue;
 import caliniya.vergvoke.base.ecs.Building;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 import caliniya.vergvoke.world.*;
 import arc.util.pooling.Pools;
 import java.util.concurrent.locks.ReadWriteLock;

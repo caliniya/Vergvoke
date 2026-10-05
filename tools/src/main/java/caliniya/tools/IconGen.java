@@ -2,7 +2,7 @@ package caliniya.tools;
 
 import arc.files.Fi;
 import arc.graphics.Pixmap;
-import arc.struct.Seq;
+import arc.struct.Ar;
 import arc.util.Log;
 import arc.util.Time;
 
@@ -33,7 +33,7 @@ public class IconGen {
         outputDir.deleteDirectory();
         outputDir.mkdirs();
 
-        Seq<Fi> files = new Seq<>();
+        Ar<Fi> files = new Ar<>();
 
         for (Fi img : inputDir.list()) {
             if (img.extension().equals("png")) {

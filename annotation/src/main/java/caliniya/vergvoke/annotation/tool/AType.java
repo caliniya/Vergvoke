@@ -1,6 +1,6 @@
 package caliniya.vergvoke.annotation.tool;
 
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 import caliniya.vergvoke.annotation.Processor;
 
 import javax.lang.model.element.*;

@@ -28,7 +28,7 @@ import caliniya.vergvoke.annotation.tool.AElement;
 import caliniya.vergvoke.annotation.tool.AMethod;
 import caliniya.vergvoke.annotation.tool.AType;
 import caliniya.vergvoke.annotation.tool.AVar;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 
 /**
  * 注解处理器基类，提供通用功能

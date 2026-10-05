@@ -4,7 +4,7 @@ import arc.func.Cons;
 import arc.struct.ObjectMap;
 import arc.struct.OrderedMap;
 import java.util.Objects;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 
 /** 一个完整的信息组 */
 public class StatStack {

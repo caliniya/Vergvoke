@@ -8,7 +8,7 @@ import arc.math.geom.QuadTree.*;
 import arc.math.geom.Rect;
 import arc.util.io.Writes;
 import caliniya.vergvoke.base.game.ContentType;
-import caliniya.vergvoke.base.tool.Ar;
+import arc.struct.Ar;
 import caliniya.vergvoke.base.type.CType;
 
 /**
