@@ -67,7 +67,7 @@
 - 手写系统（Data.loadSystems() + Data.enter() 手动装载）：
   - 主线程并入 Systems.systems：GameProcess(5)、Render(9)
   - 并入 Render.renders 管线：MapRender(10)、BlockRender(12)、UnitRender(13)、UniverseRender(16)
-  - 独立线程（init 自带 60TPS 循环）：BulletProcess、EntityProces（存档写入状态机）；RouteSystem 由生成的 `Systems.startThreads()`（Data.enter 里调）装载，update 只做调度：快照 moveunits → 逐单位调 `updateRouteComp` → `path == null`（到达/不可达）时摘出 moveunits
+  - 独立线程（init 自带 60TPS 循环）：BulletProcess；RouteSystem 由生成的 `Systems.startThreads()`（Data.enter 里调）装载，update 只做调度：快照 moveunits → 逐单位调 `updateRouteComp` → `path == null`（到达/不可达）时摘出 moveunits。存档写入不是系统：DataIO.copy 写头部后 `GameIO.submitIo(DataIO::write)` 一次性提交到 io 线程（调色板→瓦片→单位→建筑→落盘），EntityProces 已删除
 - 销毁只在主线程：伤害结算（BulletProcess 线程）血量归零只 `Entities.markDead` 登记，GameProcess 每帧开头 drainDead 后统一 kill()；remove 顺序：摘持有者 → 注销容器 → freeID → Pools.free，`type == null` 作已回池标志挡二次销毁
 
 ## 主循环

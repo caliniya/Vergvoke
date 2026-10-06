@@ -23,6 +23,8 @@ public class DebugRender extends caliniya.vergvoke.system.System<DebugRender> {
     /** 复用的坐标转换缓存，避免每帧每元素 new。 */
     private final Vec2 tmp = new Vec2();
 
+    public boolean drawUI;
+
     @Override
     public DebugRender init() {
         index = 14;
@@ -34,9 +36,10 @@ public class DebugRender extends caliniya.vergvoke.system.System<DebugRender> {
         Lines.stroke(2f, Color.green);
 
         // 递归遍历整棵 UI 树，给每个元素画边框
+        if(drawUI){
         for (Element e : scene.root.getChildren()) {
             drawBounds(e);
-        }
+        }}
 
         // 重置绘制状态，避免污染后续（尤其是地图）的渲染
         Draw.reset();

@@ -16,6 +16,8 @@ import caliniya.vergvoke.system.world.*;
 import caliniya.vergvoke.type.type.*;
 import caliniya.vergvoke.world.*;
 
+import static caliniya.vergvoke.io.GameIO.submitIo;
+
 // 负责和游戏数据交互
 public class DataIO {
 
@@ -40,10 +42,11 @@ public class DataIO {
      */
     public static volatile Fi saveTarget;
 
-    // 命令实体处理线程开始写入数据
-    // 线程会使用三次循环来写入地图数据和实体数据
-    // 写入地图元数据
+    // 命令后台 io 线程开始写入存档数据
+    // 头部（MAGIC/版本/W/H/tags）在调用线程同步写，其余在 io 线程一次写完
     public static void copy(@Nullable StringMap tags) {
+        // 重置累积缓冲：bos 是静态流，不清的话第二次存档会追加在上一份字节后面
+        bos.reset();
         w.b(GameIO.MAGIC.getBytes());
         w.i(GameIO.SAVE_VERSION);
         w.i(WorldData.world.W);
@@ -59,7 +62,99 @@ public class DataIO {
             w.str(entry.key);
             w.str(entry.value);
         }
-        EntityProces.it.task = true;
+        submitIo(DataIO::write);
+    }
+
+    /**
+     * 存档写入状态机（io 线程执行，由 {@link #copy} 提交）：
+     * 调色板 → 地图瓦片 → 单位 → 建筑 → 落盘。写入顺序必须与 {@link #read} 的读取顺序严格一致。
+     */
+    private static void write() {
+        // --- 调色板（必须在瓦片数据之前）：扫描 + 写入，index 0 为 null ---
+        Ar<Floor> floorPalette = new Ar<>();
+        ObjectIntMap<Floor> floorMap = new ObjectIntMap<>();
+        Ar<ENVBlock> blockPalette = new Ar<>();
+        ObjectIntMap<ENVBlock> blockMap = new ObjectIntMap<>();
+
+        floorPalette.add((Floor) null);
+        blockPalette.add((ENVBlock) null);
+
+        int width = WorldData.world.W;
+        int height = WorldData.world.H;
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                Floor floor = WorldData.world.getFloor(x, y);
+                ENVBlock block = WorldData.world.getENVBlock(x, y);
+
+                if (floor != null && !floorMap.containsKey(floor)) {
+                    floorMap.put(floor, floorPalette.size);
+                    floorPalette.add(floor);
+                }
+                if (block != null && !blockMap.containsKey(block)) {
+                    blockMap.put(block, blockPalette.size);
+                    blockPalette.add(block);
+                }
+            }
+        }
+
+        w.s((short) floorPalette.size);
+        for (int i = 0; i < floorPalette.size; i++) {
+            Floor f = floorPalette.get(i);
+            w.str(f == null ? "null" : f.internalName);
+        }
+        w.s((short) blockPalette.size);
+        for (int i = 0; i < blockPalette.size; i++) {
+            ENVBlock b = blockPalette.get(i);
+            w.str(b == null ? "null" : b.internalName);
+        }
+
+        // --- 地图瓦片 (W×H × 2 short) ---
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                Floor floor = WorldData.world.getFloor(x, y);
+                ENVBlock block = WorldData.world.getENVBlock(x, y);
+                w.s(floor == null ? 0 : floorMap.get(floor, 0));
+                w.s(block == null ? 0 : blockMap.get(block, 0));
+            }
+        }
+
+        // --- 单位（先收集有效实体，保证写入的数量与实际条数一致） ---
+        Ar<Unit> outUnits = new Ar<>();
+        EntityArs.Unit.each(
+                u -> {
+                    if (u != null && u.health > 0)
+                        outUnits.add(u);
+                });
+        w.i(outUnits.size);
+        for (int i = 0; i < outUnits.size; i++) {
+            Unit u = outUnits.get(i);
+            w.str(u.type.internalName); // 读取端据此 Contents.get 还原类型
+            u.write(w);
+            w.b(END_MARKER);
+        }
+
+        // --- 建筑 ---
+        Ar<Building> outBuildings = new Ar<>();
+        EntityArs.Building.each(
+                b -> {
+                    if (b != null && b.health > 0)
+                        outBuildings.add(b);
+                });
+        w.i(outBuildings.size);
+        for (int i = 0; i < outBuildings.size; i++) {
+            Building b = outBuildings.get(i);
+            // 读取端据此 Contents.get(name, Block.class) 还原类型，再拿它的 buildingType
+            Block blk = b.type != null ? b.type.block : null;
+            w.str(blk == null ? "" : blk.internalName);
+            b.write(w);
+            w.b(END_MARKER);
+        }
+
+        // 至此内存中的存档数据写入完成 → 落盘
+        data = bos.toByteArray();
+        copyed = true;
+        GameIO.save(saveTarget);
     }
 
     // 调用此方法来实现保存
@@ -107,7 +202,7 @@ public class DataIO {
             boolean isSpace = tags.getBool("space");
 
             WorldData.initWorld(width, height, isSpace);
-            GameIO.submitIo(
+            submitIo(
                     () -> {
                         read(r, width, height);
                         Core.app.post(
@@ -115,7 +210,7 @@ public class DataIO {
                                     Data.loadSystems();
                                     Data.enter();
                                     // 相机对准第一个恢复的单位，否则用户面对空地图找不到部队
-                                    if (EntityArs.Unit.size() > 0) {
+                                    if (!EntityArs.Unit.isEmpty()) {
                                         Unit u0 = EntityArs.Unit.array.get(0);
                                         Core.camera.position.set(u0.x, u0.y);
                                     }

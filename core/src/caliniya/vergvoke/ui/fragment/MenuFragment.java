@@ -60,7 +60,6 @@ public class MenuFragment {
                                     () -> {
                                         WorldData.initWorld(100, 100, true);
                                         Data.loadSystems();
-                                        EntityProces.it.init();
 
                                         Unit A = UnitTypes.test.create(TeamTypes.Evoke, 100, 100);
 

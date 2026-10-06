@@ -5,6 +5,7 @@ import arc.util.pooling.Pools;
 import caliniya.vergvoke.base.ecs.Building;
 import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
+import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.base.game.EntityAr;
 import caliniya.vergvoke.game.*;
@@ -54,10 +55,8 @@ public class WorldData {
     }
 
     public static void initAllTrees(float worldPixelW, float worldPixelH) {
-        if (EntityArs.Unit != null)
-            EntityArs.Unit.resize(0, 0, worldPixelW, worldPixelH);
-        if (EntityArs.Building != null)
-            EntityArs.Building.resize(0, 0, worldPixelW, worldPixelH);
+        EntityArs.Unit.resize(0, 0, worldPixelW, worldPixelH);
+        EntityArs.Building.resize(0, 0, worldPixelW, worldPixelH);
         if (moveunits != null)
             moveunits.resize(0, 0, worldPixelW, worldPixelH);
         if (bullets != null)
@@ -121,7 +120,7 @@ public class WorldData {
         RouteData.updateBlock(x, y, block != null && block.solid);
     }
 
-    /** 地图加载完成后的初始化 */
+    /* 地图加载完成后的初始化 */
     /**
      * 重建瞬态容器（寻路队列 / 子弹）并重刷四叉树范围。重载流程专用：
      * 旧线程系统停透后调用——旧线程死前可能已把陈旧缓冲换进这些静态字段。
@@ -163,12 +162,10 @@ public class WorldData {
     }
 
     public static void clear() {
-        if (EntityArs.Unit != null)
-            EntityArs.Unit.clear(unit -> unit.reset());
-        if (EntityArs.Building != null)
-            EntityArs.Building.clear(building -> building.remove());
+        EntityArs.Unit.clear(Entity::reset);
+        EntityArs.Building.clear(Entity::remove);
         if (moveunits != null)
-            moveunits.clear(unit -> unit.reset());
+            moveunits.clear(Entity::reset);
         if (bullets != null)
             bullets.clear();
     }
