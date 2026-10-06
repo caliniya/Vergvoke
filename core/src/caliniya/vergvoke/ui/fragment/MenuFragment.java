@@ -5,15 +5,11 @@ import arc.scene.ui.layout.Table;
 import arc.struct.ObjectMap;
 import arc.struct.StringMap;
 import caliniya.vergvoke.base.ecs.Building;
-import caliniya.vergvoke.base.ecs.EntityArs;
 import caliniya.vergvoke.base.ecs.Unit;
 import caliniya.vergvoke.base.type.TeamTypes;
 import caliniya.vergvoke.content.*;
 import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.game.*;
-import caliniya.vergvoke.type.*;
-import caliniya.vergvoke.type.type.BuildingType;
-import caliniya.vergvoke.game.data.RouteData;
 import caliniya.vergvoke.game.data.WorldData;
 import caliniya.vergvoke.io.DataIO;
 import caliniya.vergvoke.system.world.*;
@@ -85,9 +81,9 @@ public class MenuFragment {
                                         int buildingCount = 10;
                                         for (int i = 0; i < buildingCount; i++) {
                                             int bx = padding
-                                                    + (int) (Math.random() * (WorldData.world.W - padding * 2));
+                                            + (int) (Math.random() * (WorldData.world.W - padding * 2));
                                             int by = padding
-                                                    + (int) (Math.random() * (WorldData.world.H - padding * 2));
+                                            + (int) (Math.random() * (WorldData.world.H - padding * 2));
                                             if (WorldData.world.isSolid(bx, by)) {
                                                 i--;
                                                 continue;
@@ -99,9 +95,9 @@ public class MenuFragment {
                                         int centerX = WorldData.world.W / 2;
                                         int centerY = WorldData.world.H / 2;
 
-                                        Building enemyTurret =
-                                                WorldData.placeBuilding(
-                                                        Blocks.testTurret, centerX, centerY, 0, TeamTypes.Mutex);
+                                        Building enemyTurret
+                                        = WorldData.placeBuilding(
+                                                Blocks.testTurret, centerX, centerY, 0, TeamTypes.Mutex);
 
                                         // 导航增量更新已由 WorldData.placeBuilding 内部处理，不再手动全量重建
                                         ObjectMap<String, String> tag = new ObjectMap<String, String>();
