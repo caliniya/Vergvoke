@@ -30,8 +30,6 @@ public class UniverseRender extends System<UniverseRender> {
 
     @Override
     public void update(float delta) {
-        if (!inited || paused)
-            return;
         Camera cam = Render.universeCamera;
         float zoom = Render.universeZoom;
         cam.update();

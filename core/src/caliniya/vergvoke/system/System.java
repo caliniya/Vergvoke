@@ -134,6 +134,21 @@ public abstract class System<T extends System<T>> implements Comparable<System<?
     public void update() {
     }
 
+    /**
+     * 驱动方的统一更新入口：主线程 / 外部驱动一律调这里，不要直接调 {@link #update(float)}——
+     * 未初始化、或已暂停时直接跳过，手写系统无须自己写 {@code if (!inited || paused) return;} 样板。
+     *
+     * <p>独立线程的循环内部不走这里（线程侧的暂停用 pauseLock 等待实现，更省）。
+     *
+     * <p>注意 {@code paused} 只对 {@code isPausable} 的系统置位（{@link #setPaused} 对不可暂停系统直接忽略），
+     * 所以这里判 {@code paused} 就够：要挂着不停（如渲染）的系统在 init 时传 {@code init(false, false)}。
+     */
+    public void updataSubmit(float delta) {
+        if (!inited || paused)
+            return;
+        update(delta);
+    }
+
     /** 销毁系统，释放资源。 */
     public void dispose() {
         stopThread();

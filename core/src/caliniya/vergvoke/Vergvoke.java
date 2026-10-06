@@ -92,7 +92,7 @@ public class Vergvoke extends ApplicationCore {
             Game.update(delta);
 
             // 渲染只在游戏内驱动：主菜单/加载阶段 starMap 尚未就绪，相机 clamp 会空指针
-            if (Game.inGame) Render.it.update(delta);
+            if (Game.inGame) Render.it.updataSubmit(delta);
             camera.update();
         }
         scene.act();
@@ -101,7 +101,7 @@ public class Vergvoke extends ApplicationCore {
 
         if (DebugRender.it != null) {
             Draw.proj(UI.camera);
-            DebugRender.it.update(delta);
+            DebugRender.it.updataSubmit(delta);
         }
 
         Draw.flush();

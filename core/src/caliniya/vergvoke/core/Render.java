@@ -70,7 +70,7 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
     }
 
     /**
-     * 初始化
+     * 初始化。不可暂停：焦点暂停时渲染 / UI 照常跑（驱动方走 updataSubmit，靠它跳过暂停系统）
      */
     @Override
     public Render init() {
@@ -90,7 +90,7 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
         universeCamera.height = Core.graphics.getHeight();
         universeCamera.position.set(Core.camera.position);
 
-        return super.init();
+        return super.init(false, false);
     }
 
     /**
@@ -195,7 +195,7 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
         }
 
         for (caliniya.vergvoke.system.System<?> render : renders) {
-            render.update(delta);
+            render.updataSubmit(delta);
         }
         Draw.flush();
     }

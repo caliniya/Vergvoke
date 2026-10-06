@@ -19,8 +19,6 @@ public class BlockRender extends caliniya.vergvoke.system.System<BlockRender> {
 
   @Override
   public void update(float delta) {
-    if (!inited || paused)
-      return;
     // 遍历所有建筑
     for (Building b : EntityArs.Building) {
       if (b == null || b.health <= 0f)

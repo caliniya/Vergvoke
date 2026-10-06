@@ -93,8 +93,6 @@ public class MapRender extends caliniya.vergvoke.system.System<MapRender> {
     @Override
     public void update(float delta) {
         Draw.color();
-        if (!inited || paused)
-            return;
         if (chunks == null)
             return;
 

@@ -35,8 +35,6 @@ public class UnitRender extends System<UnitRender> {
 
     @Override
     public void update(float delta) {
-        if (!inited || paused)
-            return;
         // 绘制单位：资源与画法都在类型上，实体本身不持有贴图
         EntityArs.Unit.each(
                 u -> {

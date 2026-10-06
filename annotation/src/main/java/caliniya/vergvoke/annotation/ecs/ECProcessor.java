@@ -2003,8 +2003,8 @@ public class ECProcessor extends Processor {
                 MethodSpec.methodBuilder("update")
                         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                         .addParameter(float.class, "delta")
-                        .addJavadoc("按 @SystemDef.index 依次调用所有组件系统。\n")
-                        .addCode("for ($T<?> sys : systems) {\n$>sys.update(delta);\n$<}\n", systemBase)
+                        .addJavadoc("按 @SystemDef.index 依次调用所有组件系统（走 updataSubmit 入口，统一处理暂停）。\n")
+                        .addCode("for ($T<?> sys : systems) {\n$>sys.updataSubmit(delta);\n$<}\n", systemBase)
                         .build());
 
         MethodSpec.Builder updateAll = MethodSpec.methodBuilder("updateAll")
