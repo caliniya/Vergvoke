@@ -79,7 +79,7 @@ public class Vergvoke extends ApplicationCore {
 
 			Log.info(
 					"Game inited - Using: " + String.format("%d ms / %d µs", durationMillis, durationMicros));
-			DebugRender.it = new DebugRender().init().setPaused(true);
+			DebugRender.it = new DebugRender().init().setEnable(false);
 		}
 
 		// 加载界面

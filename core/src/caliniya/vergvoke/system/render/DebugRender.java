@@ -27,7 +27,8 @@ public class DebugRender extends caliniya.vergvoke.system.System<DebugRender> {
 	@Override
 	public DebugRender init() {
 		index = 14;
-		return super.init(false, true);
+		// 不可暂停：失焦（GamePause）不影响调试渲染；启停走 setEnable（默认 false，由调试窗开关）
+		return super.init(false, false);
 	}
 
 	@Override

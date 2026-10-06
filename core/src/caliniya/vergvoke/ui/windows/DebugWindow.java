@@ -124,15 +124,15 @@ public class DebugWindow extends Window {
 				});
 
 		register(
-				() -> DebugRender.it != null && !DebugRender.it.isPaused()
-						? "关闭调试渲染器"
-						: "启动调试渲染器",
+				() -> DebugRender.it != null && DebugRender.it.enabled
+						? "停用调试渲染器"
+						: "启用调试渲染器",
 				() -> {
 					if (DebugRender.it == null) {
 						Log.info("[调试] 渲染器未创建");
 						return;
 					}
-					DebugRender.it.setPaused(!DebugRender.it.isPaused());
+					DebugRender.it.setEnable(!DebugRender.it.enabled);
 				});
 
 		register(

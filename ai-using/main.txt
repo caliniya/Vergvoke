@@ -56,13 +56,14 @@
 
 **固定帧序**（Systems.updateAll）：`e.sync(delta)`（热量/能量/能力/模组）→ 组件系统（按 index，走 `System.updataSubmit` 入口）→ `e.update(delta)`。
 
-**System 更新入口（2026-10-06 起）**：主线程 / 外部驱动一律调 `System.updataSubmit(delta)`，不要直接调 `update`——updataSubmit 统一跳过未初始化和已暂停的系统，手写系统不用自己写 `if (!inited || paused) return;` 样板。要挂着不停（渲染类）的系统 init 时传 `init(false, false)`；独立线程循环内部不走 updataSubmit（线程侧暂停用 pauseLock 等待）。
+**System 更新入口（2026-10-06 起）**：主线程 / 外部驱动一律调 `System.updataSubmit(delta)`，不要直接调 `update`——updataSubmit 统一跳过未初始化、已暂停或未启用的系统，手写系统不用自己写 `if (!inited || paused) return;` 样板。要挂着不停（渲染类）的系统 init 时传 `init(false, false)`；独立线程循环内部不走 updataSubmit（线程侧暂停用 pauseLock 等待；停用时线程照常空转保活）。
+**双状态开关**：`paused` 只接受 GamePause 失焦事件（桌面端多窗口下失焦不影响渲染——渲染类系统都不可暂停）；`enabled` 是运行时启停开关（`setEnable`，链式），所有系统都可随时切换，与暂停互相独立。DebugRender 启动时创建且 `setEnable(false)` 默认停用，调试窗里切换。
 
 ## 组件与系统现状
 
 组件 index：State=1、Move=2、Block=3、Target=4（Unit+Building 共用）、Weapon=5、Turret=6、Route=7。
 
-- UnitDef → base.ecs.Unit：StateComp（isSelected + @Write/@Read 序列化含 team）、MoveComp（speed/speedt/speedX/angle/moving + @Save x/y；纯积分"走"的那一半）、RouteComp（path/pathIndex/targetX/targetY/pathed + @Save targetX/targetY；"想走"的那一半，@Updata 挂 route 线程：算路径→算速度向量→到达/不可达清速度置空路径）、TargetComp（索敌：target/range/retargetInterval/filter，@Updata 里失效立即重搜+周期重搜）、WeaponComp（updateWeapons 开头武器级锁敌 + 冷却/转向/开火）
+- UnitDef → base.ecs.Unit：StateComp（isSelected + @Write/@Read 序列化含 team）、MoveComp（speed/speedt/speedX/angle/moving + @Save x/y；纯积分"走"的那一半）、RouteComp（path/pathIndex/targetX/targetY/pathed + @Save targetX/targetY；sizet 导航占用格数（UnitType.load 按 hitbox/size 最大边整格取整算出，create 灌入实体），寻路时作 unitSize；"想走"的那一半，@Updata 挂 route 线程：算路径→算速度向量→到达/不可达清速度置空路径）、TargetComp（索敌：target/range/retargetInterval/filter，@Updata 里失效立即重搜+周期重搜）、WeaponComp（updateWeapons 开头武器级锁敌 + 冷却/转向/开火）
 - BuildingDef → base.ecs.Building：BlockComp（block 引用/tx/ty/占位形状/contains/hitbox）、TargetComp、TurretComp（瞄准/装填/开火，@Import target/rotation/x/y）
 - 索敌已组件化，随主线程实体更新跑；建筑侧 Turret 自取目标；索敌半径在 UnitType.create 取武器最大射程
 - @SystemDef：GameProcess（thread=main, index=5）、RouteSystem（thread=route, index=1，类在 type/def/systems 包，@ThreadDef("route") 也标在它上面）
@@ -77,7 +78,7 @@
 `Vergvoke.update()`：资源没加载完 → 画加载界面；加载完 → `platformInput.update` → `Game.update(delta)`（门禁：inGame && !focusPaused）→ `if (Game.inGame) Render.it.updataSubmit(delta)` → `Systems.updateAll(delta)` 由 Game.update 驱动 → camera.update → scene.act/draw。
 
 - delta 钳制：`Vergvoke.init` 里 `Time.setDeltaProvider` 钳到 ≤10 帧（防截图/焦点切换巨帧把单位甩出地图）；主循环是唯一 delta 消费点
-- 焦点暂停：`Game.focusPaused`（Vergvoke.pause/resume 维护）冻结主线程模拟（Game.update 门禁 + 可暂停系统的 paused 标志，GamePause 事件对 pausable 系统统一 setPaused）；背景线程由 System 基类响应 GamePause（isPausable 的才挂起）；渲染/UI 不冻结（Render 及管线渲染器 init(false, false) 不可暂停，驱动走 updataSubmit）
+- 焦点暂停：`Game.focusPaused`（Vergvoke.pause/resume 维护）冻结主线程模拟（Game.update 门禁 + 可暂停系统的 paused 标志，GamePause 事件对 pausable 系统统一 setPaused——paused 只吃这个失焦事件）；背景线程由 System 基类响应 GamePause（isPausable 的才挂起）；渲染/UI 不冻结（Render 及管线渲染器、DebugRender 都 init(false, false) 不可暂停，驱动走 updataSubmit；DebugRender 的启停走 enabled）
 - 进游戏路径：`Data.load(file)` → GameIO.load → DataIO.load（IO 线程读档，Core.app.post 回主线程）→ Data.loadSystems() + Data.enter()（置 inGame、切 UI.Game、赋 Game.starMap）
 - 注意时序：WorldData.initWorld 在 post 之前跑，Game.starMap 在 enter() 才有值，中间存在「world 非空但 starMap 为 null」的窗口
 - 重载生命周期：Data.loadSystems 先 `Events.fire(ThreadedStop)` 停旧后台线程（否则线程泄漏、旧子弹线程污染双缓冲）→ `Systems.systems.clear()` → 建新实例 → `WorldData.rebuildTransientContainers()`（重建 moveunits/bullets、clearDead、initAllTrees）
@@ -87,7 +88,7 @@
 - `World` 按区块（WorldChunk.SHIFT/MASK）存地板/环境方块/建筑，TILE_SIZE=32
 - 实体容器唯一权威在生成的 `EntityArs.Unit` / `EntityArs.Building`；WorldData 自己持 RouteData 导航（moveunits 是 RouteSystem 的寻路队列、bullets 是子弹双缓冲容器）
 - **建筑生命周期门面（WorldData，全项目唯一写入口）**：placeBuilding（create 纯构造 → placeTiles 占位/覆盖拆除/导航 updateBlock → 容器 add）、removeBuilding（幂等：导航清占必须在瓦片注销前 → unregisterTiles → 容器 → freeID → 回池）、syncTree（「改坐标必 EntityArs.move」铁律的唯一执行点）、setEnvBlock、mapLoaded（读档瓦片装载完后重刷 RouteData.init）。职责划线：World=纯瓦片层、BuildingType=纯构造+派生数据、RouteData.updateBlock 只许门面调
-- `RouteData`（~1200 行，**HPA\***）：地图切 10 格 chunk，相邻 chunk 边界取「门口」（连续段>2 只留首尾）；ChunkNav 缓存门口间 chunk 内路径（octile cost + minClear 体积注解）。findPath(sx,sy,tx,ty,unitSize,capability)：同 chunk 局部 JPS，跨 chunk 连门口后门口抽象图 A*（按 minClear 过滤）+ addSeg 拼接去重 + smoothPath。元素惰性创建、ChunkNav.dirty volatile 保证并发发布；clearance = Chebyshev 距离（8 邻域）；寻路 scratch 全 ThreadLocal；小图导航更新全量重算、大图有界泛洪 ±24
+- `RouteData`（~1200 行，**HPA\***）：地图切 10 格 chunk，相邻 chunk 边界取「门口」（连续段>2 只留首尾）；ChunkNav 缓存门口间 chunk 内路径（octile cost + minClear 体积注解）。findPath(sx,sy,tx,ty,unitSize,capability)（另有 capability 自动推导的 5 参重载：capability = unitSize-1，层目前只是逐级腐蚀、没有独立地形集）：同 chunk 局部 JPS，跨 chunk 连门口后门口抽象图 A*（按 minClear 过滤）+ addSeg 拼接去重 + smoothPath。元素惰性创建、ChunkNav.dirty volatile 保证并发发布；clearance = Chebyshev 距离（8 邻域）；寻路 scratch 全 ThreadLocal；小图导航更新全量重算、大图有界泛洪 ±24
 - 调试可视化：MapRender.drawNavDebug（chunk 网格/门口/边路径），配 RouteData.debugWarmChunk 预热
 
 ## 星图

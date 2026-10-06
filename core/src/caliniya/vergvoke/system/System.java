@@ -23,6 +23,12 @@ public abstract class System<T extends System<T>> implements Comparable<System<?
 	/** 系统是否已初始化的标志，防止重复初始化。 */
 	public boolean inited = false;
 
+	/**
+	 * 是否启用（运行时开关，所有系统都可随时切换）。关掉后 updataSubmit / 线程循环都会跳过 update，
+	 * 与暂停（paused）互相独立：paused 只吃 GamePause 失焦事件。
+	 */
+	public volatile boolean enabled = true;
+
 	/** 系统的执行优先级索引，数值越小优先级越高（用于排序）。 */
 	public int index = 0;
 
@@ -137,7 +143,8 @@ public abstract class System<T extends System<T>> implements Comparable<System<?
 
 	/**
 	 * 驱动方的统一更新入口：主线程 / 外部驱动一律调这里，不要直接调 {@link #update(float)}——
-	 * 未初始化、或已暂停时直接跳过，手写系统无须自己写 {@code if (!inited || paused) return;} 样板。
+	 * 未初始化、已暂停（GamePause 失焦）或未启用（{@link #setEnable}）时直接跳过，
+	 * 手写系统无须自己写 {@code if (!inited || paused) return;} 样板。
 	 *
 	 * <p>独立线程的循环内部不走这里（线程侧的暂停用 pauseLock 等待实现，更省）。
 	 *
@@ -145,7 +152,7 @@ public abstract class System<T extends System<T>> implements Comparable<System<?
 	 * 所以这里判 {@code paused} 就够：要挂着不停（如渲染）的系统在 init 时传 {@code init(false, false)}。
 	 */
 	public void updataSubmit(float delta) {
-		if (!inited || paused)
+		if (!inited || paused || !enabled)
 			return;
 		update(delta);
 	}
@@ -156,12 +163,28 @@ public abstract class System<T extends System<T>> implements Comparable<System<?
 	}
 
 	/**
+	 * 设置系统是否启用（运行时开关；与暂停无关——paused 只接受 GamePause 失焦事件，
+	 * 桌面端多窗口下失焦不该连带停掉系统，停不停由 enabled 决定）。
+	 *
+	 * @param enable true 启用，false 停用。
+	 *
+	 * @return 当前系统实例（链式）。
+	 */
+	@SuppressWarnings("unchecked")
+	public T setEnable(boolean enable) {
+		this.enabled = enable;
+		return (T) this;
+	}
+
+	/**
 	 * 设置系统的暂停状态。
 	 *
 	 * <p>
 	 * 仅对标记为 {@code isPausable = true} 的系统生效。 如果从暂停恢复，会重置计时器并唤醒等待的线程。
 	 *
 	 * @param paused true 为暂停，false 为恢复。
+	 *
+	 * @return 当前系统实例（链式）。
 	 */
 	@SuppressWarnings("unchecked")
 	public T setPaused(boolean paused) {
@@ -239,8 +262,11 @@ public abstract class System<T extends System<T>> implements Comparable<System<?
 								delta = 4f;
 
 							try {
-								update(delta);
-								tickCounter++;
+								// enabled 是运行时开关：停用时线程照常空转保活，只是不干活
+								if (enabled) {
+									update(delta);
+									tickCounter++;
+								}
 							} catch (Exception e) {
 								Log.err("Error in thread: @", this.getClass().getSimpleName() + "  " + e);
 								// Threads.throwAppException(e);
