@@ -36,9 +36,7 @@
 - 发布：`./gradlew dist` 打 fat jar 到 `desktop/build/output/Vergvoke-1.0.jar`，直接 `java -jar` 跑。
 - 运行数据目录三级解析（io/DataPaths）：`-Dvergvoke.datadir` → `<程序目录>/data`（带写探针，便携优先）→ `%APPDATA%/Vergvoke` 兜底。desktop 的 run/debug 任务固定到 `build/run-data`。
 
-## 编译期 ECS（整个项目最有分量的设计）
-
-注解全部 RetentionPolicy.SOURCE，运行期零开销。
+## 注解
 
 - 注解集（annotation/.../Annotations.java）：`@Component(name, proc, index)`、`@Entity(comps, name, type)`、`@SystemDef(name, thread, index)`、`@ThreadDef`、`@Updata`、`@Save(index)`、`@Import`、`@OverrideEntity`、`@Write`/`@Read`
 - `ECProcessor` 生成 `caliniya.vergvoke.base.ecs` 包下的类，产物在 `core/build/generated/sources/annotationProcessor/java/main/`：
