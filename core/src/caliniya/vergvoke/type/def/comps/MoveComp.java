@@ -12,7 +12,7 @@ import arc.struct.*;
  * 本组件只负责把速度向量积到坐标上、到达判定、以及给空间索引留一个"位置变了"的标记。
  *
  * <p>
- * x / y 用 {@code @Import} 借 {@link PosComp} 的坐标，实体里只保留一份位置。
+ * x / y 用 {@code @Import} 借 实体本身的 的坐标，实体里只保留一份位置。
  */
 @Component(name = "Move", index = 2, proc = "main")
 public class MoveComp {
