@@ -380,7 +380,7 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
      *
      * <p>只在主线程执行（伤害结算可能在后台线程，但那里只登记不销毁，
      * 由 {@code GameProcess} 统一调到这里）。摸 {@code moveunits} 必须持它原有的那把锁
-     * （UnitMath / InputProcess 在各自线程里共用）；{@code EntityArs} 自带读写锁，不用额外加。
+     * （RouteSystem / InputProcess 在各自线程里共用）；{@code EntityArs} 自带读写锁，不用额外加。
      */
     @Override
     public void remove(Entity<?, ?> entity) {
@@ -394,7 +394,7 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
         // 选中态（UI / 指挥会持续按它下命令）
         CommandData.checkedUnits.remove(u, true);
 
-        // 寻路队列：UnitMath 与 InputProcess 都在各自的线程里持这把锁操作它
+        // 寻路队列：RouteSystem 与 InputProcess 都在各自的线程里持这把锁操作它
         if (WorldData.moveunits != null) {
             synchronized (WorldData.moveunits) {
                 WorldData.moveunits.remove(u);

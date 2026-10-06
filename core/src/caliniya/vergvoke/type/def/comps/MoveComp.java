@@ -5,10 +5,10 @@ import caliniya.vergvoke.annotation.Annotations.*;
 import arc.struct.*;
 
 /**
- * 移动组件：目标点 + 速度向量 + 每帧位移积分（"走"的那一半）。
+ * 移动组件：速度向量 + 每帧位移积分（"走"的那一半）。
  *
  * <p>
- * 分工：寻路（算路径、每帧给出速度向量）归寻路系统（现在的 UnitMath）；
+ * 分工：寻路（算路径、每帧给出速度向量）归导航系统（RouteSystem，route 线程）；
  * 本组件只负责把速度向量积到坐标上、到达判定、以及给空间索引留一个"位置变了"的标记。
  *
  * <p>
@@ -23,10 +23,10 @@ public class MoveComp {
     /** 格每秒，抄 UnitType.speedt；像素/帧的 speed = speedt × TILE_SIZE ÷ 60 */
     public float speedt = 5f;
 
-    /** 期望速度向量（像素/帧，寻路系统每帧写入；到点后清 0） */
+    /** 期望速度向量（像素/帧，导航线程每帧写入；到点后清 0） */
     public float speedX, speedY;
 
-    /** 运动朝向（度，由寻路系统按速度向量算出；原在 Entity 基类，拆组件后归这里）。 */
+    /** 运动朝向（度，由导航线程按速度向量算出；原在 Entity 基类，拆组件后归这里）。 */
     public float angle;
 
     /** 到达判定的容差（像素，直线移动时离目标小于它就直接贴过去） */
@@ -35,31 +35,31 @@ public class MoveComp {
     /** 本帧是否真的发生了位移 */
     public boolean moving;
 
-    /** 是否已经按当前目标寻过路（指挥改目标后要置回 false） */
-    public boolean pathed;
-
     /** 位置变了、需要把新坐标写回空间索引（外部系统处理完自己清掉） */
     public boolean velocityDirty = true;
 
-    /** 移动目标点 */
-    @Save(index = 1)
-    public float targetX;
-
-    @Save(index = 2)
-    public float targetY;
-
     /** 当前坐标（与 Entity 基类同名字段，处理器去重后实体用基类那一份；@Save 用于存档恢复位置） */
-    @Save(index = 3)
+    @Save(index = 1)
     public float x;
 
-    @Save(index = 4)
+    @Save(index = 2)
     public float y;
 
-    /** 当前路径节点（寻路系统写；null = 直线移动） */
+    /** 以下借 {@link RouteComp} 的导航字段（@Updata 体里读它们，实体里只有一份） */
+    @Import
+    public boolean pathed;
+
+    @Import
+    public float targetX;
+
+    @Import
+    public float targetY;
+
+    @Import
     public Ar<Point2> path;
 
-    /** 正在走的路径节点下标 */
-    public int pathIndex = 0;
+    @Import
+    public int pathIndex;
 
     @Updata
     public void update(float delta) {

@@ -36,7 +36,7 @@ public class Data {
     // 所有渲染方法 在此阶段不应该启动
     public static void loadSystems() {
         // 重载前先停掉上一局的线程系统：ThreadedStop 在重载路径上从未被触发过，
-        // 旧 BulletProcess/UnitMath/EntityProces 线程会泄漏并与新实例双跑——
+        // 旧 BulletProcess/EntityProces/nav 线程系统会泄漏并与新实例双跑——
         // 旧子弹线程把上一帧的陈旧缓冲换进 WorldData.bullets，就是重载后子弹渲染错乱的根源
         Events.fire(EventType.events.ThreadedStop);
         // 旧的主线程系统实例还挂在生成侧列表上，不清理会被 updateAll 双重驱动
@@ -54,7 +54,6 @@ public class Data {
         // DebugRender.it = new DebugRender();
 
         BulletProcess.it = new BulletProcess();
-        UnitMath.it = new UnitMath();
         EntityProces.it = new EntityProces();
 
         // 旧线程停透后重建瞬态容器（旧线程死前可能已把陈旧缓冲换进静态字段），并重刷四叉树范围
@@ -83,8 +82,10 @@ public class Data {
         Systems.systems.sort();
 
         BulletProcess.it.init();
-        UnitMath.it.init();
         EntityProces.it.init();
+
+        // 非主线程的 @SystemDef 系统（目前只有 RouteSystem@route）：实例化并起独立线程
+        Systems.startThreads();
 
         Game.starMap = new StarMap(2000, 2000);
 

@@ -1,24 +1,25 @@
 package caliniya.vergvoke.system.game;
 
-import caliniya.vergvoke.annotation.Annotations.*;
-import caliniya.vergvoke.base.ecs.Building;
-import caliniya.vergvoke.base.ecs.EntityArs;
-import caliniya.vergvoke.base.ecs.Unit;
-import caliniya.vergvoke.base.game.Entity;
 import arc.struct.*;
-import caliniya.vergvoke.game.Entities;
-import caliniya.vergvoke.game.data.*;
+import caliniya.vergvoke.annotation.Annotations.SystemDef;
+import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.base.game.*;
+import caliniya.vergvoke.game.*;
 
 // 在这里进行主线程游戏内容的更新
 @SystemDef(name = "GameProcess", thread = "main", index = 5)
 public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 
-    /** 全局实例（由 Data.loadSystems() 创建）。 */
+    /**
+     * 全局实例（由 Data.loadSystems() 创建）。
+     */
     public static GameProcess it;
 
     public Ar<Unit> deadUnits;
     public Ar<Building> deadBuildings;
-    /** 待销毁实体（伤害结算可能在后台线程登记，真正的销毁只在这里做）。 */
+    /**
+     * 待销毁实体（伤害结算可能在后台线程登记，真正的销毁只在这里做）。
+     */
     public Ar<Entity> freshKilled;
 
     @Override
@@ -45,8 +46,9 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
         Ar<Unit> moved = new Ar<>();
         EntityArs.Unit.each(
                 u -> {
-                    if (u == null)
+                    if (u == null) {
                         return;
+                    }
                     if (u.health <= 0) {
                         deadUnits.add(u);
                         return;
@@ -54,8 +56,9 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
                         u.update(delta);
                         u.canShoot = true;
                         u.updateWeapons(delta);
-                        if (u.velocityDirty)
+                        if (u.velocityDirty) {
                             moved.add(u);
+                        }
                     }
                 });
         // 对位置变化的单位逐个短暂写锁更新四叉树（写锁不长时间持有，读方几乎不阻塞）
@@ -70,16 +73,18 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 
         EntityArs.Building.each(
                 b -> {
-                    if (b == null)
+                    if (b == null) {
                         return;
+                    }
                     if (b.health <= 0) {
                         deadBuildings.add(b);
                         return;
                     } else {
                         b.update(delta);
                         // 类型级钩子（委托 Block.update，给非炮塔的自有行为留入口）
-                        if (b.type != null)
+                        if (b.type != null) {
                             b.type.update(b, delta);
+                        }
                     }
                 });
         for (Building b : deadBuildings) {

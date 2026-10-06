@@ -42,7 +42,7 @@
 - `ECProcessor` 生成 `caliniya.vergvoke.base.ecs` 包下的类，产物在 `core/build/generated/sources/annotationProcessor/java/main/`：
   - `Unit.java` / `Building.java` —— 实体类，由 `@Entity` 的组件字段拼出来，继承 `Entity`
   - `EntityArs.java` —— 每种实体一个 `EntityAr` 容器（static final，带 `e -> e.id` 提取器），是实体的唯一权威容器
-  - `Systems.java` —— 系统总览 + `updateAll()` 帧序驱动
+  - `Systems.java` —— 系统总览 + `updateAll()` 帧序驱动；非 main 线程的 @SystemDef 系统由生成的 `Systems.startThreads()` 实例化并 `init(true)` 起线程（实例收进 `Systems.threaded`）
 - `SystemProcessor` 只做校验：系统名唯一、thread 合法、index 线程内唯一、组件 index 在实体内不能撞、`@Updata` 方法必须且只能有一个 float delta 形参、组件字段名不能在实体里重复
 - `AutoProcessor`（2026-10-05 起在 **arc fork** 里：`arc.util.anno.AutoProcessor` + `@AnnoProc`）扫 `@AnnoProc` 自动生成 META-INF/services SPI；任何模块把 arc-core 放上 `annotationProcessor` 路径即自动激活，无 `@AnnoProc` 类时零干扰。annotation 模块的 `annotationProcessor` 就是 arc-core 坐标，tools 不再参与处理器链
 
@@ -52,21 +52,22 @@
 - 组件**字段初始化表达式跟到生成实体**；但对象池复用不走字段初始化——`Pools.obtain` 的旧实例只有构造时初始化过，create 里必须对运行时字段显式托底
 - `@Save` 只支持基本类型 + String；同组件 `@Save` 与 `@Write/@Read` 互斥
 - 组件 import 原样搬进生成文件，方法体里可直接用 Mathf/Entities 等短名
+- **proc 挂非 main 线程**（2026-10-06 起）：组件 @Updata 生成 `update<组件名>(float)` 方法，但**不再生成**主线程调度的组件系统类——同名 @SystemDef 手写类即驱动者（`Systems.startThreads()` 起线程后由它调用；组件源码里拿不到实体引用，摘容器这类事在系统侧做）
 
 **固定帧序**（Systems.updateAll）：`e.sync(delta)`（热量/能量/能力/模组）→ 组件系统（按 index）→ `e.update(delta)`。
 
 ## 组件与系统现状
 
-组件 index：State=1、Move=2、Block=3、Target=4（Unit+Building 共用）、Weapon=5、Turret=6。
+组件 index：State=1、Move=2、Block=3、Target=4（Unit+Building 共用）、Weapon=5、Turret=6、Route=7。
 
-- UnitDef → base.ecs.Unit：StateComp（isSelected + @Write/@Read 序列化含 team）、MoveComp（speed/speedX/targetX/path/pathIndex + @Save 1-4）、TargetComp（索敌：target/range/retargetInterval/filter，@Updata 里失效立即重搜+周期重搜）、WeaponComp（updateWeapons 开头武器级锁敌 + 冷却/转向/开火）
+- UnitDef → base.ecs.Unit：StateComp（isSelected + @Write/@Read 序列化含 team）、MoveComp（speed/speedt/speedX/angle/moving + @Save x/y；纯积分"走"的那一半）、RouteComp（path/pathIndex/targetX/targetY/pathed + @Save targetX/targetY；"想走"的那一半，@Updata 挂 route 线程：算路径→算速度向量→到达/不可达清速度置空路径）、TargetComp（索敌：target/range/retargetInterval/filter，@Updata 里失效立即重搜+周期重搜）、WeaponComp（updateWeapons 开头武器级锁敌 + 冷却/转向/开火）
 - BuildingDef → base.ecs.Building：BlockComp（block 引用/tx/ty/占位形状/contains/hitbox）、TargetComp、TurretComp（瞄准/装填/开火，@Import target/rotation/x/y）
 - 索敌已组件化，随主线程实体更新跑；建筑侧 Turret 自取目标；索敌半径在 UnitType.create 取武器最大射程
-- 唯一 @SystemDef：GameProcess（thread=main, index=5）
+- @SystemDef：GameProcess（thread=main, index=5）、RouteSystem（thread=route, index=1，类在 type/def/systems 包，@ThreadDef("route") 也标在它上面）
 - 手写系统（Data.loadSystems() + Data.enter() 手动装载）：
   - 主线程并入 Systems.systems：GameProcess(5)、Render(9)
   - 并入 Render.renders 管线：MapRender(10)、BlockRender(12)、UnitRender(13)、UniverseRender(16)
-  - 独立线程（init 自带 60TPS 循环）：BulletProcess、UnitMath（寻路+速度向量）、EntityProces（存档写入状态机）
+  - 独立线程（init 自带 60TPS 循环）：BulletProcess、EntityProces（存档写入状态机）；RouteSystem 由生成的 `Systems.startThreads()`（Data.enter 里调）装载，update 只做调度：快照 moveunits → 逐单位调 `updateRouteComp` → `path == null`（到达/不可达）时摘出 moveunits
 - 销毁只在主线程：伤害结算（BulletProcess 线程）血量归零只 `Entities.markDead` 登记，GameProcess 每帧开头 drainDead 后统一 kill()；remove 顺序：摘持有者 → 注销容器 → freeID → Pools.free，`type == null` 作已回池标志挡二次销毁
 
 ## 主循环
@@ -82,7 +83,7 @@
 ## 世界 / 导航
 
 - `World` 按区块（WorldChunk.SHIFT/MASK）存地板/环境方块/建筑，TILE_SIZE=32
-- 实体容器唯一权威在生成的 `EntityArs.Unit` / `EntityArs.Building`；WorldData 自己持 RouteData 导航（moveunits 是 UnitMath 的寻路队列、bullets 是子弹双缓冲容器）
+- 实体容器唯一权威在生成的 `EntityArs.Unit` / `EntityArs.Building`；WorldData 自己持 RouteData 导航（moveunits 是 RouteSystem 的寻路队列、bullets 是子弹双缓冲容器）
 - **建筑生命周期门面（WorldData，全项目唯一写入口）**：placeBuilding（create 纯构造 → placeTiles 占位/覆盖拆除/导航 updateBlock → 容器 add）、removeBuilding（幂等：导航清占必须在瓦片注销前 → unregisterTiles → 容器 → freeID → 回池）、syncTree（「改坐标必 EntityArs.move」铁律的唯一执行点）、setEnvBlock、mapLoaded（读档瓦片装载完后重刷 RouteData.init）。职责划线：World=纯瓦片层、BuildingType=纯构造+派生数据、RouteData.updateBlock 只许门面调
 - `RouteData`（~1200 行，**HPA\***）：地图切 10 格 chunk，相邻 chunk 边界取「门口」（连续段>2 只留首尾）；ChunkNav 缓存门口间 chunk 内路径（octile cost + minClear 体积注解）。findPath(sx,sy,tx,ty,unitSize,capability)：同 chunk 局部 JPS，跨 chunk 连门口后门口抽象图 A*（按 minClear 过滤）+ addSeg 拼接去重 + smoothPath。元素惰性创建、ChunkNav.dirty volatile 保证并发发布；clearance = Chebyshev 距离（8 邻域）；寻路 scratch 全 ThreadLocal；小图导航更新全量重算、大图有界泛洪 ±24
 - 调试可视化：MapRender.drawNavDebug（chunk 网格/门口/边路径），配 RouteData.debugWarmChunk 预热
@@ -93,7 +94,7 @@
 
 ## 存档
 
-全部自研二进制（不是 json），带 MAGIC：`AEVS`(GameIO/DataIO)、`AESS`(WorldIO)、`AEVP`(ProgressIO)；实体后写 8 字节 0xAE 结束标记。SAVE_VERSION=2，读取校验版本、旧档拒载：单位补 isSelected、team（byte ordinal，经 @Write/@Read）、targetX/targetY/x/y；建筑走 create → read → rebuild → placeBuilding(b) 门面，读档瓦片装载完调 WorldData.mapLoaded()。改序列化要同步 bump SAVE_VERSION。
+全部自研二进制（不是 json），带 MAGIC：`AEVS`(GameIO/DataIO)、`AESS`(WorldIO)、`AEVP`(ProgressIO)；实体后写 8 字节 0xAE 结束标记。SAVE_VERSION=3（v3：targetX/targetY 从 MoveComp 迁到 RouteComp，@Save 写入顺序变化），读取校验版本、旧档拒载：单位补 isSelected、team（byte ordinal，经 @Write/@Read）、x/y、targetX/targetY；建筑走 create → read → rebuild → placeBuilding(b) 门面，读档瓦片装载完调 WorldData.mapLoaded()。改序列化要同步 bump SAVE_VERSION。
 
 ## 内容体系
 

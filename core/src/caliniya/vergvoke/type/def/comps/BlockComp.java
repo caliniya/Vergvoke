@@ -3,7 +3,6 @@ package caliniya.vergvoke.type.def.comps;
 import arc.func.*;
 import arc.math.geom.*;
 import arc.util.io.*;
-import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.annotation.Annotations.Component;
 import caliniya.vergvoke.annotation.Annotations.Import;
 import caliniya.vergvoke.annotation.Annotations.OverrideEntity;

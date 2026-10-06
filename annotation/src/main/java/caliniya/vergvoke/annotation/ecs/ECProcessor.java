@@ -36,7 +36,7 @@ import arc.struct.Ar;
  * {@code update()}</b>，顺序由
  * {@code @Component.index} 决定（该档必须提供非 0 的 index）；
  * <li><b>proc = 其他系统名</b>：需要"同阶段一致"或较重的更新（开火、寻路、AI…）， 生成独立方法 {@code
- *             update_<组件简单名>(float delta)}，由该系统在自己阶段调用。
+ *             update<组件简单名>(float delta)}，由该系统在自己阶段调用。
  * </ul>
  * <li><b>组件系统</b>（{@code caliniya.vergvoke.base.ecs.<系统名>}）：继承系统基类，
  * {@code update(float)} 遍历该系统的实体、按 {@code @Component.index} 顺序直接调用属于该系统的组件更新。
@@ -76,6 +76,9 @@ public class ECProcessor extends Processor {
 
     /** 轻量档：proc 为空或等于它时，更新逻辑直接铺进实体 update() */
     private static final String MAIN_SYSTEM = "main";
+
+    /** 保留线程名，与 main 同为主线程语义（由 updateAll 驱动，不单独起线程） */
+    private static final String TEST_THREAD = "test";
 
     /** 实体 / 组件更新方法统一用的帧时间参数名：@Updata 的方法体会原样铺进生成代码，名字必须对上 */
     private static final String DELTA_NAME = "delta";
@@ -209,7 +212,7 @@ public class ECProcessor extends Processor {
         return valid;
     }
 
-    /** 组件简单名必须唯一（生成的方法名 update_<组件简单名> 基于它） */
+    /** 组件简单名必须唯一（生成的方法名 update<组件简单名> 基于它） */
     private boolean validateComponentNames(Map<String, AType> components) {
         boolean valid = true;
         Map<String, String> seen = new LinkedHashMap<>();
@@ -470,6 +473,21 @@ public class ECProcessor extends Processor {
 
     private boolean isMainTier(String proc) {
         return proc == null || proc.isEmpty() || MAIN_SYSTEM.equals(proc);
+    }
+
+    /** main / test 都是主线程语义：挂在这两个线程上的系统由 updateAll 驱动，不单独起线程 */
+    private boolean isMainThreadName(String thread) {
+        return MAIN_SYSTEM.equals(thread) || TEST_THREAD.equals(thread);
+    }
+
+    /** proc 名 -> 指向的 @SystemDef 所在线程（无对应声明时缺省 main） */
+    private Map<String, String> procThreads() {
+        Map<String, String> map = new LinkedHashMap<>();
+        for (AType system : types(SystemDef.class)) {
+            SystemDef def = system.annotation(SystemDef.class);
+            map.putIfAbsent(def.name(), def.thread());
+        }
+        return map;
     }
 
     /** Entity 基类上的实例字段名（组件同名字段不注入实体，避免遮蔽基类）。 */
@@ -739,7 +757,7 @@ public class ECProcessor extends Processor {
                                 componentIndex,
                                 seq,
                                 label,
-                                "update_" + component.simpleName(),
+                                "update" + component.simpleName(),
                                 body,
                                 componentDef.proc(),
                                 entityName,
@@ -1766,7 +1784,16 @@ public class ECProcessor extends Processor {
         ClassName systemBase = ClassName.get("caliniya.vergvoke.system", "System");
         ClassName entityArs = ClassName.get(GENERATED_PACKAGE, "EntityArs");
 
+        // proc -> 指向的 @SystemDef 所在线程：proc 挂在非主线程系统上时，
+        // 该 @SystemDef 手写类本身就是驱动者（由 Systems.startThreads 起线程），
+        // 不再生成主线程调度用的组件系统类（实体上的 update<组件> 方法照常生成，供手写类调用）
+        Map<String, String> procThreads = procThreads();
+
         for (String systemName : bySystem.keySet()) {
+            String thread = procThreads.get(systemName);
+            if (thread != null && !isMainThreadName(thread)) {
+                continue;
+            }
             TypeSpec.Builder componentSystem = TypeSpec.classBuilder(systemName)
                     .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
                     .superclass(
@@ -1834,8 +1861,9 @@ public class ECProcessor extends Processor {
                     .add(system);
         }
 
+        List<String> threadNames = new ArrayList<>(byThread.keySet());
+
         if (!byThread.isEmpty()) {
-            List<String> threadNames = new ArrayList<>(byThread.keySet());
             threadNames.sort(
                     (a, b) -> {
                         if (a.equals(MAIN_SYSTEM)) {
@@ -1897,7 +1925,15 @@ public class ECProcessor extends Processor {
             indexes.putIfAbsent(def.name(), def.index());
         }
 
-        List<String> ordered = new ArrayList<>(bySystem.keySet());
+        // 只装配主线程档的组件系统：非主线程 proc 的驱动者是 @SystemDef 手写类（startThreads 起线程）
+        Map<String, String> procThreads = procThreads();
+        List<String> ordered = new ArrayList<>();
+        for (String name : bySystem.keySet()) {
+            String thread = procThreads.get(name);
+            if (thread == null || isMainThreadName(thread)) {
+                ordered.add(name);
+            }
+        }
         ordered.sort(
                 (a, b) -> {
                     int ia = indexes.getOrDefault(a, Integer.MAX_VALUE);
@@ -1921,6 +1957,46 @@ public class ECProcessor extends Processor {
                 init.addStatement("systems.add(new $T())", ClassName.get(GENERATED_PACKAGE, name));
             }
             systems.addStaticBlock(init.build());
+        }
+
+        // ---- 非主线程系统：startThreads() 统一实例化并起独立线程 ----
+        List<AType> threadedDefs = new ArrayList<>();
+        for (AType system : systemDefs) {
+            if (!isMainThreadName(system.annotation(SystemDef.class).thread())) {
+                threadedDefs.add(system);
+            }
+        }
+
+        if (!threadedDefs.isEmpty()) {
+            // 线程次序沿用线程视图的排序（main 优先的清单在这里只含非主线程），线程内按 index 升序
+            threadedDefs.sort(
+                    Comparator
+                            .comparingInt(
+                                    (AType system) -> threadNames
+                                            .indexOf(system.annotation(SystemDef.class).thread()))
+                            .thenComparingInt(system -> system.annotation(SystemDef.class).index()));
+
+            systems.addField(
+                    FieldSpec.builder(ParameterizedTypeName.get(ar, systemWildcard), "threaded",
+                            Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
+                            .addJavadoc("全部非主线程系统实例（startThreads() 填充；重载时由 startThreads() 清空重建）。\n")
+                            .initializer("new $T<>()", ar)
+                            .build());
+
+            // 每次调用都 new 新实例：旧实例已被 ThreadedStop 停掉线程且 inited=true，
+            // 复用的话 init() 会因防重复初始化直接返回，线程起不来
+            CodeBlock.Builder start = CodeBlock.builder();
+            start.addStatement("threaded.clear()");
+            for (AType system : threadedDefs) {
+                start.addStatement("threaded.add(new $T().init(true))", ClassName.bestGuess(system.fullName()));
+            }
+
+            systems.addMethod(
+                    MethodSpec.methodBuilder("startThreads")
+                            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                            .addJavadoc("实例化所有非主线程 @SystemDef 系统并起独立线程（世界就绪后由 Data.enter 调用）。\n")
+                            .addCode(start.build())
+                            .build());
         }
 
         systems.addMethod(
