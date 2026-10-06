@@ -1,6 +1,5 @@
 package caliniya.vergvoke;
 
-import static arc.Core.*;
 import arc.*;
 import arc.assets.*;
 import arc.graphics.*;
@@ -17,130 +16,131 @@ import caliniya.vergvoke.system.input.*;
 import caliniya.vergvoke.system.render.*;
 import caliniya.vergvoke.ui.*;
 
+import static arc.Core.*;
+
 public class Vergvoke extends ApplicationCore {
 
-    public boolean assinited = false;
-    /** 平台输入：桌面 / 移动二选一（相机 / 宇宙视图 / 选中 / 下令全在 InputProcess 里）。 */
-    public InputProcess platformInput;
+	public boolean assinited = false;
+	/** 平台输入：桌面 / 移动二选一（相机 / 宇宙视图 / 选中 / 下令全在 InputProcess 里）。 */
+	public InputProcess platformInput;
 
-    // 用于记录开始时间
-    private long startTime;
+	// 用于记录开始时间
+	private long startTime;
 
-    @Override
-    public void setup() {
-        // 记录应用启动时的纳秒时间
-        startTime = java.lang.System.nanoTime();
-        graphics.clear(Color.black);
-    }
+	@Override
+	public void setup() {
+		// 记录应用启动时的纳秒时间
+		startTime = java.lang.System.nanoTime();
+		graphics.clear(Color.black);
+	}
 
-    @Override
-    public void init() {
-        Time.setDeltaProvider(() -> Math.min(graphics.getDeltaTime() * 60f, 10f));
-        Init.init();
-        super.init();
-    }
+	@Override
+	public void init() {
+		Time.setDeltaProvider(() -> Math.min(graphics.getDeltaTime() * 60f, 10f));
+		Init.init();
+		super.init();
+	}
 
-    @Override
-    public void update() {
-        super.update();
-        graphics.clear(Color.black);
+	@Override
+	public void update() {
+		super.update();
+		graphics.clear(Color.black);
 
-        float delta = Time.delta;
+		float delta = Time.delta;
 
-        // 资源加载完成后的初始化
-        if (assets.update() && !assinited) {
-            Shaders.load();
-            Fonts.setup();
-            atlas = assets.get("sprites/sprites.aatls", TextureAtlas.class);
-            Styles.load();
-            Pal.load();
-            UI.initAll();
-            UI.Menu();
-            UI.Debug();
-            platformInput = Core.app.isMobile() ? new MobileInput() : new DesktopInput();
-            InputMultiplexer multiplexer = new InputMultiplexer(
-                    scene,
-                    new GestureDetector(platformInput),
-                    platformInput);
-            input.addProcessor(multiplexer);
-            Contents.load();
-            UI.camera.resize(graphics.getWidth(), graphics.getHeight());
-            UI.camera.update();
-            assinited = true;
-            Scl.setProduct(1);
+		// 资源加载完成后的初始化
+		if (assets.update() && !assinited) {
+			Shaders.load();
+			Fonts.setup();
+			atlas = assets.get("sprites/sprites.aatls", TextureAtlas.class);
+			Styles.load();
+			Pal.load();
+			UI.initAll();
+			UI.Menu();
+			UI.Debug();
+			platformInput = Core.app.isMobile() ? new MobileInput() : new DesktopInput();
+			InputMultiplexer multiplexer = new InputMultiplexer(
+					scene,
+					new GestureDetector(platformInput),
+					platformInput);
+			input.addProcessor(multiplexer);
+			Contents.load();
+			UI.camera.resize(graphics.getWidth(), graphics.getHeight());
+			UI.camera.update();
+			assinited = true;
+			Scl.setProduct(1);
 
-            // 计算消耗时间
-            long durationNanos = java.lang.System.nanoTime() - startTime;
+			// 计算消耗时间
+			long durationNanos = java.lang.System.nanoTime() - startTime;
 
-            // 转换单位
-            long durationMillis = durationNanos / 100_000_0; // 毫秒 (带小数)
-            long durationMicros = durationNanos / 1000; // 微秒 (整数)
+			// 转换单位
+			long durationMillis = durationNanos / 100_000_0; // 毫秒 (带小数)
+			long durationMicros = durationNanos / 1000; // 微秒 (整数)
 
-            Log.info(
-                    "Game inited - Using: " + String.format("%d ms / %d µs", durationMillis, durationMicros));
-            // DebugRender.it = new DebugRender().init();
-        }
+			Log.info(
+					"Game inited - Using: " + String.format("%d ms / %d µs", durationMillis, durationMicros));
+			DebugRender.it = new DebugRender().init().setPaused(true);
+		}
 
-        // 加载界面
-        if (!assinited) {
-            UI.Loading(assets.getProgress());
-        } else {
-            Draw.proj(camera);
+		// 加载界面
+		if (!assinited) {
+			UI.Loading(assets.getProgress());
+		} else {
+			Draw.proj(camera);
 
-            platformInput.update(delta);
+			platformInput.update(delta);
 
-            Game.update(delta);
+			Game.update(delta);
 
-            // 渲染只在游戏内驱动：主菜单/加载阶段 starMap 尚未就绪，相机 clamp 会空指针
-            if (Game.inGame) Render.it.updataSubmit(delta);
-            camera.update();
-        }
-        scene.act();
-        scene.draw();
-        // Draw.flush();
+			// 渲染只在游戏内驱动：主菜单/加载阶段 starMap 尚未就绪，相机 clamp 会空指针
+			if (Game.inGame) Render.it.updataSubmit(delta);
+			camera.update();
+		}
+		scene.act();
+		scene.draw();
 
-        if (DebugRender.it != null) {
-            Draw.proj(UI.camera);
-            DebugRender.it.updataSubmit(delta);
-        }
+		if (DebugRender.it != null) {
+			Draw.proj(UI.camera);
+			DebugRender.it.updataSubmit(delta);
+		}
 
-        Draw.flush();
-    }
+		Draw.flush();
+	}
 
-    @Override
-    public void add(ApplicationListener module) {
-        super.add(module);
-        if (module instanceof Loadable l) {
-            assets.load(l);
-        }
-    }
+	@Override
+	public void add(ApplicationListener module) {
+		super.add(module);
+		if (module instanceof Loadable l) {
+			assets.load(l);
+		}
+	}
 
-    @Override
-    public void dispose() {
-        super.dispose();
-        assets.dispose();
-    }
+	@Override
+	public void dispose() {
+		super.dispose();
+		assets.dispose();
+	}
 
-    @Override
-    public void resize(int width, int height) {
-        super.resize(width, height);
-        scene.resize(width, height);
-        camera.resize(width, height);
-    }
+	@Override
+	public void resize(int width, int height) {
+		super.resize(width, height);
+		scene.resize(width, height);
+		camera.resize(width, height);
+	}
 
-    @Override
-    public void pause() {
-        Game.focusPaused = true; // 主线程模拟冻结；背景线程监听 GamePause 自行挂起
-        Events.fire(new EventType.GamePause(true));
-        Log.info("Game Pause");
-        super.pause();
-    }
+	@Override
+	public void pause() {
+		Game.focusPaused = true;
+		Events.fire(new EventType.GamePause(true));
+		Log.info("Game Pause");
+		super.pause();
+	}
 
-    @Override
-    public void resume() {
-        Game.focusPaused = false;
-        Events.fire(new EventType.GamePause(false));
-        Log.info("Game Resume");
-        super.resume();
-    }
+	@Override
+	public void resume() {
+		Game.focusPaused = false;
+		Events.fire(new EventType.GamePause(false));
+		Log.info("Game Resume");
+		super.resume();
+	}
 }

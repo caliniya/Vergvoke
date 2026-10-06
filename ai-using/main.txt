@@ -110,7 +110,7 @@
 
 `ui/windows/Window.java` 是窗口基类，9 个具体窗口（CommandInfo / Data / Maps / Pause / Progress / TechTree / UnitDetail / StarNodeWindow 星节点右侧窄栏 / DebugWindow 注册式调试窗）；`ui/fragment/` 4 个 Fragment（HUD / Menu / Universe / Debug）。由 core/UI 统一创建。`stat/StatStack` 做属性面板的实时数据源（live lambda）。
 
-DebugWindow：HUD 左上「调试」按钮开关；`DebugWindow.register("名字", () -> {...})` 一行加测试项。预置：生成敌方炮塔 / 生成玩家单位 / 清空全部单位 / 打印导航统计 / 重新载入存档（Data.load(Fi, null)——Fi 版入口是 Data 不是 DataIO）。
+DebugWindow：HUD 左上「调试」按钮开关；`DebugWindow.register("名字", () -> {...})` 一行加测试项，标题也可传 `Supplier<String>` 做成动态（按钮每次点击后重取文案，开关类测试项文字跟着状态变）。预置：生成敌方炮塔 / 生成玩家单位 / 清空全部单位 / 打印导航统计 / 重新载入存档（Data.load(Fi, null)——Fi 版入口是 Data 不是 DataIO）/ 切换调试渲染器（setPaused 开关，Vergvoke 启动时创建且默认暂停）/ 启动关闭UI边框（DebugRender.drawUI，渲染器启动后才生效）。
 
 ## 资源
 

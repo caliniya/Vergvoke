@@ -13,23 +13,39 @@ import caliniya.vergvoke.system.render.*;
 import caliniya.vergvoke.ui.*;
 
 import java.util.*;
+import java.util.function.Supplier;
 
 /**
  * 调试测试窗：HUD 的「调试」小按钮开关，集中放各种测试入口。
  *
  * <p>新增测试一行注册：{@code DebugWindow.register("名字", () -> ...)}，
  * 自动出现在窗口列表里；动作里缺世界/系统的前置条件自己兜（判空 + Log 提示）。
+ *
+ * <p>标题可传 {@code Supplier<String>} 做成动态的——按钮每次点击后重取文案，
+ * 开关类测试项的文字就能跟着状态变化。
  */
 public class DebugWindow extends Window {
 
-	/** 已注册的测试项（保持插入顺序，同名覆盖）。 */
-	private static final Map<String, Runnable> entries = new LinkedHashMap<>();
+	/** 已注册的测试项（保持插入顺序）。 */
+	private static final List<Entry> entries = new ArrayList<>();
 
 	private static DebugWindow current;
 
-	/** 注册一个测试项。 */
+	/** 一个测试项：label 每次点击后重取，静态文案包一层 lambda 即可。 */
+	private record Entry(Supplier<String> label, Runnable run) {
+		Entry(String label, Runnable run) {
+			this(() -> label, run);
+		}
+	}
+
+	/** 注册一个固定标题的测试项。 */
 	public static void register(String name, Runnable run) {
-		entries.put(name, run);
+		register(() -> name, run);
+	}
+
+	/** 注册一个动态标题的测试项（label 在窗口构建时与每次点击后重取）。 */
+	public static void register(Supplier<String> label, Runnable run) {
+		entries.add(new Entry(label, run));
 	}
 
 	/** 调试按钮回调：开关窗口。 */
@@ -107,9 +123,27 @@ public class DebugWindow extends Window {
 					Data.load(Core.settings.getDataDirectory().child("map/space.aevs"), null);
 				});
 
-		register(DebugRender.it.drawUI ? "关闭UI绘制" : "启动UI绘制", () -> {
-			DebugRender.it.drawUI = !DebugRender.it.drawUI;
-		});
+		register(
+				() -> DebugRender.it != null && !DebugRender.it.isPaused()
+						? "关闭调试渲染器"
+						: "启动调试渲染器",
+				() -> {
+					if (DebugRender.it == null) {
+						Log.info("[调试] 渲染器未创建");
+						return;
+					}
+					DebugRender.it.setPaused(!DebugRender.it.isPaused());
+				});
+
+		register(
+				() -> DebugRender.it != null && DebugRender.it.drawUI ? "关闭UI边框" : "启动UI边框",
+				() -> {
+					if (DebugRender.it == null) {
+						Log.info("[调试] 渲染器未创建");
+						return;
+					}
+					DebugRender.it.drawUI = !DebugRender.it.drawUI;
+				});
 	}
 
 	public DebugWindow() {
@@ -121,8 +155,15 @@ public class DebugWindow extends Window {
 
 	@Override
 	public void main(Table t) {
-		for (Map.Entry<String, Runnable> e : entries.entrySet()) {
-			t.add(new Button(e.getKey(), e.getValue())).growX().pad(2f);
+		for (Entry e : entries) {
+			// holder 中转：lambda 要在构造参数里引用按钮自身，直接写 b 过不了 definite assignment
+			Button[] holder = new Button[1];
+			holder[0] = new Button(e.label().get(), () -> {
+				e.run().run();
+				// 点击后重取标题：开关类测试项的文字跟着状态变化
+				holder[0].text.setText(e.label().get());
+			});
+			t.add(holder[0]).growX().pad(2f);
 			t.row();
 		}
 	}
