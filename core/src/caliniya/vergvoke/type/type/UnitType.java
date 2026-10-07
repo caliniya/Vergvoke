@@ -117,6 +117,7 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
 		u.maxHealth = health;
 		u.health = health;
 		u.armorMax = armorMax;
+		u.armor = armorMax; // 满甲出生(armor 是运行态不序列化,读档也一律满甲)
 		u.armorValue = armorValue;
 		if (armorResist != null) {
 			u.armorResist = armorResist.clone();

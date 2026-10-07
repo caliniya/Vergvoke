@@ -7,6 +7,7 @@ import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
+import caliniya.vergvoke.type.def.craft.recipe.*;
 import caliniya.vergvoke.type.module.*;
 import caliniya.vergvoke.world.*;
 import caliniya.vergvoke.world.blocks.defence.*;
@@ -83,11 +84,16 @@ public class BuildingType implements EntityType {
 			b.range = t.range;
 		}
 
-		// CraftComp：配方拷贝（仅工厂类建筑）
+		// CraftComp：配方组装（深拷贝 content 共享模板 + 绑定运行时模块；池化复用不残留）
 		if (block instanceof Factory f) {
-			b.craftTime = f.craftTime;
-			b.outputItem = f.outputItem;
-			b.outputAmount = f.outputAmount;
+			b.stack = new RecipeStack();
+			for (Recipe r : f.recipes) {
+				Recipe copy = r.copy();
+				copy.bind(b.item, b.liquid, b.power);
+				b.stack.recipes.add(copy);
+			}
+			// 默认选第一条配方（有配方才开工）
+			b.stack.current = f.recipes.isEmpty() ? -1 : 0;
 		}
 		b.self = b;
 
@@ -98,7 +104,6 @@ public class BuildingType implements EntityType {
 		b.angleToTarget = 0f;
 		b.retargetTimer = 0f;
 		b.filter = null;
-		b.progress = 0f;
 
 		// 容器注册 / 瓦片注册 / 导航更新由 WorldData 门面编排（placeBuilding）
 		return b;

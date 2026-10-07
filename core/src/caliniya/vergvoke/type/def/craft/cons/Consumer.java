@@ -2,14 +2,28 @@ package caliniya.vergvoke.type.def.craft.cons;
 
 import caliniya.vergvoke.type.module.Module;
 
-//这表示一种用于消费的类型定义，可能用于表示某种资源或能力的消耗行为。
-public class Consumer {
+/// 消耗端:配方"吃什么"的一端。bind 运行时模块,cons() 结算扣料。
+/// canCons() 供 Recipe.canCraft 做全端校验(缺料时整体不动,防扣了料产不出)。
+@SuppressWarnings("unchecked")
+public class Consumer<T extends Consumer<?, ?>, E extends Module> {
 
-	public Module module;
+	public E module;
 
-	public Consumer bind(Module module) {
+	public T bind(E module) {
 		this.module = module;
-		return this;
+		return (T) this;
 	}
 
+	/** 结算前检查:默认可消耗,子类按堆栈数量覆写 */
+	public boolean canCons() {
+		return true;
+	}
+
+	public void cons() {
+	}
+
+	/** 深拷贝(content 共享模板 → 实体私有副本;运行时模块由 Recipe.bind 另行绑定) */
+	public Consumer<T, E> copy() {
+		return new Consumer<>();
+	}
 }

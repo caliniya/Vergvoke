@@ -149,12 +149,35 @@ public class DebugWindow extends Window {
 						Log.info("[调试] 该处没有建筑（或无仓库）");
 						return;
 					}
+					caliniya.vergvoke.type.def.craft.recipe.Recipe r =
+							b.stack == null ? null : b.stack.current();
 					Log.info(
-							"[库存] Ge=@/@, 进度=@/@",
+							"[库存] Ge=@/@, 进度=@/@, 配方=@/@",
 							b.item.getAmount(Items.Ge),
 							b.item.capacity,
-							b.progress,
-							b.craftTime);
+							b.stack == null ? 0f : b.stack.progress,
+							r == null ? 0f : r.time,
+							b.stack == null ? -1 : b.stack.current,
+							b.stack == null ? 0 : b.stack.recipes.size);
+				});
+
+		register(
+				"切换工厂配方(镜头中心)",
+				() -> {
+					if (WorldData.world == null) {
+						Log.info("[调试] 世界未初始化");
+						return;
+					}
+					int tx = (int) (Core.camera.position.x / WorldData.TILE_SIZE);
+					int ty = (int) (Core.camera.position.y / WorldData.TILE_SIZE);
+					caliniya.vergvoke.base.ecs.Building b = WorldData.world.getBuilding(tx, ty);
+					if (b == null || b.stack == null || b.stack.recipes.isEmpty()) {
+						Log.info("[调试] 该处没有带配方的建筑");
+						return;
+					}
+					int next = (b.stack.current + 1) % b.stack.recipes.size;
+					b.stack.select(next);
+					Log.info("[配方] 切到 @/@（index=@）", next + 1, b.stack.recipes.size, next);
 				});
 
 		register(

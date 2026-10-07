@@ -65,7 +65,7 @@
 组件 index：State=1、Move=2、Block=3、Target=4（Unit+Building 共用）、Weapon=5、Turret=6、Route=7、Craft=8。
 
 - UnitDef → base.ecs.Unit：StateComp（isSelected + @Write/@Read 序列化含 team）、MoveComp（speed/speedt/speedX/angle/moving + @Save x/y；纯积分"走"的那一半）、RouteComp（path/pathIndex/targetX/targetY/pathed + @Save targetX/targetY；sizet 导航占用格数（UnitType.load 按 hitbox/size 最大边整格取整算出，create 灌入实体），寻路时作 unitSize；"想走"的那一半，@Updata 挂 route 线程：算路径→算速度向量→到达/不可达清速度置空路径）、TargetComp（索敌：target/range/retargetInterval/filter，@Updata 里失效立即重搜+周期重搜）、WeaponComp（updateWeapons 开头武器级锁敌 + 冷却/转向/开火）
-- BuildingDef → base.ecs.Building：BlockComp（block 引用/tx/ty/占位形状/contains/hitbox）、TargetComp、TurretComp（瞄准/装填/开火，@Import target/rotation/x/y）、CraftComp（通用生产：craftTime/outputItem/outputAmount 由 Factory 配置 create 拷入，progress @Save 持久化；@Import item 借基类模块。产出堆积在自身仓库，满仓进度钳住停产）
+- BuildingDef → base.ecs.Building：BlockComp（block 引用/tx/ty/占位形状/contains/hitbox）、TargetComp、TurretComp（瞄准/装填/开火，@Import target/rotation/x/y）、CraftComp（通用生产：持 RecipeStack 配方组，update 推进度 → Recipe.canCraft 全端校验 → craft 两端结算；current/progress 经 @Write 持久化。缺料/满仓进度钳住，不丢产出）
 - 索敌已组件化，随主线程实体更新跑；建筑侧 Turret 自取目标；索敌半径在 UnitType.create 取武器最大射程
 - @SystemDef：GameProcess（thread=main, index=5）、RouteSystem（thread=route, index=1，类在 type/def/systems 包，@ThreadDef("route") 也标在它上面）
 - 手写系统（Data.loadSystems() + Data.enter() 手动装载）：
@@ -98,7 +98,7 @@
 
 ## 存档
 
-全部自研二进制（不是 json），带 MAGIC：`AEVS`(GameIO/DataIO)、`AESS`(WorldIO)、`AEVP`(ProgressIO)；实体后写 8 字节 0xAE 结束标记。SAVE_VERSION=1（版本号已被重置回 1；CraftComp.progress 已进 @Save，注意与旧档格式不兼容），读取校验版本、旧档拒载：单位补 isSelected、team（byte ordinal，经 @Write/@Read）、x/y、targetX/targetY；建筑走 create → read → rebuild → placeBuilding(b) 门面，读档瓦片装载完调 WorldData.mapLoaded()。改序列化要同步 bump SAVE_VERSION。
+全部自研二进制（不是 json），带 MAGIC：`AEVS`(GameIO/DataIO)、`AESS`(WorldIO)、`AEVP`(ProgressIO)；实体后写 8 字节 0xAE 结束标记。SAVE_VERSION=2（v2：CraftComp 改 @Write 写配方组 current+progress），读取校验版本、旧档拒载：单位补 isSelected、team（byte ordinal，经 @Write/@Read）、x/y、targetX/targetY；建筑走 create → read → rebuild → placeBuilding(b) 门面，读档瓦片装载完调 WorldData.mapLoaded()。改序列化要同步 bump SAVE_VERSION。
 
 ## 内容体系
 
@@ -108,7 +108,7 @@
 
 `content/Xxx.java` 是静态注册清单，`type/type/XxxType.java` 是类型类（配置 + 类型级行为）。EntityType 接口连接两者：create(team,x,y) / sync / update / draw / kill / remove，实现者是 UnitType 与 BuildingType。方块经 Block.buildingType 反向持有自己的 BuildingType。
 
-生产建筑：`world/blocks/production/Factory.java`（extends Block，配置载体 craftTime/outputItem/outputAmount）+ CraftComp 组件承载行为——这是"配置在 Block 子类、行为在组件、create 时 instanceof 拷贝"的标准生产建筑模式（Turret 同款）。当前唯一配方：factory 每秒产 1 Ge 堆自身仓库。
+生产建筑与配方体系（2026-10-07 起）：`world/blocks/production/Factory.java`（extends Block）持 `Ar<Recipe> recipes`（content 声明的**共享只读模板**），BuildingType.create 里 `Recipe.copy()` 深拷贝 + `bind(b.item, b.liquid, b.power)` 装配进实体的 RecipeStack——不拷贝的话同型建筑共享端对象会互相覆盖。`type/def/craft/` 是配方两端抽象：`cons/Consumer`（吃什么，ItemConsumer.canCons/cons）+ `output/Outputer`（吐什么，ItemOutputer.canOutput/output），端持 Item 堆栈（type+amount）；`Recipe.canCraft()` 全端校验通过才 `craft()` 结算（先全部 cons 再全部 output，原子性防丢产出）；`RecipeStack` = 配方组 + current 下标 + progress，切换配方 select() 清进度。当前 factory 唯一配方：每秒产 1 Ge 堆自身仓库。
 
 伤害结算三层：能力拦截（护盾）→ 护甲（倍率 × 抗性 − 强度）→ 本体。护盾体系是 Ability / Shield / ForceField 三件套；Enhancement（增强）是纯数据，行为在 EnhancementType，目前唯一实现是 ShieldBoostEnhancementType。
 
@@ -116,7 +116,9 @@
 
 `ui/windows/Window.java` 是窗口基类，10 个具体窗口（CommandInfo / Data / Maps / Pause / Progress / TechTree / UnitDetail / BuildingDetail 点建筑弹出的信息面板（血量/库存/进度，open() 单例防堆积）/ StarNodeWindow 星节点右侧窄栏 / DebugWindow 注册式调试窗）；`ui/fragment/` 4 个 Fragment（HUD / Menu / Universe / Debug）。由 core/UI 统一创建。`stat/StatStack` 做属性面板的实时数据源（live lambda）。
 
-DebugWindow：HUD 左上「调试」按钮开关；`DebugWindow.register("名字", () -> {...})` 一行加测试项，标题也可传 `Supplier<String>` 做成动态（按钮每次点击后重取文案，开关类测试项文字跟着状态变）。预置：生成敌方炮塔 / 生成玩家单位 / 清空全部单位 / 打印导航统计 / 重新载入存档（Data.load(Fi, null)——Fi 版入口是 Data 不是 DataIO）/ 切换调试渲染器（setPaused 开关，Vergvoke 启动时创建且默认暂停）/ 启动关闭UI边框（DebugRender.drawUI，渲染器启动后才生效）。
+`ui/Bar.java`（2026-10-07，参考 Mindustry Bar 适配）：通用进度条 Element——`new Bar(Floatp fraction, Color)` 每帧取 0~1 比例绘制，自带 lerpDelta 平滑、数值下降 blink 闪烁、NaN/Inf 防护、`outline(color, stroke)` 描边、`snap()` 对齐；另有动态颜色构造（Prov<Color>，血量低变红这类）。绘制是纯色块（项目图集没有 Mindustry 的 bar/barTop 九宫格），文字由调用方配 Label。UnitDetailWindow / BuildingDetailWindow 已用它，别再手写匿名进度条。注意：条和文本同行时，文本格要 `.width(定宽)`——数值位数一变 Label 宽度就变，会把条的位置顶得左右晃。
+
+DebugWindow：HUD 左上「调试」按钮开关；`DebugWindow.register("名字", () -> {...})` 一行加测试项，标题也可传 `Supplier<String>` 做成动态（按钮每次点击后重取文案，开关类测试项文字跟着状态变）。预置：生成敌方炮塔 / 生成玩家单位 / 清空全部单位 / 打印导航统计 / 重新载入存档（Data.load(Fi, null)——Fi 版入口是 Data 不是 DataIO）/ 切换调试渲染器（setEnable 开关，Vergvoke 启动时创建且默认停用）/ 启动关闭UI边框（DebugRender.drawUI，渲染器启动后才生效）。
 
 ## 资源
 

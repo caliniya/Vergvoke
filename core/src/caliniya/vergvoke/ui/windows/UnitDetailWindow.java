@@ -1,10 +1,6 @@
 package caliniya.vergvoke.ui.windows;
 
 import arc.Core;
-import arc.graphics.Color;
-import arc.graphics.g2d.Draw;
-import arc.graphics.g2d.Fill;
-import arc.scene.Element;
 import arc.scene.ui.Label;
 import arc.scene.ui.layout.Table;
 import arc.util.Align;
@@ -14,6 +10,7 @@ import caliniya.vergvoke.core.meta.stat.StatStack;
 import caliniya.vergvoke.core.meta.ui.Pal;
 import caliniya.vergvoke.type.ability.Ability;
 import caliniya.vergvoke.type.Enhancement;
+import caliniya.vergvoke.ui.Bar;
 import caliniya.vergvoke.ui.Button;
 
 /**
@@ -82,13 +79,16 @@ public class UnitDetailWindow extends Window {
                 d -> {
                     if (d.data == null || d.data.trim().isEmpty())
                         return;
-                    if (d.stat != null && d.valueMax > 0f) {
-                        // 带最大值的运行时数值行：文本（值 / 最大 (百分比)）+ 进度条
-                        Table row = new Table();
-                        row.left();
-                        row.add(new Label(() -> d.getData())).left();
-                        row.add(bar(d)).padLeft(8f);
-                        t.add(row).left().padBottom(2f);
+					if (d.stat != null && d.valueMax > 0f) {
+						// 带最大值的运行时数值行：文本（值 / 最大 (百分比)）+ 进度条
+						// 文本格定宽 + ellipsis:数值位数变化不会把条顶得左右晃,超宽文本截断也不压条
+						Table row = new Table();
+						row.left();
+						Label l = new Label(() -> d.getData());
+						l.setEllipsis(true);
+						row.add(l).left().width(160f);
+						row.add(new Bar(() -> d.value / d.valueMax, Pal.light)).size(100f, 6f).padLeft(8f);
+						t.add(row).left().padBottom(2f);
                     } else {
                         t.add(new Label(() -> d.getData())).left().padBottom(2).align(Align.left);
                     }
@@ -143,34 +143,8 @@ public class UnitDetailWindow extends Window {
             t.add(row).growX().left().row();
         }
 
-        // 记录结构版本，供 refresh 判断是否需要重建
-        abilityCount = unit.abilities.size;
-        enhancementCount = unit.enhancements.size;
-    }
-
-    /** 数值进度条：每帧读取 StatData 的最新 value/valueMax 绘制（仅 valueMax > 0 的行使用）。 */
-    private Element bar(StatData d) {
-        return new Element() {
-            {
-                setSize(100f, 6f);
-            }
-
-            @Override
-            public void draw() {
-                float x = this.x;
-                float y = this.y;
-                float w = getWidth();
-                float h = getHeight();
-
-                Draw.color(Color.darkGray);
-                Fill.rect(x + w / 2f, y + h / 2f, w, h);
-                if (d.valueMax > 0f) {
-                    float fw = w * Math.min(1f, Math.max(0f, d.value / d.valueMax));
-                    Draw.color(Pal.light);
-                    Fill.rect(x + fw / 2f, y + h / 2f, fw, h);
-                }
-                Draw.color();
-            }
-        };
-    }
+		// 记录结构版本，供 refresh 判断是否需要重建
+		abilityCount = unit.abilities.size;
+		enhancementCount = unit.enhancements.size;
+	}
 }

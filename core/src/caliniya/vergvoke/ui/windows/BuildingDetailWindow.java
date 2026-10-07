@@ -10,7 +10,9 @@ import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.game.*;
+import caliniya.vergvoke.type.def.craft.recipe.Recipe;
 import caliniya.vergvoke.type.type.*;
+import caliniya.vergvoke.ui.Bar;
 
 import java.util.function.*;
 
@@ -73,8 +75,19 @@ public class BuildingDetailWindow extends Window {
 		// --- 血量 ---
 		Table hp = new Table();
 		hp.left();
-		hp.add(new Label(() -> "[light]耐久[] " + (int) b.health + "/" + (int) b.maxHealth)).left();
-		hp.add(bar(() -> b.health, () -> b.maxHealth)).padLeft(8f);
+		// 文本格自适应定宽:宽度只增不减(记历史最大值)——数值位数变化不晃,也不截断
+		Label hpLabel = new Label(() -> "[light]耐久[] " + (int) b.health + "/" + (int) b.maxHealth);
+		float[] hpW = {0f};
+		Cell<Label> hc = hp.add(hpLabel).left();
+		hpLabel.update(() -> {
+			float pref = hpLabel.getPrefWidth();
+			if (pref > hpW[0]) {
+				hpW[0] = pref;
+				hc.width(pref);
+				hp.invalidate();
+			}
+		});
+		hp.add(new Bar(() -> b.maxHealth > 0 ? b.health / b.maxHealth : 0f, Pal.light)).size(120f, 6f).padLeft(8f);
 		t.add(hp).growX().left().row();
 
 		// --- 库存（无仓库建筑跳过） ---
@@ -104,16 +117,34 @@ public class BuildingDetailWindow extends Window {
 			}
 		}
 
-		// --- 生产进度（有配方的建筑） ---
-		if (b.outputItem != null) {
+		// --- 生产进度(有配方的建筑;每帧取当前配方,切换配方面板自动跟随) ---
+		if (b.stack != null && !b.stack.recipes.isEmpty()) {
 			t.add().height(6f).row();
 			Table pr = new Table();
 			pr.left();
-			pr.add(new Label(
-							() -> "[light]生产[] " + b.outputItem.localizedName + "  "
-									+ (int) (Mathf.clamp(b.progress / b.craftTime) * 100f) + "%"))
-					.left();
-			pr.add(bar(() -> b.progress, () -> b.craftTime)).padLeft(8f);
+			Label prLabel = new Label(() -> {
+				Recipe r = b.stack.current();
+				if (r == null) {
+					return "[light]生产[] 停工";
+				}
+				return "[light]生产[] " + (int) (Mathf.clamp(b.stack.progress / r.time) * 100f) + "%";
+			});
+			float[] prW = {0f};
+			Cell<Label> pc = pr.add(prLabel).left();
+			prLabel.update(() -> {
+				float pref = prLabel.getPrefWidth();
+				if (pref > prW[0]) {
+					prW[0] = pref;
+					pc.width(pref);
+					pr.invalidate();
+				}
+			});
+			pr.add(new Bar(
+					() -> {
+						Recipe r = b.stack.current();
+						return r == null ? 0f : b.stack.progress / r.time;
+					},
+					Pal.light)).size(120f, 6f).padLeft(8f);
 			t.add(pr).growX().left().row();
 		}
 
@@ -126,31 +157,6 @@ public class BuildingDetailWindow extends Window {
 			{
 				add(new Image(type.icon)).size(24f).left();
 				add(new Label(() -> b.item.items[type.id] + "/" + capacity)).left().padLeft(4f);
-			}
-		};
-	}
-
-	/** 数值进度条：每帧从 supplier 取 value/max 绘制（血量、生产进度共用）。 */
-	private Element bar(Supplier<Float> value, Supplier<Float> max) {
-		return new Element() {
-			{
-				setSize(120f, 6f);
-			}
-
-			@Override
-			public void draw() {
-				float w = getWidth();
-				float h = getHeight();
-
-				Draw.color(Color.darkGray);
-				Fill.rect(x + w / 2f, y + h / 2f, w, h);
-				float m = max.get();
-				if (m > 0f) {
-					float fw = w * Mathf.clamp(value.get() / m);
-					Draw.color(Pal.light);
-					Fill.rect(x + fw / 2f, y + h / 2f, fw, h);
-				}
-				Draw.color();
 			}
 		};
 	}
