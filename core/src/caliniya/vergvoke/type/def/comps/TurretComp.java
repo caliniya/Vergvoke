@@ -3,12 +3,8 @@ package caliniya.vergvoke.type.def.comps;
 import arc.math.*;
 import arc.struct.*;
 import arc.util.io.*;
-import caliniya.vergvoke.annotation.Annotations.Component;
-import caliniya.vergvoke.annotation.Annotations.Import;
-import caliniya.vergvoke.annotation.Annotations.Read;
-import caliniya.vergvoke.annotation.Annotations.Updata;
-import caliniya.vergvoke.annotation.Annotations.Write;
-import caliniya.vergvoke.base.game.*;
+import caliniya.vergvoke.annotation.Annotations.*;
+import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.type.*;
 import caliniya.vergvoke.type.type.*;
 
@@ -26,64 +22,64 @@ import caliniya.vergvoke.type.type.*;
 @Component(index = 6, name = "Turret")
 public class TurretComp {
 
-    /**
-     * 宿主实体（工厂里赋 b.self = b）。
-     */
-    public Entity<?, ?> self;
+	/**
+	 * 宿主实体（工厂里赋 b.self = b）。
+	 */
+	public Entity<?, ?> self;
 
-    /**
-     * 装填进度。
-     */
-    public float reload;
+	/**
+	 * 装填进度。
+	 */
+	public float reload;
 
-    // --- 配置（放置时从 Turret 类型拷贝，B 方案：配置进实例）---
-    public float reloadTime = 10f;
-    public float rotateSpeed = 500f;
-    public BulletType bullet;
+	// --- 配置（放置时从 Turret 类型拷贝，B 方案：配置进实例）---
+	public float reloadTime = 10f;
+	public float rotateSpeed = 500f;
+	public BulletType bullet;
 
-    public Ar<Bullet> bullets;
+	public Ar<Bullet> bullets;
 
-    @Import
-    public Entity<?, ?> target; // TargetComp 维护
-    @Import
-    public float rotation; // Entity 基类
-    @Import
-    public float x; // Entity 基类
-    @Import
-    public float y; // Entity 基类
+	@Import
+	public Entity<?, ?> target; // TargetComp 维护
+	@Import
+	public float rotation; // Entity 基类
+	@Import
+	public float x; // Entity 基类
+	@Import
+	public float y; // Entity 基类
 
-    @Updata
-    public void update(float delta) {
-        if (target == null) {
-            return; // 没目标不转不装填（与原 Turret 行为一致）
-        }
-        float targetAngle = Angles.angle(x, y, target.x, target.y);
-        rotation = Angles.moveToward(rotation, targetAngle, rotateSpeed * delta);
-        reload += delta;
-        if (reload >= reloadTime && Angles.angleDist(rotation, targetAngle) < 5f) {
-            shoot(rotation);
-            reload = 0f;
-        }
-    }
+	@Updata
+	public void update(float delta) {
+		if (target == null) {
+			return; // 没目标不转不装填（与原 Turret 行为一致；@Updata 各自是独立方法，return 不串档）
+		}
+		float targetAngle = Angles.angle(x, y, target.x, target.y);
+		rotation = Angles.moveToward(rotation, targetAngle, rotateSpeed * delta);
+		reload += delta;
+		if (reload >= reloadTime && Angles.angleDist(rotation, targetAngle) < 5f) {
+			shoot(rotation);
+			reload = 0f;
+		}
+	}
 
-    private void shoot(float angle) {
-        if (bullet != null) {
-            Bullet.create(bullet, self, x, y, angle, 0f, 0f);
-        }
-    }
+	private void shoot(float angle) {
+		if (bullet != null) {
+			Bullet.create(bullet, self, x, y, angle, 0f, 0f);
+		}
+	}
 
-    /**
-     * 存档写：炮塔只要状态量（配置 reloadTime/rotateSpeed/bullet 由 {@code type} 重建）。
-     */
-    @Write
-    public void write(Writes w) {
-        w.f(rotation);
-        w.f(reload);
-    }
+	/**
+	 * 存档写：炮塔只要状态量（配置 reloadTime/rotateSpeed/bullet 由 {@code type} 重建）。
+	 */
+	@Write
+	public void write(Writes w) {
+		w.f(rotation);
+		w.f(reload);
+	}
 
-    @Read
-    public void read(Reads r) {
-        rotation = r.f();
-        reload = r.f();
-    }
+	@Read
+	public void read(Reads r) {
+		rotation = r.f();
+		reload = r.f();
+	}
 }

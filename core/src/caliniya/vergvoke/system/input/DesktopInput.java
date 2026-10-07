@@ -1,8 +1,8 @@
 package caliniya.vergvoke.system.input;
 
 import arc.*;
-import arc.input.KeyCode;
-import arc.math.geom.Vec2;
+import arc.input.*;
+import arc.math.geom.*;
 import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
@@ -17,47 +17,56 @@ import caliniya.vergvoke.game.data.*;
  */
 public class DesktopInput extends InputProcess {
 
-    @Override
-    public boolean tap(float x, float y, int count, KeyCode button) {
-        // 宇宙视图优先分流：点击拾取星域节点（此前宇宙点击会漏进指挥逻辑、误用游戏相机）
-        if (inUniverse) {
-            if (button == KeyCode.mouseLeft) {
-                return pickNodeAt(x, y);
-            }
-            return false;
-        }
+	@Override
+	public boolean tap(float x, float y, int count, KeyCode button) {
+		// 宇宙视图优先分流：点击拾取星域节点（此前宇宙点击会漏进指挥逻辑、误用游戏相机）
+		if (inUniverse) {
+			if (button == KeyCode.mouseLeft) {
+				return pickNodeAt(x, y);
+			}
+			return false;
+		}
 
-        // 只有指挥模式才能选中 / 下令 / 中断
-        if (!Game.inGame || !CommandData.commanding)
-            return false;
+		// 游戏内才有世界坐标可言
+		if (!Game.inGame)
+			return false;
 
-        Vec2 worldPos = Core.camera.unproject(x, y);
-        float wx = worldPos.x;
-        float wy = worldPos.y;
+		Vec2 worldPos = Core.camera.unproject(x, y);
+		float wx = worldPos.x;
+		float wy = worldPos.y;
 
-        if (button == KeyCode.mouseLeft) {
-            // 左键：点单位 = 选中 / 取消选中；点空地 = 清空选择
-            if (selectAt(wx, wy)) {
-                UI.hud.refreshCommand();
-                return true;
-            }
+		// 点建筑 = 信息面板：不依赖指挥开关，任何时候都能看
+		if (button == KeyCode.mouseLeft && openBuildingAt(wx, wy)) {
+			return true;
+		}
 
-            if (!CommandData.checkedUnits.isEmpty()) {
-                clearSelection();
-                return true;
-            }
-            return false;
-        }
+		// 只有指挥模式才能选中 / 下令 / 中断
+		if (!CommandData.commanding)
+			return false;
 
-        if (button == KeyCode.mouseRight) {
-            // 右键双击：中断选中单位当前的操作
-            if (count >= 2)
-                return interruptSelected();
+		if (button == KeyCode.mouseLeft) {
+			// 左键：点单位 = 选中 / 取消选中；点空地 = 清空选择
+			if (selectAt(wx, wy)) {
+				UI.hud.refreshCommand();
+				return true;
+			}
 
-            // 右键：执行当前指令（移动 → 移到点击点；停止 → 原地停下）
-            return executeSelected(wx, wy);
-        }
+			if (!CommandData.checkedUnits.isEmpty()) {
+				clearSelection();
+				return true;
+			}
+			return false;
+		}
 
-        return false;
-    }
+		if (button == KeyCode.mouseRight) {
+			// 右键双击：中断选中单位当前的操作
+			if (count >= 2)
+				return interruptSelected();
+
+			// 右键：执行当前指令（移动 → 移到点击点；停止 → 原地停下）
+			return executeSelected(wx, wy);
+		}
+
+		return false;
+	}
 }

@@ -124,6 +124,40 @@ public class DebugWindow extends Window {
 				});
 
 		register(
+				"生成工厂(镜头中心)",
+				() -> {
+					if (WorldData.world == null) {
+						Log.info("[调试] 世界未初始化");
+						return;
+					}
+					int tx = (int) (Core.camera.position.x / WorldData.TILE_SIZE);
+					int ty = (int) (Core.camera.position.y / WorldData.TILE_SIZE);
+					WorldData.placeBuilding(Blocks.factory, tx, ty, 0, Game.team);
+				});
+
+		register(
+				"打印建筑库存(镜头中心)",
+				() -> {
+					if (WorldData.world == null) {
+						Log.info("[调试] 世界未初始化");
+						return;
+					}
+					int tx = (int) (Core.camera.position.x / WorldData.TILE_SIZE);
+					int ty = (int) (Core.camera.position.y / WorldData.TILE_SIZE);
+					caliniya.vergvoke.base.ecs.Building b = WorldData.world.getBuilding(tx, ty);
+					if (b == null || b.item == null) {
+						Log.info("[调试] 该处没有建筑（或无仓库）");
+						return;
+					}
+					Log.info(
+							"[库存] Ge=@/@, 进度=@/@",
+							b.item.getAmount(Items.Ge),
+							b.item.capacity,
+							b.progress,
+							b.craftTime);
+				});
+
+		register(
 				() -> DebugRender.it != null && DebugRender.it.enabled
 						? "停用调试渲染器"
 						: "启用调试渲染器",

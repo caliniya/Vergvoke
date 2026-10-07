@@ -1,18 +1,16 @@
 package caliniya.vergvoke.system.input;
 
 import arc.*;
+import arc.input.GestureDetector.*;
 import arc.input.*;
-import arc.input.GestureDetector.GestureListener;
 import arc.math.geom.*;
-import caliniya.vergvoke.base.ecs.Unit;
-import caliniya.vergvoke.base.type.EventType;
+import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.*;
+import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
-import caliniya.vergvoke.type.*;
-import caliniya.vergvoke.game.Game;
-import caliniya.vergvoke.ui.windows.StarNodeWindow;
-import caliniya.vergvoke.world.stars.StarNode;
-import caliniya.vergvoke.world.stars.Universe;
+import caliniya.vergvoke.ui.windows.*;
+import caliniya.vergvoke.world.stars.*;
 
 /**
  * 输入处理基类：平台无关的输入全部写在这里——
@@ -37,326 +35,343 @@ import caliniya.vergvoke.world.stars.Universe;
  */
 public abstract class InputProcess implements InputProcessor, GestureListener {
 
-    // ===== 相机：共享状态 =====
+	// ===== 相机：共享状态 =====
 
-    /** WASD / 方向键按住标志（两种视图共用）。 */
-    private boolean up, down, left, right;
+	/** WASD / 方向键按住标志（两种视图共用）。 */
+	private boolean up, down, left, right;
 
-    /** 键盘平移速度（像素/帧，随当前缩放放大）。 */
-    private float keySpeed = 10f;
+	/** 键盘平移速度（像素/帧，随当前缩放放大）。 */
+	private float keySpeed = 10f;
 
-    /** 捏合缩放开始前的缩放快照（touchDown 时记录）。 */
-    private float lastZoomSnapshot = 1f;
+	/** 捏合缩放开始前的缩放快照（touchDown 时记录）。 */
+	private float lastZoomSnapshot = 1f;
 
-    /** 网格选择用的反投影临时向量（复用，避免每次事件都分配）。 */
-    private final Vec2 universePos = new Vec2();
+	/** 网格选择用的反投影临时向量（复用，避免每次事件都分配）。 */
+	private final Vec2 universePos = new Vec2();
 
-    /** 宇宙视图的网格大小。 */
-    private static final float GRID_SIZE = 32f;
+	/** 宇宙视图的网格大小。 */
+	private static final float GRID_SIZE = 32f;
 
-    /** 是否处于宇宙视图（EnterUV / ExitUV 切换）：决定输入作用在哪台相机上。 */
-    protected boolean inUniverse;
+	/** 是否处于宇宙视图（EnterUV / ExitUV 切换）：决定输入作用在哪台相机上。 */
+	protected boolean inUniverse;
 
-    /** 游戏是否暂停（GamePause）：暂停时不响应相机类输入。 */
-    protected boolean paused;
+	/** 游戏是否暂停（GamePause）：暂停时不响应相机类输入。 */
+	protected boolean paused;
 
-    public InputProcess() {
-        Events.on(EventType.GamePause.class, event -> paused = event.pause);
-        Events.run(EventType.events.EnterUV, () -> inUniverse = true);
-        Events.run(EventType.events.ExitUV, () -> inUniverse = false);
-    }
+	public InputProcess() {
+		Events.on(EventType.GamePause.class, event -> paused = event.pause);
+		Events.run(EventType.events.EnterUV, () -> inUniverse = true);
+		Events.run(EventType.events.ExitUV, () -> inUniverse = false);
+	}
 
-    // ===== 每帧：键盘移动 / 宇宙相机视口 =====
+	// ===== 每帧：键盘移动 / 宇宙相机视口 =====
 
-    /** 每帧由主循环驱动：WASD 平移相机，宇宙视图下同步缩放后的视口尺寸。 */
-    public void update(float delta) {
-        if (paused)
-            return;
+	/** 每帧由主循环驱动：WASD 平移相机，宇宙视图下同步缩放后的视口尺寸。 */
+	public void update(float delta) {
+		if (paused)
+			return;
 
-        // 帧时间乘进来（60TPS 时 delta ≈ 1，和以前的移动手感一致）
-        float speed = keySpeed * delta * (Core.input.keyDown(KeyCode.shiftLeft) ? 2f : 1f);
+		// 帧时间乘进来（60TPS 时 delta ≈ 1，和以前的移动手感一致）
+		float speed = keySpeed * delta * (Core.input.keyDown(KeyCode.shiftLeft) ? 2f : 1f);
 
-        if (inUniverse) {
-            speed *= Render.universeZoom;
+		if (inUniverse) {
+			speed *= Render.universeZoom;
 
-            if (up)
-                Render.universeCamera.position.y += speed;
-            if (down)
-                Render.universeCamera.position.y -= speed;
-            if (left)
-                Render.universeCamera.position.x -= speed;
-            if (right)
-                Render.universeCamera.position.x += speed;
+			if (up)
+				Render.universeCamera.position.y += speed;
+			if (down)
+				Render.universeCamera.position.y -= speed;
+			if (left)
+				Render.universeCamera.position.x -= speed;
+			if (right)
+				Render.universeCamera.position.x += speed;
 
-            // 应用缩放：宇宙相机视口 = 屏幕尺寸 × 缩放
-            Render.universeCamera.width = Core.graphics.getWidth() * Render.universeZoom;
-            Render.universeCamera.height = Core.graphics.getHeight() * Render.universeZoom;
-        } else {
-            speed *= Render.currentZoom;
+			// 应用缩放：宇宙相机视口 = 屏幕尺寸 × 缩放
+			Render.universeCamera.width = Core.graphics.getWidth() * Render.universeZoom;
+			Render.universeCamera.height = Core.graphics.getHeight() * Render.universeZoom;
+		} else {
+			speed *= Render.currentZoom;
 
-            if (up)
-                Core.camera.position.y += speed;
-            if (down)
-                Core.camera.position.y -= speed;
-            if (left)
-                Core.camera.position.x -= speed;
-            if (right)
-                Core.camera.position.x += speed;
-        }
-    }
+			if (up)
+				Core.camera.position.y += speed;
+			if (down)
+				Core.camera.position.y -= speed;
+			if (left)
+				Core.camera.position.x -= speed;
+			if (right)
+				Core.camera.position.x += speed;
+		}
+	}
 
-    // ===== 相机手势 =====
+	// ===== 相机手势 =====
 
-    /** 拖拽平移：宇宙视图挪宇宙相机，否则挪游戏相机。 */
-    @Override
-    public boolean pan(float x, float y, float deltaX, float deltaY) {
-        if (paused)
-            return false;
+	/** 拖拽平移：宇宙视图挪宇宙相机，否则挪游戏相机。 */
+	@Override
+	public boolean pan(float x, float y, float deltaX, float deltaY) {
+		if (paused)
+			return false;
 
-        if (inUniverse) {
-            Render.universeCamera.position.x -= deltaX * Render.universeZoom;
-            Render.universeCamera.position.y -= deltaY * Render.universeZoom;
-        } else {
-            Core.camera.position.x -= deltaX * Render.currentZoom;
-            Core.camera.position.y -= deltaY * Render.currentZoom;
-        }
-        return false;
-    }
+		if (inUniverse) {
+			Render.universeCamera.position.x -= deltaX * Render.universeZoom;
+			Render.universeCamera.position.y -= deltaY * Render.universeZoom;
+		} else {
+			Core.camera.position.x -= deltaX * Render.currentZoom;
+			Core.camera.position.y -= deltaY * Render.currentZoom;
+		}
+		return false;
+	}
 
-    /** 按下时记下缩放起点，作为捏合缩放的基准。 */
-    @Override
-    public boolean touchDown(float x, float y, int pointer, KeyCode button) {
-        if (paused)
-            return false;
+	/** 按下时记下缩放起点，作为捏合缩放的基准。 */
+	@Override
+	public boolean touchDown(float x, float y, int pointer, KeyCode button) {
+		if (paused)
+			return false;
 
-        lastZoomSnapshot = inUniverse ? Render.universeZoom : Render.currentZoom;
-        return false;
-    }
+		lastZoomSnapshot = inUniverse ? Render.universeZoom : Render.currentZoom;
+		return false;
+	}
 
-    /** 捏合缩放（移动端双指）。 */
-    @Override
-    public boolean zoom(float initialDistance, float distance) {
-        if (paused || initialDistance == 0)
-            return false;
+	/** 捏合缩放（移动端双指）。 */
+	@Override
+	public boolean zoom(float initialDistance, float distance) {
+		if (paused || initialDistance == 0)
+			return false;
 
-        float ratio = initialDistance / distance;
+		float ratio = initialDistance / distance;
 
-        if (inUniverse) {
-            Render.setUniverseZoom(lastZoomSnapshot * ratio);
-        } else {
-            Render.setZoom(lastZoomSnapshot * ratio);
-        }
-        return true;
-    }
+		if (inUniverse) {
+			Render.setUniverseZoom(lastZoomSnapshot * ratio);
+		} else {
+			Render.setZoom(lastZoomSnapshot * ratio);
+		}
+		return true;
+	}
 
-    /** 滚轮缩放（桌面端）。 */
-    @Override
-    public boolean scrolled(float amountX, float amountY) {
-        if (paused)
-            return false;
+	/** 滚轮缩放（桌面端）。 */
+	@Override
+	public boolean scrolled(float amountX, float amountY) {
+		if (paused)
+			return false;
 
-        if (inUniverse) {
-            Render.zoomUniverse(amountY * 0.1f * Render.universeZoom);
-        } else {
-            Render.zoom(amountY * 0.1f * Render.currentZoom);
-        }
-        return true;
-    }
+		if (inUniverse) {
+			Render.zoomUniverse(amountY * 0.1f * Render.universeZoom);
+		} else {
+			Render.zoom(amountY * 0.1f * Render.currentZoom);
+		}
+		return true;
+	}
 
-    @Override
-    public boolean keyDown(KeyCode key) {
-        if (paused)
-            return false;
+	@Override
+	public boolean keyDown(KeyCode key) {
+		if (paused)
+			return false;
 
-        if (key == KeyCode.w || key == KeyCode.up)
-            up = true;
-        if (key == KeyCode.s || key == KeyCode.down)
-            down = true;
-        if (key == KeyCode.a || key == KeyCode.left)
-            left = true;
-        if (key == KeyCode.d || key == KeyCode.right)
-            right = true;
-        return false;
-    }
+		if (key == KeyCode.w || key == KeyCode.up)
+			up = true;
+		if (key == KeyCode.s || key == KeyCode.down)
+			down = true;
+		if (key == KeyCode.a || key == KeyCode.left)
+			left = true;
+		if (key == KeyCode.d || key == KeyCode.right)
+			right = true;
+		return false;
+	}
 
-    @Override
-    public boolean keyUp(KeyCode key) {
-        if (paused)
-            return false;
+	@Override
+	public boolean keyUp(KeyCode key) {
+		if (paused)
+			return false;
 
-        if (key == KeyCode.w || key == KeyCode.up)
-            up = false;
-        if (key == KeyCode.s || key == KeyCode.down)
-            down = false;
-        if (key == KeyCode.a || key == KeyCode.left)
-            left = false;
-        if (key == KeyCode.d || key == KeyCode.right)
-            right = false;
-        return false;
-    }
+		if (key == KeyCode.w || key == KeyCode.up)
+			up = false;
+		if (key == KeyCode.s || key == KeyCode.down)
+			down = false;
+		if (key == KeyCode.a || key == KeyCode.left)
+			left = false;
+		if (key == KeyCode.d || key == KeyCode.right)
+			right = false;
+		return false;
+	}
 
-    // ===== 宇宙视图：网格选择 =====
+	// ===== 宇宙视图：网格选择 =====
 
-    /** 屏幕坐标 → 宇宙世界坐标 → 对齐网格 → 更新选中（只在宇宙视图生效）。 */
-    protected void updateUniverseSelection(float screenX, float screenY) {
-        if (!inUniverse)
-            return;
+	/** 屏幕坐标 → 宇宙世界坐标 → 对齐网格 → 更新选中（只在宇宙视图生效）。 */
+	protected void updateUniverseSelection(float screenX, float screenY) {
+		if (!inUniverse)
+			return;
 
-        universePos.set(screenX, screenY);
-        Render.universeCamera.unproject(universePos);
+		universePos.set(screenX, screenY);
+		Render.universeCamera.unproject(universePos);
 
-        Universe.selectedX = (float) Math.floor(universePos.x / GRID_SIZE) * GRID_SIZE;
-        Universe.selectedY = (float) Math.floor(universePos.y / GRID_SIZE) * GRID_SIZE;
-        Universe.hasSelection = true;
-    }
+		Universe.selectedX = (float) Math.floor(universePos.x / GRID_SIZE) * GRID_SIZE;
+		Universe.selectedY = (float) Math.floor(universePos.y / GRID_SIZE) * GRID_SIZE;
+		Universe.hasSelection = true;
+	}
 
-    @Override
-    public boolean touchDown(int screenX, int screenY, int pointer, KeyCode button) {
-        updateUniverseSelection(screenX, screenY);
-        return false;
-    }
+	@Override
+	public boolean touchDown(int screenX, int screenY, int pointer, KeyCode button) {
+		updateUniverseSelection(screenX, screenY);
+		return false;
+	}
 
-    @Override
-    public boolean touchDragged(int screenX, int screenY, int pointer) {
-        updateUniverseSelection(screenX, screenY);
-        return false;
-    }
+	@Override
+	public boolean touchDragged(int screenX, int screenY, int pointer) {
+		updateUniverseSelection(screenX, screenY);
+		return false;
+	}
 
-    /** 桌面端鼠标移动：宇宙视图下悬停即选中网格。 */
-    @Override
-    public boolean mouseMoved(int screenX, int screenY) {
-        updateUniverseSelection(screenX, screenY);
-        return false;
-    }
+	/** 桌面端鼠标移动：宇宙视图下悬停即选中网格。 */
+	@Override
+	public boolean mouseMoved(int screenX, int screenY) {
+		updateUniverseSelection(screenX, screenY);
+		return false;
+	}
 
-    // ===== 宇宙视图：节点拾取 =====
+	// ===== 宇宙视图：节点拾取 =====
 
-    /**
-     * 宇宙视图点击：拾取星域节点，命中则记入选中态并打开右侧信息窗。
-     *
-     * @return 是否命中节点
-     */
-    protected boolean pickNodeAt(float screenX, float screenY) {
-        if (Game.starMap == null) return false;
-        Vec2 v = universePos.set(screenX, screenY);
-        Render.universeCamera.unproject(v);
-        // 命中半径 = 世界空间下限 + 屏幕像素下限×缩放（缩放大了之后点得中小节点）
-        float radius = Math.max(40f, 24f * Render.universeZoom);
-        StarNode node = Game.starMap.pickNode(v.x, v.y, radius);
-        if (node == null) {
-            Universe.selectedNode = null;
-            return false;
-        }
-        Universe.selectedNode = node;
-        new StarNodeWindow(node).build();
-        return true;
-    }
+	/**
+	 * 宇宙视图点击：拾取星域节点，命中则记入选中态并打开右侧信息窗。
+	 *
+	 * @return 是否命中节点
+	 */
+	protected boolean pickNodeAt(float screenX, float screenY) {
+		if (Game.starMap == null) return false;
+		Vec2 v = universePos.set(screenX, screenY);
+		Render.universeCamera.unproject(v);
+		// 命中半径 = 世界空间下限 + 屏幕像素下限×缩放（缩放大了之后点得中小节点）
+		float radius = Math.max(40f, 24f * Render.universeZoom);
+		StarNode node = Game.starMap.pickNode(v.x, v.y, radius);
+		if (node == null) {
+			Universe.selectedNode = null;
+			return false;
+		}
+		Universe.selectedNode = node;
+		new StarNodeWindow(node).build();
+		return true;
+	}
 
-    // ===== 平台无关：选中 =====
+	// ===== 平台无关：选中 =====
 
-    /** 点世界坐标：命中单位则切换选中。 @return 选中列表是否发生变化 */
-    protected boolean selectAt(float wx, float wy) {
-        int before = CommandData.checkedUnits.size;
-        CommandData.findUnit(
-                wx,
-                wy,
-                t -> {
-                    if (t == null)
-                        return;
-                    toggleUnitSelection(t);
-                });
-        return CommandData.checkedUnits.size != before;
-    }
+	/**
+	 * 点世界坐标：命中建筑则打开信息面板（不开选单位、不下令）。
+	 *
+	 * @return 是否命中建筑
+	 */
+	protected boolean openBuildingAt(float wx, float wy) {
+		if (WorldData.world == null)
+			return false;
+		int tx = (int) (wx / WorldData.TILE_SIZE);
+		int ty = (int) (wy / WorldData.TILE_SIZE);
+		Building b = WorldData.world.getBuilding(tx, ty);
+		if (b == null)
+			return false;
+		BuildingDetailWindow.open(b);
+		return true;
+	}
 
-    /** 切换单个单位的选中状态。 */
-    protected void toggleUnitSelection(Unit u) {
-        if (CommandData.checkedUnits.contains(u)) {
-            u.isSelected = false;
-            CommandData.checkedUnits.remove(u);
-        } else {
-            u.isSelected = true;
-            CommandData.checkedUnits.add(u);
-        }
-    }
+	/** 点世界坐标：命中单位则切换选中。 @return 选中列表是否发生变化 */
+	protected boolean selectAt(float wx, float wy) {
+		int before = CommandData.checkedUnits.size;
+		CommandData.findUnit(
+				wx,
+				wy,
+				t -> {
+					if (t == null)
+						return;
+					toggleUnitSelection(t);
+				});
+		return CommandData.checkedUnits.size != before;
+	}
 
-    /** 清空选择（复用 HUD 的"清空"：复位标记 + 刷新面板）。 */
-    protected void clearSelection() {
-        UI.hud.clearSelection();
-    }
+	/** 切换单个单位的选中状态。 */
+	protected void toggleUnitSelection(Unit u) {
+		if (CommandData.checkedUnits.contains(u)) {
+			u.isSelected = false;
+			CommandData.checkedUnits.remove(u);
+		} else {
+			u.isSelected = true;
+			CommandData.checkedUnits.add(u);
+		}
+	}
 
-    // ===== 平台无关：下令 =====
+	/** 清空选择（复用 HUD 的"清空"：复位标记 + 刷新面板）。 */
+	protected void clearSelection() {
+		UI.hud.clearSelection();
+	}
 
-    /** 执行当前指令：Move → 移动到点击点；Stop → 原地停下。 @return 是否执行了指令 */
-    protected boolean executeSelected(float wx, float wy) {
-        if (CommandData.checkedUnits.isEmpty())
-            return false;
+	// ===== 平台无关：下令 =====
 
-        if (CommandData.commandType == CommandData.CommandType.Move) {
-            issueMoveCommand(wx, wy);
-            return true;
-        } else if (CommandData.commandType == CommandData.CommandType.Stop) {
-            stopUnits();
-            return true;
-        }
-        return false;
-    }
+	/** 执行当前指令：Move → 移动到点击点；Stop → 原地停下。 @return 是否执行了指令 */
+	protected boolean executeSelected(float wx, float wy) {
+		if (CommandData.checkedUnits.isEmpty())
+			return false;
 
-    /** 中断选中单位当前的操作（清目标 / 速度 / 寻路 = 立刻停下）。 */
-    protected boolean interruptSelected() {
-        if (CommandData.checkedUnits.isEmpty())
-            return false;
+		if (CommandData.commandType == CommandData.CommandType.Move) {
+			issueMoveCommand(wx, wy);
+			return true;
+		} else if (CommandData.commandType == CommandData.CommandType.Stop) {
+			stopUnits();
+			return true;
+		}
+		return false;
+	}
 
-        stopUnits();
-        return true;
-    }
+	/** 中断选中单位当前的操作（清目标 / 速度 / 寻路 = 立刻停下）。 */
+	protected boolean interruptSelected() {
+		if (CommandData.checkedUnits.isEmpty())
+			return false;
 
-    /** 让选中单位立即停下（清目标/速度/寻路）。 */
-    protected void stopUnits() {
-        synchronized (WorldData.moveunits) {
-            for (Unit u : CommandData.checkedUnits) {
-                if (u == null)
-                    continue;
-                u.speedX = 0;
-                u.speedY = 0;
-                u.targetX = u.x;
-                u.targetY = u.y;
-                u.path = null;
-                u.pathed = false;
-                WorldData.moveunits.remove(u);
-            }
-        }
-    }
+		stopUnits();
+		return true;
+	}
 
-    /** 下达移动指令。 */
-    protected void issueMoveCommand(float tx, float ty) {
-        float mapWidth = WorldData.world.W * WorldData.TILE_SIZE;
-        float mapHeight = WorldData.world.H * WorldData.TILE_SIZE;
+	/** 让选中单位立即停下（清目标/速度/寻路）。 */
+	protected void stopUnits() {
+		synchronized (WorldData.moveunits) {
+			for (Unit u : CommandData.checkedUnits) {
+				if (u == null)
+					continue;
+				u.speedX = 0;
+				u.speedY = 0;
+				u.targetX = u.x;
+				u.targetY = u.y;
+				u.path = null;
+				u.pathed = false;
+				WorldData.moveunits.remove(u);
+			}
+		}
+	}
 
-        if (tx < 0 || ty < 0 || tx >= mapWidth || ty >= mapHeight)
-            return;
-        if (isSolidAtWorldPos(tx, ty))
-            return;
+	/** 下达移动指令。 */
+	protected void issueMoveCommand(float tx, float ty) {
+		float mapWidth = WorldData.world.W * WorldData.TILE_SIZE;
+		float mapHeight = WorldData.world.H * WorldData.TILE_SIZE;
 
-        synchronized (WorldData.moveunits) {
-            for (int i = 0; i < CommandData.checkedUnits.size; i++) {
-                Unit u = CommandData.checkedUnits.get(i);
-                if (u == null || u.health <= 0)
-                    continue;
+		if (tx < 0 || ty < 0 || tx >= mapWidth || ty >= mapHeight)
+			return;
+		if (isSolidAtWorldPos(tx, ty))
+			return;
 
-                u.targetX = tx;
-                u.targetY = ty;
+		synchronized (WorldData.moveunits) {
+			for (int i = 0; i < CommandData.checkedUnits.size; i++) {
+				Unit u = CommandData.checkedUnits.get(i);
+				if (u == null || u.health <= 0)
+					continue;
 
-                if (!WorldData.moveunits.array.contains(u)) {
-                    WorldData.moveunits.add(u);
-                }
-                u.pathed = false;
-            }
-        }
-    }
+				u.targetX = tx;
+				u.targetY = ty;
 
-    private boolean isSolidAtWorldPos(float wx, float wy) {
-        int gx = (int) (wx / WorldData.TILE_SIZE);
-        int gy = (int) (wy / WorldData.TILE_SIZE);
-        return WorldData.world.isSolid(gx, gy);
-    }
+				if (!WorldData.moveunits.array.contains(u)) {
+					WorldData.moveunits.add(u);
+				}
+				u.pathed = false;
+			}
+		}
+	}
+
+	private boolean isSolidAtWorldPos(float wx, float wy) {
+		int gx = (int) (wx / WorldData.TILE_SIZE);
+		int gy = (int) (wy / WorldData.TILE_SIZE);
+		return WorldData.world.isSolid(gx, gy);
+	}
 }

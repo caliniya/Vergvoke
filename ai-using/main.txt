@@ -52,6 +52,7 @@
 - 组件**字段初始化表达式跟到生成实体**；但对象池复用不走字段初始化——`Pools.obtain` 的旧实例只有构造时初始化过，create 里必须对运行时字段显式托底
 - `@Save` 只支持基本类型 + String；同组件 `@Save` 与 `@Write/@Read` 互斥
 - 组件 import 原样搬进生成文件，方法体里可直接用 Mathf/Entities 等短名
+- **@Updata 一律生成独立方法 `update<组件名>(float)`**（2026-10-06 起，方案 B）：main 档的实体 `update()` 只按 @Component.index 顺序调用它们，非 main 档由对应系统调用——方法体里的 `return` 只退出本组件，不会连累其他组件（此前 main 档是内联进 update() 的，TurretComp 的 `if (target == null) return` 曾把排在后面的 CraftComp 整个跳过）。代价是每帧几次小方法调用（JIT 会内联），换来组件体可以放心写 return
 - **proc 挂非 main 线程**（2026-10-06 起）：组件 @Updata 生成 `update<组件名>(float)` 方法，但**不再生成**主线程调度的组件系统类——同名 @SystemDef 手写类即驱动者（`Systems.startThreads()` 起线程后由它调用；组件源码里拿不到实体引用，摘容器这类事在系统侧做）
 
 **固定帧序**（Systems.updateAll）：`e.sync(delta)`（热量/能量/能力/模组）→ 组件系统（按 index，走 `System.updataSubmit` 入口）→ `e.update(delta)`。
@@ -61,10 +62,10 @@
 
 ## 组件与系统现状
 
-组件 index：State=1、Move=2、Block=3、Target=4（Unit+Building 共用）、Weapon=5、Turret=6、Route=7。
+组件 index：State=1、Move=2、Block=3、Target=4（Unit+Building 共用）、Weapon=5、Turret=6、Route=7、Craft=8。
 
 - UnitDef → base.ecs.Unit：StateComp（isSelected + @Write/@Read 序列化含 team）、MoveComp（speed/speedt/speedX/angle/moving + @Save x/y；纯积分"走"的那一半）、RouteComp（path/pathIndex/targetX/targetY/pathed + @Save targetX/targetY；sizet 导航占用格数（UnitType.load 按 hitbox/size 最大边整格取整算出，create 灌入实体），寻路时作 unitSize；"想走"的那一半，@Updata 挂 route 线程：算路径→算速度向量→到达/不可达清速度置空路径）、TargetComp（索敌：target/range/retargetInterval/filter，@Updata 里失效立即重搜+周期重搜）、WeaponComp（updateWeapons 开头武器级锁敌 + 冷却/转向/开火）
-- BuildingDef → base.ecs.Building：BlockComp（block 引用/tx/ty/占位形状/contains/hitbox）、TargetComp、TurretComp（瞄准/装填/开火，@Import target/rotation/x/y）
+- BuildingDef → base.ecs.Building：BlockComp（block 引用/tx/ty/占位形状/contains/hitbox）、TargetComp、TurretComp（瞄准/装填/开火，@Import target/rotation/x/y）、CraftComp（通用生产：craftTime/outputItem/outputAmount 由 Factory 配置 create 拷入，progress @Save 持久化；@Import item 借基类模块。产出堆积在自身仓库，满仓进度钳住停产）
 - 索敌已组件化，随主线程实体更新跑；建筑侧 Turret 自取目标；索敌半径在 UnitType.create 取武器最大射程
 - @SystemDef：GameProcess（thread=main, index=5）、RouteSystem（thread=route, index=1，类在 type/def/systems 包，@ThreadDef("route") 也标在它上面）
 - 手写系统（Data.loadSystems() + Data.enter() 手动装载）：
@@ -97,19 +98,23 @@
 
 ## 存档
 
-全部自研二进制（不是 json），带 MAGIC：`AEVS`(GameIO/DataIO)、`AESS`(WorldIO)、`AEVP`(ProgressIO)；实体后写 8 字节 0xAE 结束标记。SAVE_VERSION=3（v3：targetX/targetY 从 MoveComp 迁到 RouteComp，@Save 写入顺序变化），读取校验版本、旧档拒载：单位补 isSelected、team（byte ordinal，经 @Write/@Read）、x/y、targetX/targetY；建筑走 create → read → rebuild → placeBuilding(b) 门面，读档瓦片装载完调 WorldData.mapLoaded()。改序列化要同步 bump SAVE_VERSION。
+全部自研二进制（不是 json），带 MAGIC：`AEVS`(GameIO/DataIO)、`AESS`(WorldIO)、`AEVP`(ProgressIO)；实体后写 8 字节 0xAE 结束标记。SAVE_VERSION=1（版本号已被重置回 1；CraftComp.progress 已进 @Save，注意与旧档格式不兼容），读取校验版本、旧档拒载：单位补 isSelected、team（byte ordinal，经 @Write/@Read）、x/y、targetX/targetY；建筑走 create → read → rebuild → placeBuilding(b) 门面，读档瓦片装载完调 WorldData.mapLoaded()。改序列化要同步 bump SAVE_VERSION。
 
 ## 内容体系
 
 `Contents` 按 CType 分类存数组 + 名称映射，ID 从 1 起，getByID O(1)。加载顺序 Items→Liquids→Floors→ENVBlocks→Blocks→Units→Enhancements→Stars→各 load()→Techs。
 
+**两套数组序别混（2026-10-06 踩坑）**：`ItemModule.items` 等"按内容 ID 索引"的数组，0 号位永远空、实际物品在 `items[type.id]`；而 `Contents.items`（getByType toArray 的产物）是**列表序**（0 号 = 第一个物品）。按 ID 查内容对象一律走 `Contents.getByID(CType, id)`，拿 `Contents.items[id]` 当 id 索引用会整体错位。
+
 `content/Xxx.java` 是静态注册清单，`type/type/XxxType.java` 是类型类（配置 + 类型级行为）。EntityType 接口连接两者：create(team,x,y) / sync / update / draw / kill / remove，实现者是 UnitType 与 BuildingType。方块经 Block.buildingType 反向持有自己的 BuildingType。
+
+生产建筑：`world/blocks/production/Factory.java`（extends Block，配置载体 craftTime/outputItem/outputAmount）+ CraftComp 组件承载行为——这是"配置在 Block 子类、行为在组件、create 时 instanceof 拷贝"的标准生产建筑模式（Turret 同款）。当前唯一配方：factory 每秒产 1 Ge 堆自身仓库。
 
 伤害结算三层：能力拦截（护盾）→ 护甲（倍率 × 抗性 − 强度）→ 本体。护盾体系是 Ability / Shield / ForceField 三件套；Enhancement（增强）是纯数据，行为在 EnhancementType，目前唯一实现是 ShieldBoostEnhancementType。
 
 ## UI
 
-`ui/windows/Window.java` 是窗口基类，9 个具体窗口（CommandInfo / Data / Maps / Pause / Progress / TechTree / UnitDetail / StarNodeWindow 星节点右侧窄栏 / DebugWindow 注册式调试窗）；`ui/fragment/` 4 个 Fragment（HUD / Menu / Universe / Debug）。由 core/UI 统一创建。`stat/StatStack` 做属性面板的实时数据源（live lambda）。
+`ui/windows/Window.java` 是窗口基类，10 个具体窗口（CommandInfo / Data / Maps / Pause / Progress / TechTree / UnitDetail / BuildingDetail 点建筑弹出的信息面板（血量/库存/进度，open() 单例防堆积）/ StarNodeWindow 星节点右侧窄栏 / DebugWindow 注册式调试窗）；`ui/fragment/` 4 个 Fragment（HUD / Menu / Universe / Debug）。由 core/UI 统一创建。`stat/StatStack` 做属性面板的实时数据源（live lambda）。
 
 DebugWindow：HUD 左上「调试」按钮开关；`DebugWindow.register("名字", () -> {...})` 一行加测试项，标题也可传 `Supplier<String>` 做成动态（按钮每次点击后重取文案，开关类测试项文字跟着状态变）。预置：生成敌方炮塔 / 生成玩家单位 / 清空全部单位 / 打印导航统计 / 重新载入存档（Data.load(Fi, null)——Fi 版入口是 Data 不是 DataIO）/ 切换调试渲染器（setPaused 开关，Vergvoke 启动时创建且默认暂停）/ 启动关闭UI边框（DebugRender.drawUI，渲染器启动后才生效）。
 
