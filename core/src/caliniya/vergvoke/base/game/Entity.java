@@ -310,17 +310,7 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
 
 	/** 把实体的实时状态（血量/护甲/护盾/能量/热量/电力……）注册为统计源，供 UI 每帧读取。 */
 	public void stat(StatStack stat) {
-		stat.get(Stat.health, health, maxHealth).live = () -> health;
-		stat.get(Stat.armor, armor, armorMax).live = () -> armor;
-		stat.get(Stat.shield, totalShield(), totalShieldMax()).live = () -> totalShield();
-		stat.get(Stat.energy, energy, energyMax).live = () -> energy;
-		if (heatable)
-			stat.get(Stat.heat, heat, heatMax).live = () -> heat;
-		if (power != null)
-			stat.get(Stat.power, power.power, power.powerMax).live = () -> power.power;
-		for (Ability a : abilities) {
-			a.statAbility(stat);
-		}
+		type.stat(this, stat);
 	}
 
 	/** 碰撞盒尺寸（直径）：优先用 {@link #size}，未设置时默认 8 像素。子类可覆写。 */
