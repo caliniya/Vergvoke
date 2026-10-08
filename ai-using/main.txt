@@ -133,6 +133,3 @@ DebugWindow：HUD 左上「调试」按钮开关；`DebugWindow.register("名字
 - 容器统一用 `arc.struct.Ar` 家族（Ar/IntAr/FloatAr/BoolAr/ByteAr/LongAr/ShortAr）；命名风格沿用用户的习惯，别以"不规范"为由去改。`ObjectSet` 是布谷鸟哈希实现，与 Mindustry 上游不同，别"修"回去。
 - android-old 别动不动就要删掉。
 - 不要一天到晚追求规范。
-- 本地化键格式：statUnit.xxx，翻译在 language_zh_CN.properties。
-- bash 的 PATH 是坏的，跑任何命令前先 `export PATH="/usr/bin:/bin:$PATH"`；gradle 输出是 GBK，要看错误信息就重定向到文件再读；源码是 CRLF，git 报 "LF will be replaced by CRLF" 是正常的。
-- 长脚本写到 `ai-using/src/temp/` 里跑，记得定时清空。
