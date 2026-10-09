@@ -49,7 +49,6 @@ public interface EntityType {
 		}
 	}
 
-	/** 类型级绘制。 */
 	void draw(Entity<?, ?> entity);
 
 	public default void kill(Entity<?, ?> entity) {
@@ -72,7 +71,4 @@ public interface EntityType {
 		}
 		return e;
 	}
-
-	;
-
 }

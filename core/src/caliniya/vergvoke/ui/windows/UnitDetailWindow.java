@@ -94,9 +94,6 @@ public class UnitDetailWindow extends Window {
 					t.row();
 				});
 
-		// 物品数据显示区（TODO：由开发者补充，展示 unit.item / unit.liquid 各资源量）
-		// TODO 物品数据
-
 		// 可开关模组 + 能力（带开关按钮）
 		t.add().height(8f).row();
 		for (Enhancement enh : unit.enhancements) {

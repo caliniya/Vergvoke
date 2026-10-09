@@ -245,7 +245,7 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
 	}
 
 	/**
-	 * 对实体造成一次伤害（三层结算：能力拦截 → 护甲 → 本体）。
+	 * 对实体造成一次伤害
 	 *
 	 * <ol>
 	 * <li>每个能力依次拦截（护盾吸收等），返回穿透到下一层的伤害；
@@ -258,11 +258,11 @@ public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> imple
 	}
 
 	/**
-	 * 对实体造成一次伤害（三层结算：能力拦截 → 护甲 → 本体）。
+	 * 对实体造成一次伤害
 	 *
-	 * @param breakArmor   破甲：无视护甲的固定减伤值（护甲容量照扣）
+	 * @param breakArmor   破甲：无视护甲的固定减伤
 	 * @param bypassArmor  穿甲：直接穿过护甲层攻击核心
-	 * @param breakShield  破盾：无视护盾的强度减伤（护盾容量照扣）
+	 * @param breakShield  破盾：无视护盾的强度减伤
 	 * @param bypassShield 穿盾：直接穿过护盾层
 	 */
 	public void applyDamage(
