@@ -1,16 +1,13 @@
 package caliniya.vergvoke.ui.fragment;
 
 import arc.*;
-import arc.graphics.*;
 import arc.math.*;
-import arc.scene.*;
 import arc.scene.actions.*;
 import arc.scene.event.*;
 import arc.scene.ui.layout.*;
 import arc.util.*;
 import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.core.*;
-import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.ui.*;
 import caliniya.vergvoke.ui.windows.*;
@@ -23,10 +20,6 @@ public class HUDFragment {
 	private Table commandPanel;
 	private Table unitInfoTable;
 	private Button moveBtn, stopBtn;
-	private Element healthBarElement; // 复用的血条元素
-	private Element energyBarElement; // 复用的能量条元素
-	private Element heatBarElement; // 复用的热量条元素
-	private Unit selectedUnit; // 血条当前绑定的单位
 
 	// A左上 B左下
 	public Table a, b;
@@ -205,11 +198,9 @@ public class HUDFragment {
 		unitInfoTable.clearChildren();
 
 		if (CommandData.checkedUnits.isEmpty()) {
-			selectedUnit = null;
 			unitInfoTable.add("[gray]未选择单位[]").left().pad(2f);
 		} else if (CommandData.checkedUnits.size == 1) {
 			Unit u = CommandData.checkedUnits.first();
-			selectedUnit = u;
 			Table infoRow = new Table();
 			infoRow.left();
 			infoRow.add("[light]" + u.type.name + "[]").left().pad(2f);
@@ -219,15 +210,14 @@ public class HUDFragment {
 					.padLeft(8f);
 			unitInfoTable.add(infoRow).growX().left().row();
 			// 血条（占满）+ 能量条（紧贴下方，长度一致）
-			unitInfoTable.add(healthBar()).growX().minWidth(140f).height(10f).left().row();
+		/*	unitInfoTable.add(healthBar()).growX().minWidth(140f).height(10f).left().row();
 			if (u.energyMax > 0f) {
 				unitInfoTable.add(energyBar()).growX().height(10f).left().padTop(0f).row();
 			}
 			if (u.heatable && u.heatMax > 0f) {
 				unitInfoTable.add(heatBar()).growX().height(10f).left().padTop(2f).row();
-			}
+			}*/
 		} else {
-			selectedUnit = null;
 			for (Unit u : CommandData.checkedUnits) {
 				unitInfoTable.add("[light]" + u.type.name + "[]").left().pad(1f).row();
 			}
@@ -243,82 +233,79 @@ public class HUDFragment {
 		unitInfoTable.add(cmdText).left().padTop(4f);
 	}
 
-	/** 整合血条元素（核心/护甲/护盾三段 Bar,段宽按上限占比分配;复用实例,绘制时读取 selectedUnit）。 */
-	private Element healthBar() {
-		if (healthBarElement == null) {
-			Table t = new Table();
-			Bar coreBar = new Bar(() -> {
-				Unit u = selectedUnit;
-				return u == null || u.maxHealth <= 0f ? 0f : Mathf.clamp(u.health / u.maxHealth);
-			}, Color.scarlet);
-			Bar armorBar = new Bar(() -> {
-				Unit u = selectedUnit;
-				return u == null || u.armorMax <= 0f ? 0f : Mathf.clamp(u.armor / u.armorMax);
-			}, Color.lightGray);
-			Bar shieldBar = new Bar(() -> {
-				Unit u = selectedUnit;
-				return u == null || u.totalShieldMax() <= 0f
-						? 0f
-						: Mathf.clamp(u.totalShield() / u.totalShieldMax());
-			}, Color.sky);
-
-			Cell<Bar> cc = t.add(coreBar).height(10f);
-			Cell<Bar> ac = t.add(armorBar).height(10f);
-			Cell<Bar> sc = t.add(shieldBar).height(10f);
-
-			// 段宽按三者上限占比分配,总宽跟随外层布局的实际宽度(growX 拉伸),上限变化时随帧刷新
-			// 注意:Cell.width() 只改字段不触发重排,必须手动 invalidate,否则内层 Bar 停在初始 0 宽
-			t.update(() -> {
-				Unit u = selectedUnit;
-				float coreMax = u == null ? 0f : Math.max(0f, u.maxHealth);
-				float armorMax = u == null ? 0f : Math.max(0f, u.armorMax);
-				float shieldMax = u == null ? 0f : Math.max(0f, u.totalShieldMax());
-				float total = coreMax + armorMax + shieldMax;
-				float w = t.getWidth();
-				if (total <= 0f || w <= 0f) {
-					cc.width(0f);
-					ac.width(0f);
-					sc.width(0f);
-				} else {
-					cc.width(w * coreMax / total);
-					ac.width(w * armorMax / total);
-					sc.width(w * shieldMax / total);
-				}
-				t.invalidate();
-			});
-
-			healthBarElement = t;
-		}
-		return healthBarElement;
-	}
-
-	/** 整合能量条元素（复用一个实例，绘制时读取 selectedUnit）。 */
-	private Element energyBar() {
-		if (energyBarElement == null) {
-			Bar bar = new Bar(() -> {
-				Unit u = selectedUnit;
-				return u == null || u.energyMax <= 0f ? 0f : Mathf.clamp(u.energy / u.energyMax);
-			}, Pal.light);
-			bar.setSize(10f, 10f);
-			energyBarElement = bar;
-		}
-		return energyBarElement;
-	}
-
-	/** 整合热量条元素（复用一个实例，绘制时读取 selectedUnit;不可产热的单位画空槽）。 */
-	private Element heatBar() {
-		if (heatBarElement == null) {
-			Bar bar = new Bar(() -> {
-				Unit u = selectedUnit;
-				return u == null || !u.heatable || u.heatMax <= 0f
-						? 0f
-						: Mathf.clamp(u.heat / u.heatMax);
-			}, Color.orange);
-			bar.setSize(10f, 10f);
-			heatBarElement = bar;
-		}
-		return heatBarElement;
-	}
+//	/** 整合血条元素（核心/护甲/护盾三段 Bar,段宽按上限占比分配;复用实例,绘制时读取 selectedUnit）。 */
+//	private Element healthBar() {
+//		if (healthBarElement == null) {
+//			Table t = new Table();
+//			Bar coreBar = new Bar(() -> {
+//				Unit u = selectedUnit;
+//				return u == null || u.maxHealth <= 0f ? 0f : Mathf.clamp(u.health / u.maxHealth);
+//			}, Color.scarlet);
+//			Bar armorBar = new Bar(() -> {
+//				Unit u = selectedUnit;
+//				return u == null || u.armorMax <= 0f ? 0f : Mathf.clamp(u.armor / u.armorMax);
+//			}, Color.lightGray);
+//			Bar shieldBar = new Bar(() -> {
+//				Unit u = selectedUnit;
+//				return u == null || u.totalShieldMax() <= 0f
+//						? 0f
+//						: Mathf.clamp(u.totalShield() / u.totalShieldMax());
+//			}, Color.sky);
+//
+//			Cell<Bar> cc = t.add(coreBar).height(10f);
+//			Cell<Bar> ac = t.add(armorBar).height(10f);
+//			Cell<Bar> sc = t.add(shieldBar).height(10f);
+//
+//			// 段宽按三者上限占比分配,总宽跟随外层布局的实际宽度(growX 拉伸),上限变化时随帧刷新
+//			// 注意:Cell.width() 只改字段不触发重排,必须手动 invalidate,否则内层 Bar 停在初始 0 宽
+//			t.update(() -> {
+//				Unit u = selectedUnit;
+//				float coreMax = u == null ? 0f : Math.max(0f, u.maxHealth);
+//				float armorMax = u == null ? 0f : Math.max(0f, u.armorMax);
+//				float shieldMax = u == null ? 0f : Math.max(0f, u.totalShieldMax());
+//				float total = coreMax + armorMax + shieldMax;
+//				float w = t.getWidth();
+//				if (total <= 0f || w <= 0f) {
+//					cc.width(0f);
+//					ac.width(0f);
+//					sc.width(0f);
+//				} else {
+//					cc.width(w * coreMax / total);
+//					ac.width(w * armorMax / total);
+//					sc.width(w * shieldMax / total);
+//				}
+//				t.invalidate();
+//			});
+//
+//		}
+//		return healthBarElement;
+//	}
+//
+//	/** 整合能量条元素（复用一个实例，绘制时读取 selectedUnit）。 */
+//	private Element energyBar() {
+//		if (energyBarElement == null) {
+//			Bar bar = new Bar(() -> {
+//				Unit u = selectedUnit;
+//				return u == null || u.energyMax <= 0f ? 0f : Mathf.clamp(u.energy / u.energyMax);
+//			}, Pal.light);
+//			bar.setSize(10f, 10f);
+//		}
+//		return energyBarElement;
+//	}
+//
+//	/** 整合热量条元素（复用一个实例，绘制时读取 selectedUnit;不可产热的单位画空槽）。 */
+//	private Element heatBar() {
+//		if (heatBarElement == null) {
+//			Bar bar = new Bar(() -> {
+//				Unit u = selectedUnit;
+//				return u == null || !u.heatable || u.heatMax <= 0f
+//						? 0f
+//						: Mathf.clamp(u.heat / u.heatMax);
+//			}, Color.orange);
+//			bar.setSize(10f, 10f);
+//		}
+//		return heatBarElement;
+//	}
 
 	private void updateRightPanel() {
 		rightContainer.clearChildren();
