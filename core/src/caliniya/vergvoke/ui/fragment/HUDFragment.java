@@ -2,7 +2,6 @@ package caliniya.vergvoke.ui.fragment;
 
 import arc.*;
 import arc.graphics.*;
-import arc.graphics.g2d.*;
 import arc.math.*;
 import arc.scene.*;
 import arc.scene.actions.*;
@@ -215,7 +214,7 @@ public class HUDFragment {
 			infoRow.left();
 			infoRow.add("[light]" + u.type.name + "[]").left().pad(2f);
 			infoRow
-					.add(new Button("详情", () -> new UnitDetailWindow(u).build()))
+					.add(new Button("详情", () -> EntityWindow.open(u)))
 					.size(64f, 36f)
 					.padLeft(8f);
 			unitInfoTable.add(infoRow).growX().left().row();

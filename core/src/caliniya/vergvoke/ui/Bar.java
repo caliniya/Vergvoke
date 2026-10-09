@@ -9,7 +9,7 @@ import arc.scene.ui.layout.*;
 
 /**
  * 进度条:每帧从 {@link Floatp} 取 0~1 的比例值绘制,
- * 自带平滑动画(lerpDelta)与数值下降时的闪烁(blink),NaN/Infinity 防护齐全。
+ * 自带平滑动画(lerpDelta)与数值下降时的闪烁(blink)
  *
  * <p>
  */
@@ -23,7 +23,6 @@ public class Bar extends Element {
 		this.fraction = fraction;
 		lastValue = value = Mathf.clamp(fraction.get());
 		setColor(color);
-		// 默认向白色闪(变亮一瞬);Mindustry 原版默认与条同色——同色过渡肉眼不可见,等于没有闪烁
 		this.blinkColor.set(Color.white);
 	}
 
@@ -35,9 +34,6 @@ public class Bar extends Element {
 			setColor(color.get());
 			this.blinkColor.set(Color.white);
 		});
-	}
-
-	public Bar() {
 	}
 
 	public void setFraction(Floatp fraction) {
@@ -80,7 +76,6 @@ public class Bar extends Element {
 			lastValue = computed;
 		}
 
-		// NaN / Infinity 防护(除零等脏数据别把渲染搞挂)
 		if (Float.isNaN(lastValue)) lastValue = 0;
 		if (Float.isInfinite(lastValue)) lastValue = 1f;
 		if (Float.isNaN(value)) value = 0;

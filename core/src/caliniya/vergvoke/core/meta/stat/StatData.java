@@ -232,16 +232,18 @@ public class StatData {
 		if (live != null) {
 			set(live.get(), valueMax);
 		}
-		// 有最大值的数值条目：用 StringBuilder 组装「值 / 最大 (百分比)」，缓冲复用、零中间对象
+		// 有最大值的数值条目：用 StringBuilder 组装「值 / 最大 (百分比)」，缓冲复用、零中间对象。
+		// 值部分左补空格到最大值的显示宽度：等宽字体下位数变化不会左右抖动
 		if (stat != null && unit != null && valueMax > 0f) {
+			String maxStr = unit.format(valueMax);
 			builder.setLength(0);
 			builder
 					.append(indent())
 					.append(stat.localizedName)
 					.append(": ")
-					.append(unit.format(value))
-					.append(" / ")
-					.append(unit.format(valueMax))
+					.append(Strings.padLeft(unit.format(value), maxStr.length()))
+					.append("/")
+					.append(maxStr)
 					.append(" (")
 					.append(Strings.autoFixed(value / valueMax * 100f, 1))
 					.append("%)");

@@ -265,7 +265,7 @@ public abstract class InputProcess implements InputProcessor, GestureListener {
 		Building b = WorldData.world.getBuilding(tx, ty);
 		if (b == null)
 			return false;
-		BuildingDetailWindow.open(b);
+		EntityWindow.open(b);
 		return true;
 	}
 

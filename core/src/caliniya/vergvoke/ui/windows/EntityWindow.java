@@ -13,26 +13,34 @@ import caliniya.vergvoke.ui.*;
 import caliniya.vergvoke.ui.Button;
 
 /**
- * 实体属性窗口：实时运行时数据（血量/护甲/护盾/能量/热量/电力）、能力与模组统计，
- * 带最大值的条目附进度条。单位/建筑通用，标题取实体类型的本地化名。
+ *
  */
-public class StatWindow extends Window {
+public class EntityWindow extends Window {
+
+	private static EntityWindow current;
+
+	/** 打开实体面板（已有面板先关掉再开新的，防窗口堆积）。 */
+	public static void open(Entity<?, ?> e) {
+		if (current != null) {
+			current.remove();
+		}
+		current = new EntityWindow(e);
+		current.build();
+	}
 
 	public Entity<?, ?> entity;
 
 	public StatStack stat;
 
-	public StatWindow(Entity<?, ?> entity) {
-		super(titleOf(entity));
+	public EntityWindow(Entity<?, ?> entity) {
+		super(entity.type.localizedName);
 		this.entity = entity;
 		this.stat = new StatStack();
 		main.update(this::checkStructure);
 	}
 
-	/** 结构版本：能力/模组数量变化时才重建表格（平时每帧只刷新数据）。 */
 	private int enhancementCount = -1;
 
-	/** 模组数量变化（罕见）→ 重建表格结构；平时什么都不做。 */
 	private void checkStructure() {
 		if (entity == null || entity.type == null)
 			return;
@@ -47,14 +55,11 @@ public class StatWindow extends Window {
 			return;
 		stat.clear();
 		t.clearChildren();
-
-		// 组装无分组运行时数据：实体（血量/护甲/护盾/能量/热量/电力）+ 能力 + 模组
 		entity.stat(stat);
 		for (Enhancement enh : entity.enhancements) {
 			enh.type.stats(stat);
 		}
 
-		// 渲染：完整遍历所有 StatData（data 已含缩进），跳过空内容
 		stat.each(
 				d -> {
 					if (d.data == null || d.data.trim().isEmpty())
@@ -63,9 +68,8 @@ public class StatWindow extends Window {
 						Table row = new Table();
 						row.left();
 						Label l = new Label(d::getData);
-						l.setEllipsis(true);
-						row.add(l).left().width(160f);
-						row.add(new Bar(() -> d.value / d.valueMax, Pal.light)).size(100f, 6f).padLeft(8f);
+						row.add(l).left();
+						row.add(new Bar(() -> d.value / d.valueMax, Pal.light)).size(250f, 40f).padLeft(8f);
 						t.add(row).left().padBottom(2f);
 					} else {
 						t.add(new Label(d::getData)).left().padBottom(2).align(Align.left);
@@ -105,7 +109,7 @@ public class StatWindow extends Window {
 							new Button(
 									a.enabled
 											? Core.bundle.get("disable")
-											: Core.bundle.get(".enable"),
+											: Core.bundle.get("enable"),
 									() -> a.setEnabled(!a.enabled))
 									.set(
 											b -> b.text.setText(
@@ -121,8 +125,4 @@ public class StatWindow extends Window {
 		enhancementCount = entity.enhancements.size;
 	}
 
-	/** 窗口标题：实体类型的本地化名（单位走 ContentType，建筑过渡期借 block 的名字），取不到回退通用名。 */
-	static String titleOf(Entity<?, ?> e) {
-		return e.type.localizedName;
-	}
 }
