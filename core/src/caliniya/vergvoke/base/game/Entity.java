@@ -123,7 +123,6 @@ public abstract class Entity<T extends ContentType & EntityType, E extends Entit
 	public abstract void update(float delta);
 
 	public void draw() {
-		// type == null 说明这个对象已经回池（reset() 置空），还在某张列表里被摸到就静默跳过
 		if (type == null)
 			return;
 		type.draw(this);
@@ -271,14 +270,14 @@ public abstract class Entity<T extends ContentType & EntityType, E extends Entit
 			boolean bypassArmor,
 			boolean breakShield,
 			boolean bypassShield) {
-		// 1. 能力拦截（护盾等），全部吸收则直接结束
+		// 能力拦截（护盾等），全部吸收则直接结束
 		for (Ability a : abilities) {
 			damage = a.applyDamage(this, damage, type, breakShield, bypassShield);
 		}
 		if (damage <= 0f)
 			return;
 
-		// 2. 护甲层（容量 > 0 时存在；穿甲直接跳过护甲打核心）
+		// 护甲层（容量 > 0 时存在；穿甲直接跳过护甲打核心）
 		if (!bypassArmor && armor > 0f) {
 			float armorReduce = breakArmor ? 0f : armorValue;
 			float actual = Math.max(0f, damage * type.armorMult * (1f - armorResist(type)) - armorReduce);
@@ -290,17 +289,12 @@ public abstract class Entity<T extends ContentType & EntityType, E extends Entit
 			return; // 护甲破：剩余伤害不传递
 		}
 
-		// 3. 本体（无护甲或被穿甲跳过：无抗性减伤、无固定减伤）
+		// 本体（无护甲或被穿甲跳过：无抗性减伤、无固定减伤）
 		boolean wasAlive = health > 0f;
 		damage = damage * type.armorMult;
 		health -= damage;
 		if (health <= 0f) {
 			health = 0f;
-			// 这里**不能**直接 kill()：本方法会被 BulletProcess 线程调用，
-			// 而销毁要动容器 / 回收 ID / 回池，只能在主线程做。
-			// 后台线程直接销毁 → 实体被 free 后仍躺在待死队列里 → 下一帧主线程
-			// 对着 type == null 的对象再杀一次 → NPE。
-			// wasAlive 保证只登记一次（血已归零后再挨打不重复入队）。
 			if (wasAlive) {
 				Entities.markDead(this);
 			}
@@ -319,10 +313,6 @@ public abstract class Entity<T extends ContentType & EntityType, E extends Entit
 
 	/**
 	 * 世界坐标点是否命中本实体。
-	 *
-	 * <p>
-	 * 默认按 {@link #size} 外接圆判定（size≤0 时走 {@link #hitboxSize()} 兜底）。
-	 * 异形碰撞等由组件方法 {@code @OverrideEntity} 覆写本方法。
 	 */
 	public boolean contains(float worldX, float worldY) {
 		float r = hitboxSize() * 0.5f;

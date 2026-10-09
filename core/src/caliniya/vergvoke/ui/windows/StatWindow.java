@@ -82,15 +82,15 @@ public class StatWindow extends Window {
 			row.add(
 							new Button(
 									enh.enabled
-											? Core.bundle.get("unitDetail.disable")
-											: Core.bundle.get("unitDetail.enable"),
+											? Core.bundle.get("disable")
+											: Core.bundle.get("enable"),
 									() -> enh.setEnabled(!enh.enabled))
 									.set(
 											b -> b.text.setText(
 													() -> Core.bundle.get(
 															enh.enabled
-																	? "unitDetail.disable"
-																	: "unitDetail.enable"))))
+																	? "disable"
+																	: "enable"))))
 					.size(64f, 36f)
 					.padLeft(6f);
 			t.add(row).growX().left().row();
@@ -104,15 +104,15 @@ public class StatWindow extends Window {
 			row.add(
 							new Button(
 									a.enabled
-											? Core.bundle.get("unitDetail.disable")
-											: Core.bundle.get("unitDetail.enable"),
+											? Core.bundle.get("disable")
+											: Core.bundle.get(".enable"),
 									() -> a.setEnabled(!a.enabled))
 									.set(
 											b -> b.text.setText(
 													() -> Core.bundle.get(
 															a.enabled
-																	? "unitDetail.disable"
-																	: "unitDetail.enable"))))
+																	? "disable"
+																	: "enable"))))
 					.size(64f, 36f)
 					.padLeft(6f);
 			t.add(row).growX().left().row();

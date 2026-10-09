@@ -11,30 +11,37 @@ import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
-import caliniya.vergvoke.type.def.craft.recipe.*;
 import caliniya.vergvoke.type.module.*;
 import caliniya.vergvoke.ui.*;
-import caliniya.vergvoke.world.blocks.defence.*;
-import caliniya.vergvoke.world.blocks.production.*;
 
 /**
- * 建筑的类型载体（对齐 UnitType 的模式）：实体类型链接走基类 {@code Entity.type}，
- * 工厂在类型上（{@link #create}），实体侧不再有 block 引用字段。
- *
- * <p>原 {@code world.Block} 已并入本类：基础配置 / 贴图 / 绘制 / 形状定义都在这里，
- * 统一走 {@code b.type.xxx}。炮塔（{@link Turret}）与工厂（{@link Factory}）作为子类补充各自配置。
+ * 建筑的类型载体：配置与类型级行为，实体侧是 {@code @Entity} 生成的
+ * {@link caliniya.vergvoke.base.ecs.Building}。
+ * 建筑按瓦片放置，放置/移除编排统一走 {@link WorldData} 门面。
  */
 public class BuildingType extends ContentType
 		implements EntityType, DrawType<Building>, TechNodeContent {
 
-	// --- 基础属性 ---
-	public float psize; // 大小，像素级
-	public int size = 2; // 大小，单位格
-	public boolean buildable = true; // 可以造
-	public boolean solid = true; // 可以阻挡通行
-	public float health = 100; // 顾名思义
-	public int capacity = 100; // 物品容量，为0就是不能存
-	public ItemType[] allowItem = Contents.items; // 能存的,默认啥都能存一百
+	/** 像素边长（派生缓存 = size × TILE_SIZE，由 {@link #psize()} 刷新，别手写）。 */
+	public float psize;
+
+	/** 占地边长，格。 */
+	public int size = 2;
+
+	/** 允许建造。 */
+	public boolean buildable = true;
+
+	/** 阻挡通行（导航占位按它更新）。 */
+	public boolean solid = true;
+
+	/** 血上限。 */
+	public float health = 100;
+
+	/** 物品容量，0 = 不能存。 */
+	public int capacity = 100;
+
+	/** 允许存入的物品白名单，默认全部物品。 */
+	public ItemType[] allowItem = Contents.items;
 
 	/** 液体容量（0 = 不能存液体）。 */
 	public float liquidCapacity;
@@ -42,10 +49,10 @@ public class BuildingType extends ContentType
 	/** 电力电池容量（0 = 不能存电力）。 */
 	public float powerCapacity;
 
-	public TextureRegion region; // 主贴图
+	/** 主贴图（load 时从图集取，缺图兜底白块）。 */
+	public TextureRegion region;
 
-	// --- 形状定义 ---
-	// 相对于锚点(0,0)的偏移量数组：[dx1, dy1, dx2, dy2, ...]
+	/** 占位格子偏移，成对存 dx, dy（null = 方正占位）；放置/读档时按角度旋转后灌进实体。 */
 	public int[] shapeOffsets = null;
 
 	public BuildingType(String name) {
@@ -63,13 +70,13 @@ public class BuildingType extends ContentType
 		region = Core.atlas.find(name, "white");
 	}
 
-	/** 建筑像素边长（顺手把 psize 刷到最新，省得忘记同步）。 */
+	/** 建筑像素边长：由 size 推导，每次调用顺手刷新缓存。 */
 	public float psize() {
 		psize = size * WorldData.TILE_SIZE;
 		return psize;
 	}
 
-	/** 类型级工厂：按 tx/ty/angle 放置（@Init/@Reset 缺位，派生初始化先在这里手动做）。 */
+
 	public Building create(TeamTypes team, int tx, int ty, int angle) {
 		float psize = psize();
 
@@ -109,27 +116,8 @@ public class BuildingType extends ContentType
 			b.power = new PowerModule(powerCapacity);
 		}
 
-		// TurretComp：配置拷贝（仅炮塔类建筑）；索敌半径走 TargetComp.range
-		if (this instanceof Turret t) {
-			b.reloadTime = t.reloadTime;
-			b.rotateSpeed = t.rotateSpeed;
-			b.bullet = t.bulletType;
-			b.range = t.range;
-		}
-
-		// CraftComp：配方组装（深拷贝 content 共享模板 + 绑定运行时模块；池化复用不残留）
-		// 非工厂建筑显式置空，避免上一任占用者留下的 RecipeStack 串剧本
+		// 配方组：默认无（CraftComp 约定：非生产建筑 stack 为 null）；有配方的子类覆写 create 自行装配
 		b.stack = null;
-		if (this instanceof Factory f) {
-			b.stack = new RecipeStack();
-			for (Recipe r : f.recipes) {
-				Recipe copy = r.copy();
-				copy.bind(b.item, b.liquid, b.power);
-				b.stack.recipes.add(copy);
-			}
-			// 默认选第一条配方（有配方才开工）
-			b.stack.current = f.recipes.isEmpty() ? -1 : 0;
-		}
 
 		b.self = b;
 
@@ -146,13 +134,8 @@ public class BuildingType extends ContentType
 	}
 
 	/**
-	 * 读档恢复完毕后再算一遍派生数据：占位形状 / 中心坐标 / 血上限 / 阵营数据。
-	 *
-	 * <p>组件的 {@code @Read} 只能恢复原始字段——派生数据要用类型配置，而 {@code @Import}
-	 * 借不到基类那个泛型 {@code type} 字段，所以这一步留在类型侧，由给档路径显式调用。
-	 *
-	 * <p>坐标在 read 后才最终确定，容器注册（含四叉树插入）由调用方接着调
-	 * {@code WorldData.placeBuilding(b)} 完成——树直接插在正确位置，不存在 (0,0) 旧节点。
+	 * 读档后重算派生数据（形状/坐标/血上限/阵营）：组件 {@code @Read} 只恢复原始字段，
+	 * 派生数据要用类型配置。之后由调用方走 {@code WorldData.placeBuilding} 完成注册。
 	 */
 	public void rebuild(Building b) {
 		float psize = psize();
@@ -170,7 +153,7 @@ public class BuildingType extends ContentType
 		b.self = b;
 	}
 
-	/** 建筑按瓦片放置，不走按世界坐标创建；真要采样居中位置用 {@link #create} 的 tx/ty。 */
+	/** 建筑按瓦片放置，不走世界坐标创建；真要采样居中位置用 {@link #create(TeamTypes, int, int, int)} 的 tx/ty。 */
 	@Override
 	public Entity<?, ?> create(TeamTypes team, float x, float y) {
 		throw new UnsupportedOperationException("建筑按 tx/ty/angle 放置，走 create(team, tx, ty, angle)");
@@ -178,10 +161,11 @@ public class BuildingType extends ContentType
 
 	// --- 类型级钩子（EntityType）---
 
-	/** 类型级每帧钩子：给非炮塔建筑的自身行为留入口，默认空。 */
+	/** 类型级每帧钩子：给非炮塔建筑的自身行为留入口，默认空。子类覆写这个，不用碰 Entity 重载。 */
 	public void update(Building b, float dt) {
 	}
 
+	/// EntityType 分发入口：判型后转 {@link #update(Building, float)}。
 	@Override
 	public void update(Entity<?, ?> entity, float dt) {
 		if (entity instanceof Building b) {
@@ -189,12 +173,13 @@ public class BuildingType extends ContentType
 		}
 	}
 
-	/** 类型级绘制：建筑图标（炮塔等子类覆写）。 */
+	/** 类型级绘制：主贴图按朝向角绘制（angle × 90°），炮塔等子类覆写。 */
 	@Override
 	public void draw(Building b) {
 		Draw.rect(region, b.x, b.y, b.angle * 90f);
 	}
 
+	/// EntityType 分发入口：判型后转 {@link #draw(Building)}。
 	@Override
 	public void draw(Entity<?, ?> entity) {
 		if (entity instanceof Building b) {
@@ -202,6 +187,7 @@ public class BuildingType extends ContentType
 		}
 	}
 
+	/// 调试绘制：绿框包围盒、青框异形占位格、上方坐标与血量文字。
 	@Override
 	public void drawDebug(Building b) {
 		BuildingType t = b.type;
@@ -212,8 +198,7 @@ public class BuildingType extends ContentType
 		// 绘制基于 size 的包围盒
 		Lines.rect(b.x - psize / 2, b.y - psize / 2, psize, psize);
 
-		// 3. 绘制占据的实际格子 (黄色细线)
-		// 对于异形建筑，这比包围盒更准确
+		// 异形建筑的实际占位格，比包围盒精确
 		if (b.shapeOffsets != null) {
 			Draw.color(Color.cyan);
 			Lines.stroke(1f);
@@ -224,7 +209,7 @@ public class BuildingType extends ContentType
 			}
 		}
 
-		// 4. 绘制旋转角度 (青色文字)
+		// 坐标与血量文字
 		Fonts.def.draw(
 				b.x + "   " + b.y, b.x + psize / 2f, b.y + psize + 10f, Align.center);
 		Fonts.def.draw(
@@ -235,7 +220,7 @@ public class BuildingType extends ContentType
 		Draw.color(); // 重置颜色
 	}
 
-	/** 摧毁：编排顺序（导航清占 → 瓦片注销 → 容器 → ID → 回池）封在 {@code WorldData.removeBuilding}。 */
+	/** 摧毁：编排顺序封在 {@code WorldData.removeBuilding}。 */
 	@Override
 	public void remove(Entity<?, ?> entity) {
 		if (entity instanceof Building b) {
@@ -243,23 +228,22 @@ public class BuildingType extends ContentType
 		}
 	}
 
-	// --- 物品相关 ---
 
+	/** 覆写物品白名单（默认全部物品）。 */
 	public void allowAllItem(ItemType... types) {
 		allowItem = types;
 	}
 
 	/**
-	 * 辅助方法：获取旋转后的形状偏移量 这用于确定建筑在当前角度下实际占据了哪些格子
+	 * 按角度 (0-3) 旋转占位格子偏移，确定建筑实际占格。
 	 *
-	 * @param angle       建筑当前角度 (0-3)
-	 * @param baseOffsets 原始形状偏移 (通常是 {@link #shapeOffsets})
+	 * @param baseOffsets 原始形状偏移（通常是 {@link #shapeOffsets}）
 	 *
-	 * @return 旋转后的新偏移量数组
+	 * @return 旋转后的新数组；入参 null 时返回 null，不修改入参
 	 */
 	public static int[] getRotatedOffsets(int angle, int[] baseOffsets) {
 		if (baseOffsets == null)
-			return (int[]) null;
+			return null;
 
 		int[] rotated = baseOffsets.clone();
 
