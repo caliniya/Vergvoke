@@ -1,7 +1,5 @@
 package caliniya.vergvoke.io;
 
-import java.io.*;
-
 import arc.*;
 import arc.files.*;
 import arc.struct.*;
@@ -12,308 +10,309 @@ import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
-import caliniya.vergvoke.system.world.*;
 import caliniya.vergvoke.type.type.*;
 import caliniya.vergvoke.world.*;
 
-import static caliniya.vergvoke.io.GameIO.submitIo;
+import java.io.*;
+
+import static caliniya.vergvoke.io.GameIO.*;
 
 // 负责和游戏数据交互
 public class DataIO {
 
-    /**
-     * 单位/建筑结束标记：8 字节 0xAE，读取未知类型时跳过到此标记。
-     */
-    public static final byte[] END_MARKER = {
-        (byte) 0xAE, (byte) 0xAE, (byte) 0xAE, (byte) 0xAE,
-        (byte) 0xAE, (byte) 0xAE, (byte) 0xAE, (byte) 0xAE
-    };
+	/**
+	 * 单位/建筑结束标记：8 字节 0xAE，读取未知类型时跳过到此标记。
+	 */
+	public static final byte[] END_MARKER = {
+			(byte) 0xAE, (byte) 0xAE, (byte) 0xAE, (byte) 0xAE,
+			(byte) 0xAE, (byte) 0xAE, (byte) 0xAE, (byte) 0xAE
+	};
 
-    // 以下三个数据流存储实体数据
-    public static volatile ByteArrayOutputStream bos = new ByteArrayOutputStream(1 << 20); // 预分配 1MB
-    public static volatile DataOutputStream stream = new DataOutputStream(bos);
-    public static volatile Writes w = new Writes(stream);
-    public static volatile byte[] data;
-    public static volatile boolean copyed; // 向内存中复制数据是否已完成
-    public static volatile boolean loaded; // 已经完成从磁盘向内存中加载数据
+	// 以下三个数据流存储实体数据
+	public static volatile ByteArrayOutputStream bos = new ByteArrayOutputStream(1 << 20); // 预分配 1MB
+	public static volatile DataOutputStream stream = new DataOutputStream(bos);
+	public static volatile Writes w = new Writes(stream);
+	public static volatile byte[] data;
+	public static volatile boolean copyed; // 向内存中复制数据是否已完成
+	public static volatile boolean loaded; // 已经完成从磁盘向内存中加载数据
 
-    /**
-     * 序列化完成后要写盘的目标文件
-     */
-    public static volatile Fi saveTarget;
+	/**
+	 * 序列化完成后要写盘的目标文件
+	 */
+	public static volatile Fi saveTarget;
 
-    // 命令后台 io 线程开始写入存档数据
-    // 头部（MAGIC/版本/W/H/tags）在调用线程同步写，其余在 io 线程一次写完
-    public static void copy(@Nullable StringMap tags) {
-        // 重置累积缓冲：bos 是静态流，不清的话第二次存档会追加在上一份字节后面
-        bos.reset();
-        w.b(GameIO.MAGIC.getBytes());
-        w.i(GameIO.SAVE_VERSION);
-        w.i(WorldData.world.W);
-        w.i(WorldData.world.H);
+	// 命令后台 io 线程开始写入存档数据
+	// 头部（MAGIC/版本/W/H/tags）在调用线程同步写，其余在 io 线程一次写完
+	public static void copy(@Nullable StringMap tags) {
+		// 重置累积缓冲：bos 是静态流，不清的话第二次存档会追加在上一份字节后面
+		bos.reset();
+		w.b(GameIO.MAGIC.getBytes());
+		w.i(GameIO.SAVE_VERSION);
+		w.i(WorldData.world.W);
+		w.i(WorldData.world.H);
 
-        // --- Tags ---
-        if (tags == null) {
-            tags = new StringMap();
-        }
-        tags.put("space", String.valueOf(WorldData.world.space));
-        w.s(tags.size);
-        for (var entry : tags) {
-            w.str(entry.key);
-            w.str(entry.value);
-        }
-        submitIo(DataIO::write);
-    }
+		// --- Tags ---
+		if (tags == null) {
+			tags = new StringMap();
+		}
+		tags.put("space", String.valueOf(WorldData.world.space));
+		w.s(tags.size);
+		for (var entry : tags) {
+			w.str(entry.key);
+			w.str(entry.value);
+		}
+		submitIo(DataIO::write);
+	}
 
-    /**
-     * 存档写入状态机（io 线程执行，由 {@link #copy} 提交）：
-     * 调色板 → 地图瓦片 → 单位 → 建筑 → 落盘。写入顺序必须与 {@link #read} 的读取顺序严格一致。
-     */
-    private static void write() {
-        // --- 调色板（必须在瓦片数据之前）：扫描 + 写入，index 0 为 null ---
-        Ar<Floor> floorPalette = new Ar<>();
-        ObjectIntMap<Floor> floorMap = new ObjectIntMap<>();
-        Ar<ENVBlock> blockPalette = new Ar<>();
-        ObjectIntMap<ENVBlock> blockMap = new ObjectIntMap<>();
+	/**
+	 * 存档写入状态机（io 线程执行，由 {@link #copy} 提交）：
+	 * 调色板 → 地图瓦片 → 单位 → 建筑 → 落盘。写入顺序必须与 {@link #read} 的读取顺序严格一致。
+	 */
+	private static void write() {
+		// --- 调色板（必须在瓦片数据之前）：扫描 + 写入，index 0 为 null ---
+		Ar<Floor> floorPalette = new Ar<>();
+		ObjectIntMap<Floor> floorMap = new ObjectIntMap<>();
+		Ar<ENVBlock> blockPalette = new Ar<>();
+		ObjectIntMap<ENVBlock> blockMap = new ObjectIntMap<>();
 
-        floorPalette.add((Floor) null);
-        blockPalette.add((ENVBlock) null);
+		floorPalette.add((Floor) null);
+		blockPalette.add((ENVBlock) null);
 
-        int width = WorldData.world.W;
-        int height = WorldData.world.H;
+		int width = WorldData.world.W;
+		int height = WorldData.world.H;
 
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                Floor floor = WorldData.world.getFloor(x, y);
-                ENVBlock block = WorldData.world.getENVBlock(x, y);
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				Floor floor = WorldData.world.getFloor(x, y);
+				ENVBlock block = WorldData.world.getENVBlock(x, y);
 
-                if (floor != null && !floorMap.containsKey(floor)) {
-                    floorMap.put(floor, floorPalette.size);
-                    floorPalette.add(floor);
-                }
-                if (block != null && !blockMap.containsKey(block)) {
-                    blockMap.put(block, blockPalette.size);
-                    blockPalette.add(block);
-                }
-            }
-        }
+				if (floor != null && !floorMap.containsKey(floor)) {
+					floorMap.put(floor, floorPalette.size);
+					floorPalette.add(floor);
+				}
+				if (block != null && !blockMap.containsKey(block)) {
+					blockMap.put(block, blockPalette.size);
+					blockPalette.add(block);
+				}
+			}
+		}
 
-        w.s((short) floorPalette.size);
-        for (int i = 0; i < floorPalette.size; i++) {
-            Floor f = floorPalette.get(i);
-            w.str(f == null ? "null" : f.internalName);
-        }
-        w.s((short) blockPalette.size);
-        for (int i = 0; i < blockPalette.size; i++) {
-            ENVBlock b = blockPalette.get(i);
-            w.str(b == null ? "null" : b.internalName);
-        }
+		w.s((short) floorPalette.size);
+		for (int i = 0; i < floorPalette.size; i++) {
+			Floor f = floorPalette.get(i);
+			w.str(f == null ? "null" : f.internalName);
+		}
+		w.s((short) blockPalette.size);
+		for (int i = 0; i < blockPalette.size; i++) {
+			ENVBlock b = blockPalette.get(i);
+			w.str(b == null ? "null" : b.internalName);
+		}
 
-        // --- 地图瓦片 (W×H × 2 short) ---
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                Floor floor = WorldData.world.getFloor(x, y);
-                ENVBlock block = WorldData.world.getENVBlock(x, y);
-                w.s(floor == null ? 0 : floorMap.get(floor, 0));
-                w.s(block == null ? 0 : blockMap.get(block, 0));
-            }
-        }
+		// --- 地图瓦片 (W×H × 2 short) ---
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				Floor floor = WorldData.world.getFloor(x, y);
+				ENVBlock block = WorldData.world.getENVBlock(x, y);
+				w.s(floor == null ? 0 : floorMap.get(floor, 0));
+				w.s(block == null ? 0 : blockMap.get(block, 0));
+			}
+		}
 
-        // --- 单位（先收集有效实体，保证写入的数量与实际条数一致） ---
-        Ar<Unit> outUnits = new Ar<>();
-        EntityArs.Unit.each(
-                u -> {
-                    if (u != null && u.health > 0)
-                        outUnits.add(u);
-                });
-        w.i(outUnits.size);
-        for (int i = 0; i < outUnits.size; i++) {
-            Unit u = outUnits.get(i);
-            w.str(u.type.internalName); // 读取端据此 Contents.get 还原类型
-            u.write(w);
-            w.b(END_MARKER);
-        }
+		// --- 单位（先收集有效实体，保证写入的数量与实际条数一致） ---
+		Ar<Unit> outUnits = new Ar<>();
+		EntityArs.Unit.each(
+				u -> {
+					if (u != null && u.health > 0)
+						outUnits.add(u);
+				});
+		w.i(outUnits.size);
+		for (int i = 0; i < outUnits.size; i++) {
+			Unit u = outUnits.get(i);
+			w.str(u.type.internalName); // 读取端据此 Contents.get 还原类型
+			u.write(w);
+			w.b(END_MARKER);
+		}
 
-        // --- 建筑 ---
-        Ar<Building> outBuildings = new Ar<>();
-        EntityArs.Building.each(
-                b -> {
-                    if (b != null && b.health > 0)
-                        outBuildings.add(b);
-                });
-        w.i(outBuildings.size);
-        for (int i = 0; i < outBuildings.size; i++) {
-            Building b = outBuildings.get(i);
-            // 读取端据此 Contents.get(name, Block.class) 还原类型，再拿它的 buildingType
-            Block blk = b.type != null ? b.type.block : null;
-            w.str(blk == null ? "" : blk.internalName);
-            b.write(w);
-            w.b(END_MARKER);
-        }
+		// --- 建筑 ---
+		Ar<Building> outBuildings = new Ar<>();
+		EntityArs.Building.each(
+				b -> {
+					if (b != null && b.health > 0)
+						outBuildings.add(b);
+				});
+		w.i(outBuildings.size);
+		for (int i = 0; i < outBuildings.size; i++) {
+			Building b = outBuildings.get(i);
+			// 读取端据此 Contents.get(name, BuildingType.class) 还原类型
+			BuildingType blk = b.type;
+			w.str(blk == null ? "" : blk.internalName);
+			b.write(w);
+			w.b(END_MARKER);
+		}
 
-        // 至此内存中的存档数据写入完成 → 落盘
-        data = bos.toByteArray();
-        copyed = true;
-        GameIO.save(saveTarget);
-    }
+		// 至此内存中的存档数据写入完成 → 落盘
+		data = bos.toByteArray();
+		copyed = true;
+		GameIO.save(saveTarget);
+	}
 
-    // 调用此方法来实现保存
-    public static void setSave(Fi file, @Nullable StringMap tags) {
-        saveTarget = file;
-        copy(tags);
-    }
+	// 调用此方法来实现保存
+	public static void setSave(Fi file, @Nullable StringMap tags) {
+		saveTarget = file;
+		copy(tags);
+	}
 
-    public static void load() {
-        load(data);
-    }
+	public static void load() {
+		load(data);
+	}
 
-    public static void load(byte[] bytes) {
-        load(bytes, null);
-    }
+	public static void load(byte[] bytes) {
+		load(bytes, null);
+	}
 
-    /**
-     * 从内存数据恢复存档，加载并进入游戏后执行 {@code onEnter}（主线程）。
-     */
-    public static void load(byte[] bytes, Runnable onEnter) {
-        if (!loaded) {
-            return;
-        }
-        try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes))) {
-            Reads r = new Reads(in);
+	/**
+	 * 从内存数据恢复存档，加载并进入游戏后执行 {@code onEnter}（主线程）。
+	 */
+	public static void load(byte[] bytes, Runnable onEnter) {
+		if (!loaded) {
+			return;
+		}
+		try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes))) {
+			Reads r = new Reads(in);
 
-            String magic = new String(r.b(4));
-            if (!magic.equals(GameIO.MAGIC)) {
-                throw new IOException("Invalid file format");
-            }
+			String magic = new String(r.b(4));
+			if (!magic.equals(GameIO.MAGIC)) {
+				throw new IOException("Invalid file format");
+			}
 
-            int ver = r.i();
-            if (ver != GameIO.SAVE_VERSION) {
-                throw new IOException(
-                        "Save version mismatch: file v" + ver + ", expected v" + GameIO.SAVE_VERSION);
-            }
-            int width = r.i();
-            int height = r.i();
+			int ver = r.i();
+			if (ver != GameIO.SAVE_VERSION) {
+				throw new IOException(
+						"Save version mismatch: file v" + ver + ", expected v" + GameIO.SAVE_VERSION);
+			}
+			int width = r.i();
+			int height = r.i();
 
-            StringMap tags = new StringMap();
-            int tagCount = r.s();
-            for (int i = 0; i < tagCount; i++) {
-                tags.put(r.str(), r.str());
-            }
-            boolean isSpace = tags.getBool("space");
+			StringMap tags = new StringMap();
+			int tagCount = r.s();
+			for (int i = 0; i < tagCount; i++) {
+				tags.put(r.str(), r.str());
+			}
+			boolean isSpace = tags.getBool("space");
 
-            WorldData.initWorld(width, height, isSpace);
-            submitIo(
-                    () -> {
-                        read(r, width, height);
-                        Core.app.post(
-                                () -> {
-                                    Data.loadSystems();
-                                    Data.enter();
-                                    // 相机对准第一个恢复的单位，否则用户面对空地图找不到部队
-                                    if (!EntityArs.Unit.isEmpty()) {
-                                        Unit u0 = EntityArs.Unit.array.get(0);
-                                        Core.camera.position.set(u0.x, u0.y);
-                                    }
-                                    if (onEnter != null) {
-                                        onEnter.run();
-                                    }
-                                });
-                    });
+			WorldData.initWorld(width, height, isSpace);
+			submitIo(
+					() -> {
+						read(r, width, height);
+						Core.app.post(
+								() -> {
+									Data.loadSystems();
+									Data.enter();
+									// 相机对准第一个恢复的单位，否则用户面对空地图找不到部队
+									if (!EntityArs.Unit.isEmpty()) {
+										Unit u0 = EntityArs.Unit.array.get(0);
+										Core.camera.position.set(u0.x, u0.y);
+									}
+									if (onEnter != null) {
+										onEnter.run();
+									}
+								});
+					});
 
-        } catch (Throwable e) {
-            Log.err("Restore failed", e);
-        }
-    }
+		} catch (Throwable e) {
+			Log.err("Restore failed", e);
+		}
+	}
 
-    /**
-     * 读取存档：调色板 → 地图数据 → 单位 → 建筑 → 寻路初始化。 调用前 WorldData.world 必须已经通过 reBuildAll
-     * 初始化。
-     */
-    private static void read(Reads r, int width, int height) {
-        // --- 调色板 ---
-        int floorPaletteSize = r.s();
-        Floor[] floorLookup = new Floor[floorPaletteSize];
-        for (int i = 0; i < floorPaletteSize; i++) {
-            String name = r.str();
-            floorLookup[i] = name.equals("null") ? null : Contents.get(name, Floor.class);
-        }
+	/**
+	 * 读取存档：调色板 → 地图数据 → 单位 → 建筑 → 寻路初始化。 调用前 WorldData.world 必须已经通过 reBuildAll
+	 * 初始化。
+	 */
+	private static void read(Reads r, int width, int height) {
+		// --- 调色板 ---
+		int floorPaletteSize = r.s();
+		Floor[] floorLookup = new Floor[floorPaletteSize];
+		for (int i = 0; i < floorPaletteSize; i++) {
+			String name = r.str();
+			floorLookup[i] = name.equals("null") ? null : Contents.get(name, Floor.class);
+		}
 
-        int blockPaletteSize = r.s();
-        ENVBlock[] blockLookup = new ENVBlock[blockPaletteSize];
-        for (int i = 0; i < blockPaletteSize; i++) {
-            String name = r.str();
-            blockLookup[i] = name.equals("null") ? null : Contents.get(name, ENVBlock.class);
-        }
+		int blockPaletteSize = r.s();
+		ENVBlock[] blockLookup = new ENVBlock[blockPaletteSize];
+		for (int i = 0; i < blockPaletteSize; i++) {
+			String name = r.str();
+			blockLookup[i] = name.equals("null") ? null : Contents.get(name, ENVBlock.class);
+		}
 
-        // --- 地图数据 ---
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                short floorId = r.s();
-                short blockId = r.s();
-                Floor floor = (floorId >= 0 && floorId < floorLookup.length) ? floorLookup[floorId] : null;
-                ENVBlock block
-                        = (blockId >= 0 && blockId < blockLookup.length) ? blockLookup[blockId] : null;
-                WorldData.world.setFloor(x, y, floor);
-                WorldData.world.setENVBlock(x, y, block);
-            }
-        }
+		// --- 地图数据 ---
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				short floorId = r.s();
+				short blockId = r.s();
+				Floor floor = (floorId >= 0 && floorId < floorLookup.length) ? floorLookup[floorId] : null;
+				ENVBlock block
+						= (blockId >= 0 && blockId < blockLookup.length) ? blockLookup[blockId] : null;
+				WorldData.world.setFloor(x, y, floor);
+				WorldData.world.setENVBlock(x, y, block);
+			}
+		}
 
-        // --- Units ---
-        int unitCount = r.i();
-        for (int i = 0; i < unitCount; i++) {
-            String typeName = r.str();
-            UnitType type = Contents.get(typeName, UnitType.class);
-            if (type != null) {
-                // create 时坐标还是 (0,0)，read 恢复坐标/阵营后把四叉树节点挪到真实位置
-                Unit u = type.create(TeamTypes.Abort, 0f, 0f);
-                u.read(r);
-                skipToEndMarker(r); // 校验结束标记
-                EntityArs.Unit.move(u, u.x, u.y);
-            } else {
-                Log.warn("Unknown unit type in save: @, skipping...", typeName);
-                skipToEndMarker(r);
-            }
-        }
+		// --- Units ---
+		int unitCount = r.i();
+		for (int i = 0; i < unitCount; i++) {
+			String typeName = r.str();
+			UnitType type = Contents.get(typeName, UnitType.class);
+			if (type != null) {
+				// create 时坐标还是 (0,0)，read 恢复坐标/阵营后把四叉树节点挪到真实位置
+				Unit u = type.create(TeamTypes.Abort, 0f, 0f);
+				u.read(r);
+				skipToEndMarker(r); // 校验结束标记
+				EntityArs.Unit.move(u, u.x, u.y);
+			} else {
+				Log.warn("Unknown unit type in save: @, skipping...", typeName);
+				skipToEndMarker(r);
+			}
+		}
 
-        // 地图瓦片全部就位，重刷导航层（此前 RouteData.init 跑在空世界上，地图固体进不了导航图）
-        WorldData.mapLoaded();
+		// 地图瓦片全部就位，重刷导航层（此前 RouteData.init 跑在空世界上，地图固体进不了导航图）
+		WorldData.mapLoaded();
 
-        // --- Buildings ---
-        int buildingCount = r.i();
-        for (int i = 0; i < buildingCount; i++) {
-            String typeName = r.str();
-            Block type = Contents.get(typeName, Block.class);
-            if (type != null) {
-                // 工厂只管构造（模块/self/运行时状态复位），read 把坐标阵营糊回来，
-                // rebuild 重算派生数据，最后由门面注册瓦片/导航/容器
-                Building b = type.buildingType.create(TeamTypes.Evoke, 0, 0, 0);
-                b.read(r);
-                skipToEndMarker(r); // 校验结束标记
-                type.buildingType.rebuild(b); // 坐标/阵营到手后重算占位形状与中心点
-                WorldData.placeBuilding(b);
-            } else {
-                Log.warn("Unknown block type in save: @, skipping...", typeName);
-                skipToEndMarker(r);
-            }
-        }
-    }
+		// --- Buildings ---
+		int buildingCount = r.i();
+		for (int i = 0; i < buildingCount; i++) {
+			String typeName = r.str();
+			BuildingType type = Contents.get(typeName, BuildingType.class);
+			if (type != null) {
+				// 工厂只管构造（模块/self/运行时状态复位），read 把坐标阵营糊回来，
+				// rebuild 重算派生数据，最后由门面注册瓦片/导航/容器
+				Building b = type.create(TeamTypes.Evoke, 0, 0, 0);
+				b.read(r);
+				skipToEndMarker(r); // 校验结束标记
+				type.rebuild(b); // 坐标/阵营到手后重算占位形状与中心点
+				WorldData.placeBuilding(b);
+			} else {
+				Log.warn("Unknown block type in save: @, skipping...", typeName);
+				skipToEndMarker(r);
+			}
+		}
+	}
 
-    /**
-     * 从当前读取位置开始，一路跳过字节直到找到 END_MARKER（8 个 0xAE）。 调用前假设 Reader 正处于未知数据的开头，调用后
-     * Reader 位于 END_MARKER 之后。
-     */
-    private static void skipToEndMarker(Reads r) {
-        int matched = 0;
-        while (matched < 8) {
-            byte b = r.b();
-            if (b == END_MARKER[matched]) {
-                matched++;
-            } else {
-                matched = 0;
-                if (b == END_MARKER[0]) {
-                    matched = 1;
-                }
-            }
-        }
-    }
+	/**
+	 * 从当前读取位置开始，一路跳过字节直到找到 END_MARKER（8 个 0xAE）。 调用前假设 Reader 正处于未知数据的开头，调用后
+	 * Reader 位于 END_MARKER 之后。
+	 */
+	private static void skipToEndMarker(Reads r) {
+		int matched = 0;
+		while (matched < 8) {
+			byte b = r.b();
+			if (b == END_MARKER[matched]) {
+				matched++;
+			} else {
+				matched = 0;
+				if (b == END_MARKER[0]) {
+					matched = 1;
+				}
+			}
+		}
+	}
 }

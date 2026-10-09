@@ -3,11 +3,7 @@ package caliniya.vergvoke.type.def.comps;
 import arc.func.*;
 import arc.math.geom.*;
 import arc.util.io.*;
-import caliniya.vergvoke.annotation.Annotations.Component;
-import caliniya.vergvoke.annotation.Annotations.Import;
-import caliniya.vergvoke.annotation.Annotations.OverrideEntity;
-import caliniya.vergvoke.annotation.Annotations.Read;
-import caliniya.vergvoke.annotation.Annotations.Write;
+import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
@@ -32,164 +28,164 @@ import caliniya.vergvoke.type.module.*;
 @Component(index = 3, name = "Block")
 public class BlockComp {
 
-    /**
-     * 瓦片锚点（左下角格坐标）。
-     */
-    public int tx, ty;
+	/**
+	 * 瓦片锚点（左下角格坐标）。
+	 */
+	public int tx, ty;
 
-    /**
-     * 朝向：0 上 / 1 右 / 2 下 / 3 左（放置与存档用，占位形状由放置侧旋转好）。
-     */
-    public int angle;
+	/**
+	 * 朝向：0 上 / 1 右 / 2 下 / 3 左（放置与存档用，占位形状由放置侧旋转好）。
+	 */
+	public int angle;
 
-    /**
-     * 方形建筑的边长（格）；{@link #shapeOffsets} 为 null 时生效。
-     */
-    public int tileSize = 1;
+	/**
+	 * 方形建筑的边长（格）；{@link #shapeOffsets} 为 null 时生效。
+	 */
+	public int tileSize = 1;
 
-    /**
-     * 旋转后的形状偏移副本 [dx0, dy0, dx1, dy1, ...]（相对锚点，格）；null = 方形。
-     */
-    public int[] shapeOffsets;
+	/**
+	 * 旋转后的形状偏移副本 [dx0, dy0, dx1, dy1, ...]（相对锚点，格）；null = 方形。
+	 */
+	public int[] shapeOffsets;
 
-    // --- 借用 Entity 基类的公共字段（不重新注入，只为 slap 进方法体的序列化代码能引用到）---
-    // 注意：基类的 type 是泛型字段 T，@Import 取不到确切静态类型，序列化里要用它一律走 BuildingType 侧
-    @Import
-    public float health;
-    @Import
-    public int id;
-    @Import
-    public TeamTypes team;
-    @Import
-    public ItemModule item;
-    @Import
-    public LiquidModule liquid;
-    @Import
-    public PowerModule power;
+	// --- 借用 Entity 基类的公共字段（不重新注入，只为 slap 进方法体的序列化代码能引用到）---
+	// 注意：基类的 type 是泛型字段 T，@Import 取不到确切静态类型，序列化里要用它一律走 BuildingType 侧
+	@Import
+	public float health;
+	@Import
+	public int id;
+	@Import
+	public TeamTypes team;
+	@Import
+	public ItemModule item;
+	@Import
+	public LiquidModule liquid;
+	@Import
+	public PowerModule power;
 
-    /**
-     * 建筑占据的所有瓦片坐标（世界格坐标）。
-     */
-    public void getOccupiedCoords(Intc2 consumer) {
-        if (shapeOffsets != null) {
-            for (int i = 0; i < shapeOffsets.length; i += 2) {
-                consumer.get(tx + shapeOffsets[i], ty + shapeOffsets[i + 1]);
-            }
-        } else {
-            for (int dx = 0; dx < tileSize; dx++) {
-                for (int dy = 0; dy < tileSize; dy++) {
-                    consumer.get(tx + dx, ty + dy);
-                }
-            }
-        }
-    }
+	/**
+	 * 建筑占据的所有瓦片坐标（世界格坐标）。
+	 */
+	public void getOccupiedCoords(Intc2 consumer) {
+		if (shapeOffsets != null) {
+			for (int i = 0; i < shapeOffsets.length; i += 2) {
+				consumer.get(tx + shapeOffsets[i], ty + shapeOffsets[i + 1]);
+			}
+		} else {
+			for (int dx = 0; dx < tileSize; dx++) {
+				for (int dy = 0; dy < tileSize; dy++) {
+					consumer.get(tx + dx, ty + dy);
+				}
+			}
+		}
+	}
 
-    /**
-     * 是否占据指定瓦片坐标。
-     */
-    public boolean occupies(int worldX, int worldY) {
-        if (shapeOffsets != null) {
-            for (int i = 0; i < shapeOffsets.length; i += 2) {
-                if (tx + shapeOffsets[i] == worldX && ty + shapeOffsets[i + 1] == worldY) {
-                    return true;
-                }
-            }
-            return false;
-        }
-        return worldX >= tx && worldX < tx + tileSize && worldY >= ty && worldY < ty + tileSize;
-    }
+	/**
+	 * 是否占据指定瓦片坐标。
+	 */
+	public boolean occupies(int worldX, int worldY) {
+		if (shapeOffsets != null) {
+			for (int i = 0; i < shapeOffsets.length; i += 2) {
+				if (tx + shapeOffsets[i] == worldX && ty + shapeOffsets[i + 1] == worldY) {
+					return true;
+				}
+			}
+			return false;
+		}
+		return worldX >= tx && worldX < tx + tileSize && worldY >= ty && worldY < ty + tileSize;
+	}
 
-    /**
-     * 覆写基类的外接圆判定：建筑按真实占位瓦片判定（世界像素坐标 → 瓦片 → occupies）。
-     */
-    @OverrideEntity
-    public boolean contains(float worldX, float worldY) {
-        return occupies((int) (worldX / WorldData.TILE_SIZE), (int) (worldY / WorldData.TILE_SIZE));
-    }
+	/**
+	 * 覆写基类的外接圆判定：建筑按真实占位瓦片判定（世界像素坐标 → 瓦片 → occupies）。
+	 */
+	@OverrideEntity
+	public boolean contains(float worldX, float worldY) {
+		return occupies((int) (worldX / WorldData.TILE_SIZE), (int) (worldY / WorldData.TILE_SIZE));
+	}
 
-    /**
-     * 覆写基类的中心外接方形包围盒：建筑取所有占位瓦片的像素范围（四叉树插入与范围查询用）。
-     */
-    @OverrideEntity
-    public void hitbox(Rect out) {
-        float ts = WorldData.TILE_SIZE;
-        int[] b = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
-        getOccupiedCoords(
-                (cx, cy) -> {
-                    if (cx < b[0]) {
-                        b[0] = cx;
-                    }
-                    if (cy < b[1]) {
-                        b[1] = cy;
-                    }
-                    if (cx > b[2]) {
-                        b[2] = cx;
-                    }
-                    if (cy > b[3]) {
-                        b[3] = cy;
-                    }
-                });
-        if (b[0] > b[2]) {
-            // 没有任何占位瓦片（未初始化）：退回锚点处一个零尺寸盒，别用哨兵值污染四叉树
-            out.set(tx * ts, ty * ts, 0f, 0f);
-            return;
-        }
-        out.set(b[0] * ts, b[1] * ts, (b[2] - b[0] + 1) * ts, (b[3] - b[1] + 1) * ts);
-    }
+	/**
+	 * 覆写基类的中心外接方形包围盒：建筑取所有占位瓦片的像素范围（四叉树插入与范围查询用）。
+	 */
+	@OverrideEntity
+	public void hitbox(Rect out) {
+		float ts = WorldData.TILE_SIZE;
+		int[] b = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE};
+		getOccupiedCoords(
+				(cx, cy) -> {
+					if (cx < b[0]) {
+						b[0] = cx;
+					}
+					if (cy < b[1]) {
+						b[1] = cy;
+					}
+					if (cx > b[2]) {
+						b[2] = cx;
+					}
+					if (cy > b[3]) {
+						b[3] = cy;
+					}
+				});
+		if (b[0] > b[2]) {
+			// 没有任何占位瓦片（未初始化）：退回锚点处一个零尺寸盒，别用哨兵值污染四叉树
+			out.set(tx * ts, ty * ts, 0f, 0f);
+			return;
+		}
+		out.set(b[0] * ts, b[1] * ts, (b[2] - b[0] + 1) * ts, (b[3] - b[1] + 1) * ts);
+	}
 
-    /**
-     * 存档写：瓦片身份 → 战斗/归属 → 容量模块占位。
-     */
-    @Write
-    public void write(Writes w) {
-        w.b((byte) angle);
-        w.i(tx);
-        w.i(ty);
-        w.f(health);
-        w.b((byte) (team == null ? -1 : team.ordinal()));
-        w.i(id);
+	/**
+	 * 存档写：瓦片身份 → 战斗/归属 → 容量模块占位。
+	 */
+	@Write
+	public void write(Writes w) {
+		w.b((byte) angle);
+		w.i(tx);
+		w.i(ty);
+		w.f(health);
+		w.b((byte) (team == null ? -1 : team.ordinal()));
+		w.i(id);
 
-        w.bool(item != null);
-        if (item != null) {
-            item.write(w);
-        }
-        w.bool(liquid != null);
-        if (liquid != null) {
-            liquid.write(w);
-        }
-        w.bool(power != null);
-        if (power != null) {
-            power.write(w);
-        }
-    }
+		w.bool(item != null);
+		if (item != null) {
+			item.write(w);
+		}
+		w.bool(liquid != null);
+		if (liquid != null) {
+			liquid.write(w);
+		}
+		w.bool(power != null);
+		if (power != null) {
+			power.write(w);
+		}
+	}
 
-    /**
-     * 存档读：与 write 严格对称。
-     *
-     * <p>
-     * 只恢复原始字段——占位形状 / 中心坐标 / 血上限这些是按 {@code angle} 算出来的派生数据， 得等
-     * {@code BuildingType.rebuild} 拿到确定性 angle 后统一重算（放在这里会用到 type 的 block 配置， 而
-     * {@code @Import} 借不到基类那个泛型 type 字段）。
-     */
-    @Read
-    public void read(Reads r) {
-        angle = r.b();
-        tx = r.i();
-        ty = r.i();
-        health = r.f();
-        int ord = r.b();
-        TeamTypes[] values = TeamTypes.values();
-        team = (ord >= 0 && ord < values.length) ? values[ord] : null;
-        id = Entities.checkoutID(r.i());
+	/**
+	 * 存档读：与 write 严格对称。
+	 *
+	 * <p>
+	 * 只恢复原始字段——占位形状 / 中心坐标 / 血上限这些是按 {@code angle} 算出来的派生数据， 得等
+	 * {@code BuildingType.rebuild} 拿到确定性 angle 后统一重算（放在这里会用到建筑类型的 shapeOffsets 配置， 而
+	 * {@code @Import} 借不到基类那个泛型 type 字段）。
+	 */
+	@Read
+	public void read(Reads r) {
+		angle = r.b();
+		tx = r.i();
+		ty = r.i();
+		health = r.f();
+		int ord = r.b();
+		TeamTypes[] values = TeamTypes.values();
+		team = (ord >= 0 && ord < values.length) ? values[ord] : null;
+		id = Entities.checkoutID(r.i());
 
-        if (r.bool() && item != null) {
-            item.read(r);
-        }
-        if (r.bool() && liquid != null) {
-            liquid.read(r);
-        }
-        if (r.bool() && power != null) {
-            power.read(r);
-        }
-    }
+		if (r.bool() && item != null) {
+			item.read(r);
+		}
+		if (r.bool() && liquid != null) {
+			liquid.read(r);
+		}
+		if (r.bool() && power != null) {
+			power.read(r);
+		}
+	}
 }

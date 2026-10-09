@@ -4,19 +4,18 @@ import caliniya.vergvoke.type.*;
 import caliniya.vergvoke.type.def.craft.output.*;
 import caliniya.vergvoke.type.def.craft.recipe.*;
 import caliniya.vergvoke.type.type.*;
-import caliniya.vergvoke.world.*;
 import caliniya.vergvoke.world.blocks.defence.*;
 import caliniya.vergvoke.world.blocks.production.*;
 
 public class Blocks {
 
-	public static Block TestBlock;
+	public static BuildingType TestBlock;
 	public static Turret testTurret;
 	public static Factory factory;
 
 	public static void load() {
 		TestBlock =
-				new Block("test-building") {
+				new BuildingType("test-building") {
 					{
 						this.size = 3;
 					}

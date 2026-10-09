@@ -26,12 +26,11 @@ import java.util.*;
  * {@code E} = 实体自身类型（生成实体传入自身，例如 {@code Unit<UnitType, Unit>}），便于链式调用返回
  * {@code E}。
  */
-public abstract class Entity<T extends EntityType, E extends Entity<?, ?>> implements Poolable, QuadTreeObject {
+public abstract class Entity<T extends ContentType & EntityType, E extends Entity<?, ?>> implements Poolable, QuadTreeObject {
 
-	/** 类型目标（模板）：配置与类型级行为来源。 */
 	public T type;
 
-	// --- 公共坐标 ---
+	/// 公共坐标
 	public float x, y;
 
 	/** 碰撞/绘制尺寸（像素；0 时 hitboxSize 回退默认）。 */

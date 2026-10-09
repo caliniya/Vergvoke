@@ -5,6 +5,7 @@ import arc.math.geom.*;
 import arc.struct.*;
 import arc.util.pooling.*;
 import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.type.type.*;
 import caliniya.vergvoke.world.*;
 
 import java.util.concurrent.locks.*;
@@ -267,9 +268,9 @@ public class RouteData {
 	}
 
 	/**
-	 * 放置建筑方块：将 Block 在 (x,y) 处占据的所有坐标标记为实心。
+	 * 放置建筑方块：将建筑类型在 (x,y) 处占据的所有坐标标记为实心。
 	 */
-	public static void updateBlock(int x, int y, Block block) {
+	public static void updateBlock(int x, int y, BuildingType block) {
 		updateLock.writeLock().lock();
 		try {
 			if (!isValid(x, y) || block == null)

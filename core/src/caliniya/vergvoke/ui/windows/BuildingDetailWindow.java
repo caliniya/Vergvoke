@@ -41,7 +41,7 @@ public class BuildingDetailWindow extends Window {
 	private long itemFingerprint = -1;
 
 	public BuildingDetailWindow(Building b) {
-		super(b.type.block.localizedName);
+		super(b.type.localizedName);
 		this.b = b;
 		main = new Table();
 		// 结构检查放在 act 阶段（每帧渲染前），重建表格不会发生在绘制过程中

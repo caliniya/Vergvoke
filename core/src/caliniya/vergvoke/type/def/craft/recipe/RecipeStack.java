@@ -5,7 +5,7 @@ import arc.struct.Ar;
 /**
  * 配方组:一个建筑可选的多条配方 + 当前工作的那条 + 进度。
  *
- * <p>recipes 由 BuildingType.create 从 Block 的共享模板深拷贝而来;
+ * <p>recipes 由 BuildingType.create 从建筑类型（Factory）的共享模板深拷贝而来;
  * current 为 -1 表示停工。切换配方时进度清零——不同配方的进度不通用。
  */
 public class RecipeStack {
