@@ -1,115 +1,113 @@
 package caliniya.vergvoke.core;
 
-import arc.files.Fi;
-import arc.math.Rand;
-import arc.Events;
-import caliniya.vergvoke.base.ecs.Systems;
-import caliniya.vergvoke.base.type.EventType;
+import arc.*;
+import arc.files.*;
+import arc.math.*;
+import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.game.*;
-import caliniya.vergvoke.game.data.WorldData;
-import caliniya.vergvoke.io.DataIO;
-import caliniya.vergvoke.io.GameIO;
-import caliniya.vergvoke.system.game.GameProcess;
+import caliniya.vergvoke.game.data.*;
+import caliniya.vergvoke.io.*;
+import caliniya.vergvoke.system.game.*;
 import caliniya.vergvoke.system.render.*;
 import caliniya.vergvoke.system.world.*;
-import caliniya.vergvoke.world.stars.StarMap;
-import caliniya.vergvoke.world.stars.StarNode;
+import caliniya.vergvoke.world.stars.*;
 
 public class Data {
 
-    static {
-        // Events.on(EventType.GameInit.class, evevt -> testinit());
-    }
+	static {
+		// Events.on(EventType.GameInit.class, evevt -> testinit());
+	}
 
-    // 从指定文件加载整个地图，使用异步
-    // 这一步仅加载所有数据，理论上讲 不应该影响任何游戏界面
-    public static void load(Fi file) {
-        load(file, null);
-    }
+	// 从指定文件加载整个地图，使用异步
+	// 这一步仅加载所有数据，理论上讲 不应该影响任何游戏界面
+	public static void load(Fi file) {
+		load(file, null);
+	}
 
-    /** 加载整个地图，加载并进入游戏后执行 onEnter（主线程）。 */
-    public static void load(Fi file, Runnable onEnter) {
-        GameIO.load(file, d -> DataIO.load(d, onEnter));
-    }
+	/** 加载整个地图，加载并进入游戏后执行 onEnter（主线程）。 */
+	public static void load(Fi file, Runnable onEnter) {
+		GameIO.load(file, d -> DataIO.load(d, onEnter));
+	}
 
-    // 这个方法会加载所有的系统
-    // 所有渲染方法 在此阶段不应该启动
-    public static void loadSystems() {
-        // 重载前先停掉上一局的线程系统：ThreadedStop 在重载路径上从未被触发过，
-        // 旧 BulletProcess/route 线程系统会泄漏并与新实例双跑——
-        // 旧子弹线程把上一帧的陈旧缓冲换进 WorldData.bullets，就是重载后子弹渲染错乱的根源
-        Events.fire(EventType.events.ThreadedStop);
-        // 旧的主线程系统实例还挂在生成侧列表上，不清理会被 updateAll 双重驱动
-        Systems.systems.clear();
+	// 这个方法会加载所有的系统
+	// 所有渲染方法 在此阶段不应该启动
+	public static void loadSystems() {
+		// 重载前先停掉上一局的线程系统：ThreadedStop 在重载路径上从未被触发过，
+		// 旧 BulletProcess/route 线程系统会泄漏并与新实例双跑——
+		// 旧子弹线程把上一帧的陈旧缓冲换进 WorldData.bullets，就是重载后子弹渲染错乱的根源
+		Events.fire(EventType.events.ThreadedStop);
+		// 旧的主线程系统实例还挂在生成侧列表上，不清理会被 updateAll 双重驱动
+		Systems.systems.clear();
 
-        GameProcess.it = new GameProcess();
-        Render.it = new Render();
+		GameProcess.it = new GameProcess();
+		Render.it = new Render();
 
-        // 渲染器并入 Render 的管线数组（不再注册为独立系统）
-        Render.renders.clear();
-        Render.renders.add(new MapRender());
-        Render.renders.add(new UnitRender());
-        Render.renders.add(new BlockRender());
-        Render.renders.add(new UniverseRender());
-        // DebugRender.it = new DebugRender();
+		// 渲染器并入 Render 的管线数组（不再注册为独立系统）
+		Render.renders.clear();
+		Render.renders.add(new MapRender());
+		Render.renders.add(new UnitRender());
+		Render.renders.add(new BlockRender());
+		Render.renders.add(new UniverseRender());
+		// DebugRender.it = new DebugRender();
 
-        BulletProcess.it = new BulletProcess();
+		BulletProcess.it = new BulletProcess();
 
-        // 旧线程停透后重建瞬态容器（旧线程死前可能已把陈旧缓冲换进静态字段），并重刷四叉树范围
-        WorldData.rebuildTransientContainers();
-    }
+		// 旧线程停透后重建瞬态容器（旧线程死前可能已把陈旧缓冲换进静态字段），并重刷四叉树范围
+		WorldData.rebuildTransientContainers();
+	}
 
-    /** 把手写系统初始化并挂进生成侧调度数组（重复调用不会重复添加）。 */
-    private static void register(caliniya.vergvoke.system.System<?> system) {
-        if (system != null && !Systems.systems.contains(system)) {
-            Systems.systems.add(system.init());
-        }
-    }
+	/** 把手写系统初始化并挂进生成侧调度数组（重复调用不会重复添加）。 */
+	private static void register(caliniya.vergvoke.system.System<?> system) {
+		if (system != null && !Systems.systems.contains(system)) {
+			Systems.systems.add(system.init());
+		}
+	}
 
-    // 初始化所有系统，允许其工作
-    // 同时将游戏UI切换到游戏内部
-    public static void enter() {
-        // 手写主线程系统：初始化后挂进生成侧的调度数组（由 Systems.updateAll 统一驱动）
-        register(GameProcess.it);
-        register(Render.it);
+	// 初始化所有系统，允许其工作
+	// 同时将游戏UI切换到游戏内部
+	public static void enter() {
+		// 手写主线程系统：初始化后挂进生成侧的调度数组（由 Systems.updateAll 统一驱动）
+		register(GameProcess.it);
+		register(Render.it);
 
-        // 渲染器也统一初始化（并入 Render 后不再走上面的系统列表）
-        for (caliniya.vergvoke.system.System<?> render : Render.renders) {
-            render.init();
-        }
+		// 渲染器也统一初始化（并入 Render 后不再走上面的系统列表）
+		for (caliniya.vergvoke.system.System<?> render : Render.renders) {
+			render.init();
+		}
 
-        Systems.systems.sort();
+		Systems.systems.sort();
 
-        BulletProcess.it.init();
+		BulletProcess.it.init();
 
-        // 非主线程的 @SystemDef 系统（目前只有 RouteSystem@route）：实例化并起独立线程
-        Systems.startThreads();
+		// 非主线程的 @SystemDef 系统（目前只有 RouteSystem@route）：实例化并起独立线程
+		Systems.startThreads();
 
-        Game.starMap = new StarMap(2000, 2000);
+		Game.starMap = new StarMap(2000, 2000);
 
-        Rand r = new Rand();
+		Rand r = new Rand();
 
-        for (int i = 0; i < 100; ++i) {
-            StarNode A, B;
-            A = new StarNode(r.random(0, 2000), r.random(0, 2000), "呃啊" + r.random(0, 2000));
-            B = new StarNode(r.random(0, 2000), r.random(0, 2000), "呃啊" + r.random(0, 2000));
-            Game.starMap.addNode(A);
-            Game.starMap.addNode(B);
-            Game.starMap.link(A, B);
-        }
+		for (int i = 0; i < 100; ++i) {
+			StarNode A, B;
+			A = new StarNode(r.random(0, 2000), r.random(0, 2000), "呃啊" + r.random(0, 2000));
+			B = new StarNode(r.random(0, 2000), r.random(0, 2000), "呃啊" + r.random(0, 2000));
+			Game.starMap.addNode(A);
+			Game.starMap.addNode(B);
+			Game.starMap.link(A, B);
+		}
 
-        // Log.info(Render.universeCamera.position);
-        // Log.info(Render.universeCamera.width + " " + Render.universeCamera.height);
-        // Log.info(Game.starMap.tree);
-        /*
-         * Game.starMap.nodeSet.each(n->{
-         * Log.info(n.x +"   "+n.y);
-         * });
-         */
+		// Log.info(Render.uniCamera.position);
+		// Log.info(Render.uniCamera.width + " " + Render.uniCamera.height);
+		// Log.info(Game.starMap.tree);
+		/*
+		 * Game.starMap.nodeSet.each(n->{
+		 * Log.info(n.x +"   "+n.y);
+		 * });
+		 */
 
-        // 标记进入游戏内：主循环开始驱动游戏更新（Game.update → 生成侧统一更新）
-        Game.inGame = true;
+		// 标记进入游戏内：主循环开始驱动游戏更新（Game.update → 生成侧统一更新）
+		Game.inGame = true;
 
-        UI.Game();
-    }
+		UI.Game();
+	}
 }

@@ -9,7 +9,16 @@ import arc.input.*;
  */
 public abstract class InputProcess implements InputProcessor, GestureListener {
 
+	/// 当前指针/手指所在的世界坐标
+	public float worldX, worldY;
+
 	/** 每帧由主循环驱动。 */
 	public void update(float delta) {
+
 	}
+
+	public void tranPos(float x, float y) {
+
+	}
+
 }

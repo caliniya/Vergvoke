@@ -9,20 +9,23 @@ import caliniya.vergvoke.game.*;
 public class CommandData {
 
 	// 当前选中的单位
-	public static Ar<Unit> checkedUnits = new Ar<Unit>();
-	public static boolean commanding;
+	public static Ar<Unit> checkedUnits = new Ar<>();
 
-	/** 指挥状态（直接指挥行单选）。 */
-	public enum CommandType {
-		None, Move, Stop
-	}
+	/// 正在指挥
+	public static boolean commanding;
 
 	/** 当前指挥状态（默认移动模式）。 */
 	public static CommandType commandType = CommandType.Move;
 
+	/// 当前视图
+	public static ViewType viewType;
+
 	// 初始化，也包括重置数据
 	public static void init() {
 		checkedUnits.clear();
+		commanding = false;
+		commandType = CommandType.Move;
+		viewType = ViewType.game;
 	}
 
 	public static void findUnit(float x, float y, Boolf<Unit> F, Cons<Unit> C) {
@@ -45,9 +48,16 @@ public class CommandData {
 		findUnit(
 				x,
 				y,
-				e -> {
-					return true;
-				},
-				e -> C.get(e));
+				e -> true,
+				C);
 	}
+
+	public enum CommandType {
+		None, Move, Stop
+	}
+
+	public enum ViewType {
+		game, uni
+	}
+
 }
