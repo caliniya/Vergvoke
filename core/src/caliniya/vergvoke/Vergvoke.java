@@ -13,6 +13,7 @@ import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.system.input.*;
+import caliniya.vergvoke.system.input.Input;
 import caliniya.vergvoke.system.render.*;
 import caliniya.vergvoke.ui.*;
 
@@ -21,8 +22,8 @@ import static arc.Core.*;
 public class Vergvoke extends ApplicationCore {
 
 	public boolean assinited = false;
-	/** 平台输入：桌面 / 移动二选一（相机 / 宇宙视图 / 选中 / 下令全在 InputProcess 里）。 */
-	public InputProcess platformInput;
+	/** 平台输入：桌面 / 移动二选一（相机 / 宇宙视图 / 选中 / 下令全在 Input 里）。 */
+	public Input platformInput;
 
 	// 用于记录开始时间
 	private long startTime;
