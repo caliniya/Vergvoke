@@ -13,20 +13,11 @@ import caliniya.vergvoke.ui.*;
 import caliniya.vergvoke.ui.Button;
 
 /**
- *
+ * 基于实体的运行时窗口
  */
 public class EntityWindow extends Window {
 
-	private static EntityWindow current;
-
-	/** 打开实体面板（已有面板先关掉再开新的，防窗口堆积）。 */
-	public static void open(Entity<?, ?> e) {
-		if (current != null) {
-			current.remove();
-		}
-		current = new EntityWindow(e);
-		current.build();
-	}
+	private EntityWindow current;
 
 	public Entity<?, ?> entity;
 
@@ -69,7 +60,7 @@ public class EntityWindow extends Window {
 						row.left();
 						Label l = new Label(d::getData);
 						row.add(l).left();
-						row.add(new Bar(() -> d.value / d.valueMax, Pal.light)).size(250f, 40f).padLeft(8f);
+						row.add(new Bar(() -> d.value / d.valueMax, Pal.light)).size(250f, 6f).padLeft(8f);
 						t.add(row).left().padBottom(2f);
 					} else {
 						t.add(new Label(d::getData)).left().padBottom(2).align(Align.left);

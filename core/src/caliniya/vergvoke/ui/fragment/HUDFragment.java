@@ -36,9 +36,7 @@ public class HUDFragment {
 		a.add(
 						new Button(
 								"@菜单",
-								() -> {
-									UI.pauseWindow.build();
-								}))
+								() -> UI.pauseWindow.build()))
 				.size(120f, 50f);
 
 		// 调试测试窗入口（调试显示器关闭时隐藏）
@@ -113,7 +111,7 @@ public class HUDFragment {
 		topRow.defaults().size(90f, 40f).pad(2f);
 		topRow.left().top();
 		topRow.add(new Button("指挥信息", () -> new CommandInfoWindow().build()));
-		topRow.add(new Button("清空", () -> clearSelection()));
+		topRow.add(new Button("清空", this::clearSelection));
 		commandPanel.add(topRow).growX().left();
 		commandPanel.row();
 		commandPanel.add().height(6f).row();
@@ -205,7 +203,7 @@ public class HUDFragment {
 			infoRow.left();
 			infoRow.add("[light]" + u.type.name + "[]").left().pad(2f);
 			infoRow
-					.add(new Button("详情", () -> EntityWindow.open(u)))
+					.add(new Button("详情", () -> UI.openEntityWindow(u)))
 					.size(64f, 36f)
 					.padLeft(8f);
 			unitInfoTable.add(infoRow).growX().left().row();

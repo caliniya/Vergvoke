@@ -27,12 +27,9 @@ public class WorldData {
 	public static void initWorld(int w, int h, boolean space) {
 		Game.team = TeamTypes.Evoke;
 
-		// 实体容器是 static final（生成的 EntityArs），跨存档加载存活，这里必须显式清空
 		EntityArs.Unit.clear();
 		EntityArs.Building.clear();
-		// 上一局的选中单位全是失效对象，一并清掉
 		CommandData.init();
-		// 上一局登记的待死实体可能已经回池，留着会让新一局对着别人的对象下杀手
 		Entities.clearDead();
 
 		moveunits = new EntityAr<>(unit -> unit.id);
@@ -91,7 +88,7 @@ public class WorldData {
 	public static void removeBuilding(Building b) {
 		if (b == null || b.type == null)
 			return; // type == null = 已回池（reset 置空的标志）
-		if (world != null && b.type != null && b.type.solid) {
+		if (world != null && b.type.solid) {
 			RouteData.updateBlock(b.tx, b.ty);
 		}
 		if (world != null) {
@@ -117,7 +114,6 @@ public class WorldData {
 		RouteData.updateBlock(x, y, block != null && block.solid);
 	}
 
-	/* 地图加载完成后的初始化 */
 
 	/**
 	 * 重建瞬态容器（寻路队列 / 子弹）并重刷四叉树范围。重载流程专用：

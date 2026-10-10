@@ -28,12 +28,12 @@ import java.util.*;
  * <ul>
  * <li><b>实体类</b>（{@code caliniya.vergvoke.base.ecs.<name>}）：继承 {@code
  *       caliniya.vergvoke.base.game.Entity}，字段为各组件的扁平字段；按
- * {@code @Component(proc=...)} 分两档注入
+ * {@code @Component(proc=...)} 分类
  * {@code @Updata}：
  * <ul>
- * <li>所有档一律生成独立方法 {@code update<组件简单名>(float delta)}——体里的 return 只退出本组件。
- * <li><b>proc = "main"（或留空）</b>：轻量更新（移动、生产…），实体 {@code update()} 按
- * {@code @Component.index} 顺序逐个调用这些方法（该档必须提供非 0 的 index）；
+ * <li>所有组件一律生成独立方法 {@code update<组件简单名>(float delta)}——体里的 return 只退出本组件。
+ * <li><b>proc = "main"（或留空）</b>：更新（移动、生产…），实体 {@code update()} 按
+ * {@code @Component.index} 顺序逐个调用这些方法
  * <li><b>proc = 其他系统名</b>：需要"同阶段一致"或较重的更新（开火、寻路、AI…），由该系统在自己阶段调用。
  * </ul>
  * <li><b>组件系统</b>（{@code caliniya.vergvoke.base.ecs.<系统名>}）：继承系统基类，
@@ -66,13 +66,13 @@ public class ECProcessor extends Processor {
 	/** 生成的实体继承的基类 */
 	private static final String ENTITY_BASE_CLASS = "caliniya.vergvoke.base.game.Entity";
 
-	/** @Entity.type() 必须实现的接口（一种实体的类型） */
+	/** &#064;;Entity.type()   必须实现的接口（一种实体的类型） */
 	private static final String ENTITY_TYPE_INTERFACE = "caliniya.vergvoke.base.api.EntityType";
 
 	/** 阵营类型（生成 create(team, type, x, y) 时用） */
 	private static final String TEAM_TYPES_CLASS = "caliniya.vergvoke.base.type.TeamTypes";
 
-	/** 轻量档：proc 为空或等于它时，实体 update() 按 index 顺序调用该组件的 update<组件名> 方法 */
+	/** proc 为空或等于它时，实体 update() 按 index 顺序调用该组件的 update<组件名> 方法 */
 	private static final String MAIN_SYSTEM = "main";
 
 	/** 保留线程名，与 main 同为主线程语义（由 updateAll 驱动，不单独起线程） */
@@ -127,7 +127,7 @@ public class ECProcessor extends Processor {
 			plans.add(plan);
 		}
 
-		// 2) 统一生成：能站住的部分照常生成
+		// 2) 统一生成
 		for (EntityPlan plan : plans) {
 			generateEntity(plan);
 		}
@@ -163,7 +163,7 @@ public class ECProcessor extends Processor {
 	}
 
 	/**
-	 * @Import 只能出现在 @Component 的字段上
+	 * {@code @Import} 注解 只能出现在 @Component 的字段上
 	 */
 	private boolean validateImportTargets(Map<String, AType> components) {
 		boolean valid = true;
@@ -177,7 +177,7 @@ public class ECProcessor extends Processor {
 	}
 
 	/**
-	 * @Updata 只能出现在 @Component 的方法上，且一个组件最多一个
+	 * {@code @Updata} 只能出现在 @Component 的方法上，且一个组件最多一个
 	 */
 	private boolean validateUpdateTargets(Map<String, AType> components) {
 		boolean valid = true;
@@ -1641,7 +1641,7 @@ public class ECProcessor extends Processor {
 				generated.add(piece.methodName + "/1");
 			}
 		}
-		generated.add("update/1"); // 轻量档会生成 update(float delta)；没生成时这里补空实现
+		generated.add("update/1");
 
 		Set<String> done = new HashSet<>();
 		for (Element member : elementUtils.getAllMembers(base)) {
@@ -1661,12 +1661,10 @@ public class ECProcessor extends Processor {
 				continue;
 			}
 
-			// update(float) 已被轻量档注入生成过，别再补空实现盖掉
 			if (updateGenerated && name.equals("update") && method.getParameters().size() == 1) {
 				continue;
 			}
 
-			// write / read 已经由序列化那一步生成了，别再补空实现盖掉
 			if (method.getParameters().size() == 1) {
 				TypeMirror only = method.getParameters().get(0).asType();
 				if (generateWrite && name.equals("write") && isType(only, WRITES_CLASS)) {
@@ -1680,7 +1678,7 @@ public class ECProcessor extends Processor {
 			MethodSpec.Builder stub = MethodSpec.methodBuilder(name)
 					.addAnnotation(Override.class)
 					.addModifiers(Modifier.PUBLIC)
-					.addJavadoc("TODO 基类尚未提供实现，先留空（自动生成）。\n");
+					.addJavadoc("TODO 基类尚未提供实现\n");
 
 			for (TypeParameterElement tp : method.getTypeParameters()) {
 				stub.addTypeVariable(TypeVariableName.get(tp));
@@ -1725,7 +1723,7 @@ public class ECProcessor extends Processor {
 		for (EntityPlan plan : plans) {
 			for (UpdatePiece piece : plan.pieces) {
 				if (piece.mainTier) {
-					continue; // 轻量档不生成独立入口，走实体的 update()
+					continue;
 				}
 				bySystem
 						.computeIfAbsent(piece.proc, key -> new LinkedHashMap<>())
@@ -1746,7 +1744,7 @@ public class ECProcessor extends Processor {
 
 		TypeSpec.Builder ars = TypeSpec.classBuilder("EntityArs")
 				.addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-				.addJavadoc("由注解处理器生成：各实体的集合（EntityAr），系统遍历它来更新实体。\n");
+				.addJavadoc("由注解处理器生成，系统遍历它来更新实体。\n");
 
 		ars.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
 
@@ -1780,9 +1778,6 @@ public class ECProcessor extends Processor {
 		ClassName systemBase = ClassName.get("caliniya.vergvoke.system", "System");
 		ClassName entityArs = ClassName.get(GENERATED_PACKAGE, "EntityArs");
 
-		// proc -> 指向的 @SystemDef 所在线程：proc 挂在非主线程系统上时，
-		// 该 @SystemDef 手写类本身就是驱动者（由 Systems.startThreads 起线程），
-		// 不再生成主线程调度用的组件系统类（实体上的 update<组件> 方法照常生成，供手写类调用）
 		Map<String, String> procThreads = procThreads();
 
 		for (String systemName : bySystem.keySet()) {
@@ -1801,7 +1796,7 @@ public class ECProcessor extends Processor {
 					.addAnnotation(Override.class)
 					.addModifiers(Modifier.PUBLIC)
 					.addParameter(float.class, "delta")
-					.addJavadoc("遍历该系统的实体集合，逐个调用组件更新（自动生成）。\n");
+					.addJavadoc("遍历该系统的实体集合，逐个调用组件更新。\n");
 
 			for (String entityName : bySystem.get(systemName).keySet()) {
 				List<UpdatePiece> pieces = new ArrayList<>(bySystem.get(systemName).get(entityName));
@@ -1849,7 +1844,6 @@ public class ECProcessor extends Processor {
 			systemDefs.add(system);
 		}
 
-		// ---- 线程视图：按线程分组（Class 清单），main 优先、组内按 index 升序 ----
 		Map<String, List<AType>> byThread = new LinkedHashMap<>();
 		for (AType system : systemDefs) {
 			byThread
@@ -2045,88 +2039,25 @@ public class ECProcessor extends Processor {
 		}
 	}
 
-	/** 一个实体校验通过后算好的生成计划 */
-	private static final class EntityPlan {
-		final AType entity;
-		final String entityName;
-
-		/** @Entity.type()：类型目标 class（必须实现 EntityType） */
-		final ClassName typeClass;
-
-		final List<AType> components;
-		final ObjectSet<String> componentNames;
-		final Map<String, VariableElement> injectedFields;
-		final List<UpdatePiece> pieces;
-		final List<SerialPiece> serials;
-
-		EntityPlan(
-				AType entity,
-				String entityName,
-				ClassName typeClass,
-				List<AType> components,
-				ObjectSet<String> componentNames,
-				Map<String, VariableElement> injectedFields,
-				List<UpdatePiece> pieces,
-				List<SerialPiece> serials) {
-			this.entity = entity;
-			this.entityName = entityName;
-			this.typeClass = typeClass;
-			this.components = components;
-			this.componentNames = componentNames;
-			this.injectedFields = injectedFields;
-			this.pieces = pieces;
-			this.serials = serials;
-		}
+	/**
+	 * 一个实体校验通过后算好的生成计划
+	 *
+	 * @param typeClass {@code @Entity.type()：类型目标} class（必须实现 EntityType）
+	 */
+	private record EntityPlan(AType entity, String entityName, ClassName typeClass, List<AType> components,
+							  ObjectSet<String> componentNames, Map<String, VariableElement> injectedFields,
+							  List<UpdatePiece> pieces, List<SerialPiece> serials) {
 	}
 
 	/**
 	 * 一个组件的序列化片段：{@code @Save} 字段（已按 index 排好）或 {@code @Write} / {@code @Read} 方法体
+	 *
+	 * @param writeHasReturn true = {@code @Write} 方法体里有 return
+	 * @param readHasReturn  true = {@code @Read} 方法体里有 return
 	 */
-	private static final class SerialPiece {
-		final String componentName;
-		final int index;
-		final int order;
-		final List<VariableElement> saveFields;
-		final String writeBody;
-		final String writeParam;
-		final String writeLabel;
-
-		/** true = {@code @Write} 方法体里有 return */
-		final boolean writeHasReturn;
-
-		final String readBody;
-		final String readParam;
-		final String readLabel;
-
-		/** true = {@code @Read} 方法体里有 return */
-		final boolean readHasReturn;
-
-		SerialPiece(
-				String componentName,
-				int index,
-				int order,
-				List<VariableElement> saveFields,
-				String writeBody,
-				String writeParam,
-				String writeLabel,
-				boolean writeHasReturn,
-				String readBody,
-				String readParam,
-				String readLabel,
-				boolean readHasReturn) {
-			this.componentName = componentName;
-			this.index = index;
-			this.order = order;
-			this.saveFields = saveFields;
-			this.writeBody = writeBody;
-			this.writeParam = writeParam;
-			this.writeLabel = writeLabel;
-			this.writeHasReturn = writeHasReturn;
-			this.readBody = readBody;
-			this.readParam = readParam;
-			this.readLabel = readLabel;
-			this.readHasReturn = readHasReturn;
-		}
+	private record SerialPiece(String componentName, int index, int order, List<VariableElement> saveFields,
+							   String writeBody, String writeParam, String writeLabel, boolean writeHasReturn,
+							   String readBody, String readParam, String readLabel, boolean readHasReturn) {
 
 		/** true = 走 {@code @Write} / {@code @Read} 方法体（否则是 {@code @Save} 字段） */
 		boolean methodStyle() {
@@ -2135,33 +2066,7 @@ public class ECProcessor extends Processor {
 	}
 
 	/** 一条要注入实体的 @Updata 片段 */
-	private static final class UpdatePiece {
-		final int index;
-		final int order;
-		final String label;
-		final String methodName;
-		final String body;
-		final String proc;
-		final String entityName;
-		final boolean mainTier;
-
-		UpdatePiece(
-				int index,
-				int order,
-				String label,
-				String methodName,
-				String body,
-				String proc,
-				String entityName,
-				boolean mainTier) {
-			this.index = index;
-			this.order = order;
-			this.label = label;
-			this.methodName = methodName;
-			this.body = body;
-			this.proc = proc;
-			this.entityName = entityName;
-			this.mainTier = mainTier;
-		}
+	private record UpdatePiece(int index, int order, String label, String methodName, String body, String proc,
+							   String entityName, boolean mainTier) {
 	}
 }

@@ -9,7 +9,7 @@ import caliniya.vergvoke.type.enhance.api.*;
 /**
  * 一种实体的类型
  *
- * <p>实体定义注解 {@code @Entity(type = XxxType.class)} 必须指向实现本接口的类；
+ * <p>实体定义注解 {@code @Entity(type = XxxType.class)} 必须指向实现此接口的类；
  * 生成实体继承 {@code Entity<XxxType, 自身>}，链式 API 返回实体自身类型。
  */
 public interface EntityType {
@@ -19,9 +19,11 @@ public interface EntityType {
 	/** 类型级每帧逻辑（实体自身 update 之后按需调用；类型对象共享，勿存每实例状态）。 */
 	void update(Entity<?, ?> entity, float dt);
 
-	/** 公共战斗循环：散热/锁定、能量净回复、能力与可更新强化。 */
+	/** 循环：散热/锁定、能量净回复、能力与可更新强化。 */
 	default void sync(Entity<?, ?> e, float dt) {
-		float cool = e.heatSpeed / 60f * dt;
+		e.heat = Math.min(e.heat + e.pendingHeat, e.heatMax);
+		e.pendingHeat = 0f;
+		float cool = e.heatSpeedTick * dt;
 		if (e.locked) {
 			e.heat -= cool;
 			if (e.heat <= 0f) {
@@ -37,7 +39,7 @@ public interface EntityType {
 		for (Ability a : e.abilities) {
 			use += a.energyUse();
 		}
-		float net = e.energyRegen / 60f - use; // energyRegen 以秒设计，这里转成每帧
+		float net = e.energyRegenTick - use;
 		if (net != 0f) {
 			e.energy = Math.min(e.energyMax, e.energy + net * dt);
 		}
@@ -62,8 +64,6 @@ public interface EntityType {
 		stat.get(Stat.armor, e.armor, e.armorMax).live = () -> e.armor;
 		stat.get(Stat.shield, e.totalShield(), e.totalShieldMax()).live = e::totalShield;
 		stat.get(Stat.energy, e.energy, e.energyMax).live = () -> e.energy;
-		if (e.heatable)
-			stat.get(Stat.heat, e.heat, e.heatMax).live = () -> e.heat;
 		if (e.power != null)
 			stat.get(Stat.power, e.power.power, e.power.powerMax).live = () -> e.power.power;
 		for (Ability a : e.abilities) {

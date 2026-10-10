@@ -30,13 +30,13 @@ public abstract class Entity<T extends ContentType & EntityType, E extends Entit
 
 	public T type;
 
-	/// 公共坐标
+	/// 坐标
 	public float x, y;
 
 	/** 碰撞/绘制尺寸（像素；0 时 hitboxSize 回退默认）。 */
 	public float size;
 
-	/** 导航占用（格，保留小数；UnitType.create 灌入，导航时向上取整。留着以后有用）。 */
+	/** 单位格的大小 */
 	public float sizet;
 
 	/** 渲染朝向（度）。 */
@@ -84,8 +84,10 @@ public abstract class Entity<T extends ContentType & EntityType, E extends Entit
 	/** 散热速率（每秒）。 */
 	public float heatSpeed;
 
-	/** 散热速率（每帧，60TPS 基准）。 */
 	public float heatSpeedTick;
+
+	/** 本帧累计的待结算热量（addHeat 只累积，sync 时与散热一并扣除）。 */
+	public float pendingHeat;
 
 	/** 这个实体是否具有过热机制 */
 	public boolean heatable;
@@ -101,7 +103,7 @@ public abstract class Entity<T extends ContentType & EntityType, E extends Entit
 		return armorResist[type.ordinal()];
 	}
 
-	/** 击退冲量分量（后台子弹线程写、主线程读，volatile 保证可见性）。 */
+	/** 击退冲量分量 */
 	public volatile float knockX, knockY;
 
 	// --- 能力 ---
@@ -152,22 +154,22 @@ public abstract class Entity<T extends ContentType & EntityType, E extends Entit
 				b.type.bypassArmor,
 				b.type.breakShield,
 				b.type.bypassShield);
-
-		// 动能击退：沿子弹方向施加冲量（力度由 BulletType.knockbackForce 配置）
 		if (b.type.damageType.knockback && b.type.knock > 0f) {
 			knock(b.rotation, b.type.knock);
 		}
 	}
 
-	/** 施加击退：方向（角度）+ 击退量。基类默认不击退（比如建筑），可击退的实体（Unit）覆写此方法。 */
+	/** 施加击退：方向（角度）+ 击退量。基类默认不击退（比如建筑），可击退的实体覆写此方法。 */
 	public void knock(float dir, float force) {
 	}
 
+	/// 一些基础的处理
 	public void sync(float dt) {
+		heatSpeedTick = heatSpeed / 60f;
+		energyRegenTick = energyRegen / 60f;
 		shield = totalShield();
 		shieldMax = totalShieldMax();
 		type.sync(this, dt);
-
 	}
 
 	/** 挂载一个强化模组，返回自身 */
@@ -208,7 +210,7 @@ public abstract class Entity<T extends ContentType & EntityType, E extends Entit
 
 	public void addHeat(float amount) {
 		if (heatable) {
-			heat += amount;
+			pendingHeat += amount;
 		}
 	}
 
@@ -357,6 +359,7 @@ public abstract class Entity<T extends ContentType & EntityType, E extends Entit
 		energyMax = 0;
 		energyRegen = 0;
 		heat = 0;
+		pendingHeat = 0;
 		heatMax = 0;
 		heatSpeed = 0;
 		heatable = false;

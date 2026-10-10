@@ -4,7 +4,9 @@ import arc.func.*;
 import arc.struct.*;
 import arc.util.*;
 
-/** 统计值单元 */
+/**
+ * 统计值单元。自身可携带子条目（datas）构成树。
+ */
 public class StatData {
 
 	// 自身的信息类型
@@ -39,18 +41,30 @@ public class StatData {
 	// 自身作为分组标题，该分组所属的内容 直接加入到自身
 	public Ar<StatData> datas = new Ar<>();
 
+	/**
+	 * 数值条目：默认单位、层级 1、无最大值。
+	 */
 	public StatData(Stat stat, float value) {
 		this(stat, value, stat.unit);
 	}
 
+	/**
+	 * 数值条目：默认单位，带最大值（进度格式）。
+	 */
 	public StatData(Stat stat, float value, float valueMax) {
 		this(stat, value, stat.unit, 1, valueMax);
 	}
 
+	/**
+	 * 数值条目：指定单位，无最大值。
+	 */
 	public StatData(Stat stat, float value, StatUnit unit) {
 		this(stat, value, unit, 1, -1f);
 	}
 
+	/**
+	 * 数值条目。
+	 */
 	public StatData(Stat stat, float value, StatUnit unit, int level, float valueMax) {
 		this.stat = stat;
 		this.value = value;
@@ -62,20 +76,30 @@ public class StatData {
 		this.data = indent() + raw;
 	}
 
-	/** 纯文本(比如说是介绍) */
+	/**
+	 * 纯文本条目（介绍等非数值内容）。
+	 */
 	public StatData(String data) {
 		this(data, 1, StatType.none);
 	}
 
+	/**
+	 * 纯文本条目：指定缩进层级。
+	 */
 	public StatData(String data, int level) {
 		this(data, level, StatType.none);
 	}
 
+	/**
+	 * 纯文本条目：指定所属分组。
+	 */
 	public StatData(String data, StatType type) {
 		this(data, 1, type);
 	}
 
-	/** 纯文本 + 组/层级信息（标题等）。 */
+	/**
+	 * 纯文本条目。
+	 */
 	public StatData(String data, int level, StatType type) {
 		this.level = level;
 		this.type = type;
@@ -83,44 +107,73 @@ public class StatData {
 		this.data = indent() + data;
 	}
 
+	/**
+	 * 创建数值条目：指定单位。
+	 */
 	public static StatData with(Stat stat, float value, StatUnit unit) {
 		return new StatData(stat, value, unit);
 	}
 
+	/**
+	 * 创建数值条目完整版。
+	 */
 	public static StatData with(Stat stat, float value, StatUnit unit, int level, float valueMax) {
 		return new StatData(stat, value, unit, level, valueMax);
 	}
 
+	/**
+	 * 创建数值条目：带最大值（进度格式）。
+	 */
 	public static StatData with(Stat stat, float value, float valueMax) {
 		return new StatData(stat, value, valueMax);
 	}
 
+	/**
+	 * 创建数值条目：默认单位。
+	 */
 	public static StatData with(Stat stat, float value) {
 		return new StatData(stat, value);
 	}
 
+	/**
+	 * 创建纯文本条目。
+	 */
 	public static StatData with(String data) {
 		return new StatData(data);
 	}
 
+	/**
+	 * 创建纯文本条目：指定缩进层级。
+	 */
 	public static StatData with(String data, int level) {
 		return new StatData(data, level);
 	}
 
+	/**
+	 * 创建纯文本条目：层级 + 分组。
+	 */
 	public static StatData with(String data, int level, StatType type) {
 		return new StatData(data, level, type);
 	}
 
+	/**
+	 * 创建纯文本条目：指定分组。
+	 */
 	public static StatData with(String data, StatType type) {
 		return new StatData(data, type);
 	}
 
+	/**
+	 * 只更新值（最大值视为无）。
+	 */
 	public StatData set(float value) {
 		return set(value, -1);
 	}
 
+	/**
+	 * 更新值与最大值并就地重生成文本。
+	 */
 	public StatData set(float value, float valueMax) {
-		// 值未变化时短路：不重算文本，避免每帧做无谓的字符串分配
 		if (this.value == value && this.valueMax == valueMax) return this;
 		this.value = value;
 		this.valueMax = valueMax;
@@ -131,7 +184,11 @@ public class StatData {
 		return this;
 	}
 
-	/// 所有的find 返回的都是第1个匹配选项
+	/**
+	 * 递归子树查找数值条目，返回第 1 个命中项；只查不改，找不到返回 null。
+	 *
+	 * @param tag 身份标签，null 表示不参与匹配
+	 */
 	public StatData find(Stat stat, Object tag) {
 		for (StatData d : datas) {
 			if (d.stat == stat && (tag == null || java.util.Objects.equals(d.tag, tag))) return d;
@@ -141,7 +198,11 @@ public class StatData {
 		return null;
 	}
 
-	/// 因为字符大多数情况下会被颜色格式化，所以不能用完全匹配 而应该用包含(现在不是了)
+	/**
+	 * 递归子树查找纯文本条目（raw 全等比较），返回第 1 个命中项；只查不改，找不到返回 null。
+	 *
+	 * @param tag 身份标签，null 表示不参与匹配
+	 */
 	public StatData find(String raw, Object tag) {
 		for (StatData d : datas) {
 			if (d.stat == null
@@ -153,7 +214,9 @@ public class StatData {
 		return null;
 	}
 
-	/** 插入子元素：自动 level+1 并重新生成含缩进的 data。 */
+	/**
+	 * 插入子条目：未显式设置过层级时自动 level+1，并重新生成含缩进的 data。
+	 */
 	public StatData add(StatData child) {
 		if (!child.levelSet) {
 			child.level = this.level + 1;
@@ -163,11 +226,61 @@ public class StatData {
 		return this;
 	}
 
-	public String indent() {
+	/**
+	 * 重设缩进层级；显式设置后 {@link #add} 不再自动覆盖 level。
+	 */
+	public StatData setLevel(int level) {
+		if (this.levelSet && this.level == level) return this;
+		this.level = level;
+		this.levelSet = true;
+		this.data = indent() + raw;
+		return this;
+	}
+
+	/**
+	 * 递归遍历自身及全部子条目。
+	 */
+	public void each(Cons<StatData> con) {
+		con.get(this);
+		datas.each(d -> d.each(con));
+	}
+
+	/**
+	 * 渲染端每帧取显示文本：静态条目直接返回 data；动态条目（live 非 null）先按最新值就地刷新。
+	 */
+	public CharSequence getData() {
+		if (live != null) {
+			set(live.get(), valueMax);
+		}
+		if (stat != null && unit != null && valueMax > 0f) {
+			String maxStr = unit.format(valueMax);
+			builder.setLength(0);
+			builder
+					.append(indent())
+					.append(stat.localizedName)
+					.append(": ")
+					.append(Strings.padLeft(unit.format(value), maxStr.length()))
+					.append("/")
+					.append(maxStr)
+					.append(" (")
+					.append(Strings.padLeft(String.valueOf(Math.round(value / valueMax * 100f)), 3))
+					.append("%)");
+			return builder;
+		}
+		return data;
+	}
+
+	/**
+	 * 按缩进层级生成前缀文本。
+	 */
+	String indent() {
 		return level <= 0 ? "   " : "   " + Strings.repeat("\u3000\u3000", level);
 	}
 
-	/** 对于查找命中的 会自动设置，未命中的则会新建并插入 */
+	/**
+	 * 数值条目：仅查直接子条目，按 stat 命中则就地 set，未命中则新建插入并返回。
+	 * <p>与 {@link #find} 的区别：保证返回非 null 条目，适合「每帧刷新某条」的动态路径。
+	 */
 	public StatData get(Stat stat, float value, StatUnit unit, int level, float valueMax) {
 		for (StatData d : datas) {
 			if (d.stat == stat) {
@@ -180,6 +293,9 @@ public class StatData {
 		return d;
 	}
 
+	/**
+	 * 纯文本条目。
+	 */
 	public StatData get(String raw, int level, StatType type) {
 		for (StatData d : datas) {
 			if (d.stat == null && d.raw.equals(raw)) return d;
@@ -189,75 +305,59 @@ public class StatData {
 		return d;
 	}
 
+	/**
+	 * 默认单位、层级 1、无最大值。最常用的动态刷新形式。
+	 */
 	public StatData get(Stat stat, float value) {
 		return get(stat, value, stat.unit, 1, -1f);
 	}
 
+	/**
+	 * 指定单位（覆盖 stat 自带单位）。
+	 */
 	public StatData get(Stat stat, float value, StatUnit unit) {
 		return get(stat, value, unit, 1, -1f);
 	}
 
+	/**
+	 * 带最大值：走「值/最大 (百分比)」进度格式。
+	 */
 	public StatData get(Stat stat, float value, float valueMax) {
 		return get(stat, value, stat.unit, 1, valueMax);
 	}
 
+	/**
+	 * 指定单位 + 最大值。
+	 */
 	public StatData get(Stat stat, float value, StatUnit unit, float valueMax) {
 		return get(stat, value, unit, 1, valueMax);
 	}
 
+	/**
+	 * 指定缩进层级。
+	 */
 	public StatData get(Stat stat, float value, StatUnit unit, int level) {
 		return get(stat, value, unit, level, -1f);
 	}
 
+	/**
+	 * 纯文本条目：默认 function 分组、层级 1。
+	 */
 	public StatData get(String raw) {
 		return get(raw, 1, StatType.function);
 	}
 
+	/**
+	 * 纯文本条目：默认 function 分组，指定层级。
+	 */
 	public StatData get(String raw, int level) {
 		return get(raw, level, StatType.function);
 	}
 
+	/**
+	 * 纯文本条目：指定分组、层级 1。
+	 */
 	public StatData get(String raw, StatType type) {
 		return get(raw, 1, type);
-	}
-
-	/// 包含自身以及子元素的递归
-	public void each(Cons<StatData> con) {
-		con.get(this);
-		datas.each(d -> d.each(con));
-	}
-
-	/** 统一取显示文本：静态条目直接返回 data；动态条目（live 非 null）先按最新值就地刷新 （{@link #set} 自带值未变短路，零分配），再把最新文本交给渲染端。 */
-	public CharSequence getData() {
-		if (live != null) {
-			set(live.get(), valueMax);
-		}
-		// 有最大值的数值条目：用 StringBuilder 组装「值 / 最大 (百分比)」，缓冲复用、零中间对象。
-		// 值部分左补空格到最大值的显示宽度：等宽字体下位数变化不会左右抖动
-		if (stat != null && unit != null && valueMax > 0f) {
-			String maxStr = unit.format(valueMax);
-			builder.setLength(0);
-			builder
-					.append(indent())
-					.append(stat.localizedName)
-					.append(": ")
-					.append(Strings.padLeft(unit.format(value), maxStr.length()))
-					.append("/")
-					.append(maxStr)
-					.append(" (")
-					.append(Strings.autoFixed(value / valueMax * 100f, 1))
-					.append("%)");
-			return builder;
-		}
-		return data;
-	}
-
-	/// 重设缩进
-	public StatData setLevel(int level) {
-		if (this.levelSet && this.level == level) return this;
-		this.level = level;
-		this.levelSet = true;
-		this.data = indent() + raw;
-		return this;
 	}
 }

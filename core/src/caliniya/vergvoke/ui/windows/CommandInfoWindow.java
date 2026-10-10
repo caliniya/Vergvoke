@@ -3,6 +3,7 @@ package caliniya.vergvoke.ui.windows;
 import arc.*;
 import arc.scene.ui.layout.*;
 import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.ui.*;
 
@@ -38,7 +39,7 @@ public class CommandInfoWindow extends Window {
 											(int) u.energy))
 							.left()
 							.pad(2f);
-					row.add(new Button("@commandInfo.detail", () -> EntityWindow.open(u)))
+					row.add(new Button("@commandInfo.detail", () -> UI.openEntityWindow(u)))
 							.size(60f, 36f)
 							.padLeft(6f);
 					t.add(row).growX().left().row();
