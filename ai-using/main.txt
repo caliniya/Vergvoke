@@ -1,16 +1,9 @@
 这个文件夹内的内容是给 AI 阅读项目辅助使用的，当然你也可以看来了解项目结构。
-首先，项目还处于十分早期的阶段，有很多类似于 test 字样的变量或者占位的方法、类等。我不会在开发阶段为了追求规范性去改它们，AI 在修改代码和阅读项目时也不要去随便修改以及指出这些，认为是错误。
-（本文档 2026-10-04 重写，反映当前状态；不记录开发计划与待办。）
+首先，项目还处于早期的阶段，有很多类似于 test 字样的变量或者占位的方法、类等。我不会在开发阶段为了追求规范性去改它们，AI 在修改代码和阅读项目时也不要去随便修改以及指出这些，认为是错误。
 
 ## 项目概览
 
 一款基于 Arc 框架的 RTS + 自动化多平台游戏。
-
-- 作者：caliniya（AKA 十一舰队）
-- 引擎：**自维护的 Arc fork**（github.com/caliniya/Arc，submodule 挂在本仓库 `arc/`，版本号 v1）
-- 语言：Java 17，Gradle 8.10 多模块
-- 平台：桌面（SDL3 后端）+ Android
-- 主源码规模：core 约 107 个 java 文件
 
 ## 模块结构
 
@@ -19,117 +12,21 @@
 | core | core/ | 主逻辑，全平台共享 |
 | desktop | desktop/ | 桌面启动器（SDL3） |
 | android | android/ | Android 入口 |
-| android-old | android-old/ | sdk14 的老安卓兼容版本，通常不用管，也别提议删 |
-| tools | tools/ | 纯构建工具 IconGen/TexturePackerTool（容器与注解处理设施都已并入 arc fork） |
-| annotation | annotation/ | ECS 编译期注解处理器（ECProcessor 两千多行，全项目最大的文件） |
-| arc | arc/ | Arc fork 的 git submodule，经 composite build 源码接入（见下）；**容器家族也在里面** |
-
-`annotation` 的产物是 JavaPoet 生成的代码，**不要手改**，要改就改处理器本身。
-
-## 构建与运行（Arc fork 接入方式）
-
-- Arc 不再走 Anuken 官方坐标（com.github.Anuken.Arc v157.1），全部换成 `com.github.caliniya.Arc:*:v1`。
-- `settings.gradle` 里 `includeBuild("arc")` + `dependencySubstitution` 把五个坐标替换到本地 submodule 源码工程：`arc-core`、`backend-sdl3`、`natives-desktop`、`backend-android`、`natives-android`。Gradle 依赖声明照常写坐标，实际编译用的是本地源码；改 Arc 行为直接改 `arc/` 里的源码即可。
-- **容器家族（2026-10-04 起）**：`arc.struct` 下是 Ar 家族——`Ar/IntAr/FloatAr/BoolAr/ByteAr/LongAr/ShortAr`（原 Seq/IntSeq/FloatSeq 等全面替换而来，游戏代码 import `arc.struct.Ar` 即可，tools 模块里已没有容器）。`ObjectSet` 是用户的布谷鸟哈希版本（老 libGDX 算法）替换了 arc 原版，迭代器保留了 arc 的静态结构。游戏里别再引 `caliniya.vergvoke.base.tool.*`，那个包已删除。
-- 依赖已瘦身：core 只 `api arc-core`，desktop 额外引 `natives-desktop` + `backend-sdl3`（桌面后端已从 SDL 换成 SDL3），不再引 freetype/flabel/g3d 等官方附加包。
-- 验证编译：`./gradlew classes`（`BUILD SUCCESSFUL` 即过；改了注解会重跑处理器，慢一些）。
-- 发布：`./gradlew dist` 打 fat jar 到 `desktop/build/output/Vergvoke-1.0.jar`，直接 `java -jar` 跑。
-- 运行数据目录三级解析（io/DataPaths）：`-Dvergvoke.datadir` → `<程序目录>/data`（带写探针，便携优先）→ `%APPDATA%/Vergvoke` 兜底。desktop 的 run/debug 任务固定到 `build/run-data`。
-
-## 注解
-
-- 注解集（annotation/.../Annotations.java）：`@Component(name, proc, index)`、`@Entity(comps, name, type)`、`@SystemDef(name, thread, index)`、`@ThreadDef`、`@Updata`、`@Save(index)`、`@Import`、`@OverrideEntity`、`@Write`/`@Read`
-- `ECProcessor` 生成 `caliniya.vergvoke.base.ecs` 包下的类，产物在 `core/build/generated/sources/annotationProcessor/java/main/`：
-  - `Unit.java` / `Building.java` —— 实体类，由 `@Entity` 的组件字段拼出来，继承 `Entity`
-  - `EntityArs.java` —— 每种实体一个 `EntityAr` 容器（static final，带 `e -> e.id` 提取器），是实体的唯一权威容器
-  - `Systems.java` —— 系统总览 + `updateAll()` 帧序驱动；非 main 线程的 @SystemDef 系统由生成的 `Systems.startThreads()` 实例化并 `init(true)` 起线程（实例收进 `Systems.threaded`）
-- `SystemProcessor` 只做校验：系统名唯一、thread 合法、index 线程内唯一、组件 index 在实体内不能撞、`@Updata` 方法必须且只能有一个 float delta 形参、组件字段名不能在实体里重复
-- `AutoProcessor`（2026-10-05 起在 **arc fork** 里：`arc.util.anno.AutoProcessor` + `@AnnoProc`）扫 `@AnnoProc` 自动生成 META-INF/services SPI；任何模块把 arc-core 放上 `annotationProcessor` 路径即自动激活，无 `@AnnoProc` 类时零干扰。annotation 模块的 `annotationProcessor` 就是 arc-core 坐标，tools 不再参与处理器链
-
-**处理器行为要点（2026-10 版）**：
-- 组件方法**全量注入**：private/protected/包私有/static 辅助方法都铺进生成实体并保留原修饰符；与 Entity 基类同签名的方法直接报错并提示用 `@OverrideEntity`
-- `@Import` 可借其他组件字段或 **Entity 基类字段**（x/y/team 等，擦除后类型比对）；借不到 `Entity.type`（泛型 T 过不了类型校验），需要 type 的逻辑放到 XxxType 侧方法里由调用方显式调
-- 组件**字段初始化表达式跟到生成实体**；但对象池复用不走字段初始化——`Pools.obtain` 的旧实例只有构造时初始化过，create 里必须对运行时字段显式托底
-- `@Save` 只支持基本类型 + String；同组件 `@Save` 与 `@Write/@Read` 互斥
-- 组件 import 原样搬进生成文件，方法体里可直接用 Mathf/Entities 等短名
-- **@Updata 一律生成独立方法 `update<组件名>(float)`**（2026-10-06 起，方案 B）：main 档的实体 `update()` 只按 @Component.index 顺序调用它们，非 main 档由对应系统调用——方法体里的 `return` 只退出本组件，不会连累其他组件（此前 main 档是内联进 update() 的，TurretComp 的 `if (target == null) return` 曾把排在后面的 CraftComp 整个跳过）。代价是每帧几次小方法调用（JIT 会内联），换来组件体可以放心写 return
-- **proc 挂非 main 线程**（2026-10-06 起）：组件 @Updata 生成 `update<组件名>(float)` 方法，但**不再生成**主线程调度的组件系统类——同名 @SystemDef 手写类即驱动者（`Systems.startThreads()` 起线程后由它调用；组件源码里拿不到实体引用，摘容器这类事在系统侧做）
-
-**固定帧序**（Systems.updateAll）：`e.sync(delta)`（热量/能量/能力/模组）→ 组件系统（按 index，走 `System.updataSubmit` 入口）→ `e.update(delta)`。
-
-**System 更新入口（2026-10-06 起）**：主线程 / 外部驱动一律调 `System.updataSubmit(delta)`，不要直接调 `update`——updataSubmit 统一跳过未初始化、已暂停或未启用的系统，手写系统不用自己写 `if (!inited || paused) return;` 样板。要挂着不停（渲染类）的系统 init 时传 `init(false, false)`；独立线程循环内部不走 updataSubmit（线程侧暂停用 pauseLock 等待；停用时线程照常空转保活）。
-**双状态开关**：`paused` 只接受 GamePause 失焦事件（桌面端多窗口下失焦不影响渲染——渲染类系统都不可暂停）；`enabled` 是运行时启停开关（`setEnable`，链式），所有系统都可随时切换，与暂停互相独立。DebugRender 启动时创建且 `setEnable(false)` 默认停用，调试窗里切换。
-
-## 组件与系统现状
-
-组件 index：State=1、Move=2、Block=3、Target=4（Unit+Building 共用）、Weapon=5、Turret=6、Route=7、Craft=8。
-
-- UnitDef → base.ecs.Unit：StateComp（isSelected + @Write/@Read 序列化含 team）、MoveComp（speed/speedt/speedX/angle/moving + @Save x/y；纯积分"走"的那一半）、RouteComp（path/pathIndex/targetX/targetY/pathed + @Save targetX/targetY；sizet 导航占用格数（UnitType.load 按 hitbox/size 最大边整格取整算出，create 灌入实体），寻路时作 unitSize；"想走"的那一半，@Updata 挂 route 线程：算路径→算速度向量→到达/不可达清速度置空路径）、TargetComp（索敌：target/range/retargetInterval/filter，@Updata 里失效立即重搜+周期重搜）、WeaponComp（updateWeapons 开头武器级锁敌 + 冷却/转向/开火）
-- BuildingDef → base.ecs.Building：BlockComp（block 引用/tx/ty/占位形状/contains/hitbox）、TargetComp、TurretComp（瞄准/装填/开火，@Import target/rotation/x/y）、CraftComp（通用生产：持 RecipeStack 配方组，update 推进度 → Recipe.canCraft 全端校验 → craft 两端结算；current/progress 经 @Write 持久化。缺料/满仓进度钳住，不丢产出）
-- 索敌已组件化，随主线程实体更新跑；建筑侧 Turret 自取目标；索敌半径在 UnitType.create 取武器最大射程
-- @SystemDef：GameProcess（thread=main, index=5）、RouteSystem（thread=route, index=1，类在 type/def/systems 包，@ThreadDef("route") 也标在它上面）
-- 手写系统（Data.loadSystems() + Data.enter() 手动装载）：
-  - 主线程并入 Systems.systems：GameProcess(5)、Render(9)
-  - 并入 Render.renders 管线：MapRender(10)、BlockRender(12)、UnitRender(13)、UniverseRender(16)
-  - 独立线程（init 自带 60TPS 循环）：BulletProcess；RouteSystem 由生成的 `Systems.startThreads()`（Data.enter 里调）装载，update 只做调度：快照 moveunits → 逐单位调 `updateRouteComp` → `path == null`（到达/不可达）时摘出 moveunits。存档写入不是系统：DataIO.copy 写头部后 `GameIO.submitIo(DataIO::write)` 一次性提交到 io 线程（调色板→瓦片→单位→建筑→落盘），EntityProces 已删除
-- 销毁只在主线程：伤害结算（BulletProcess 线程）血量归零只 `Entities.markDead` 登记，GameProcess 每帧开头 drainDead 后统一 kill()；remove 顺序：摘持有者 → 注销容器 → freeID → Pools.free，`type == null` 作已回池标志挡二次销毁
-
-## 主循环
-
-`Vergvoke.update()`：资源没加载完 → 画加载界面；加载完 → `platformInput.update` → `Game.update(delta)`（门禁：inGame && !focusPaused）→ `if (Game.inGame) Render.it.updataSubmit(delta)` → `Systems.updateAll(delta)` 由 Game.update 驱动 → camera.update → scene.act/draw。
-
-- delta 钳制：`Vergvoke.init` 里 `Time.setDeltaProvider` 钳到 ≤10 帧（防截图/焦点切换巨帧把单位甩出地图）；主循环是唯一 delta 消费点
-- 焦点暂停：`Game.focusPaused`（Vergvoke.pause/resume 维护）冻结主线程模拟（Game.update 门禁 + 可暂停系统的 paused 标志，GamePause 事件对 pausable 系统统一 setPaused——paused 只吃这个失焦事件）；背景线程由 System 基类响应 GamePause（isPausable 的才挂起）；渲染/UI 不冻结（Render 及管线渲染器、DebugRender 都 init(false, false) 不可暂停，驱动走 updataSubmit；DebugRender 的启停走 enabled）
-- 进游戏路径：`Data.load(file)` → GameIO.load → DataIO.load（IO 线程读档，Core.app.post 回主线程）→ Data.loadSystems() + Data.enter()（置 inGame、切 UI.Game、赋 Game.starMap）
-- 注意时序：WorldData.initWorld 在 post 之前跑，Game.starMap 在 enter() 才有值，中间存在「world 非空但 starMap 为 null」的窗口
-- 重载生命周期：Data.loadSystems 先 `Events.fire(ThreadedStop)` 停旧后台线程（否则线程泄漏、旧子弹线程污染双缓冲）→ `Systems.systems.clear()` → 建新实例 → `WorldData.rebuildTransientContainers()`（重建 moveunits/bullets、clearDead、initAllTrees）
-
-## 世界 / 导航
-
-- `World` 按区块（WorldChunk.SHIFT/MASK）存地板/环境方块/建筑，TILE_SIZE=32
-- 实体容器唯一权威在生成的 `EntityArs.Unit` / `EntityArs.Building`；WorldData 自己持 RouteData 导航（moveunits 是 RouteSystem 的寻路队列、bullets 是子弹双缓冲容器）
-- **建筑生命周期门面（WorldData，全项目唯一写入口）**：placeBuilding（create 纯构造 → placeTiles 占位/覆盖拆除/导航 updateBlock → 容器 add）、removeBuilding（幂等：导航清占必须在瓦片注销前 → unregisterTiles → 容器 → freeID → 回池）、syncTree（「改坐标必 EntityArs.move」铁律的唯一执行点）、setEnvBlock、mapLoaded（读档瓦片装载完后重刷 RouteData.init）。职责划线：World=纯瓦片层、BuildingType=纯构造+派生数据、RouteData.updateBlock 只许门面调
-- `RouteData`（~1200 行，**HPA\***）：地图切 10 格 chunk，相邻 chunk 边界取「门口」（连续段>2 只留首尾）；ChunkNav 缓存门口间 chunk 内路径（octile cost + minClear 体积注解）。findPath(sx,sy,tx,ty,unitSize,capability)（另有 capability 自动推导的 5 参重载：capability = unitSize-1，层目前只是逐级腐蚀、没有独立地形集）：同 chunk 局部 JPS，跨 chunk 连门口后门口抽象图 A*（按 minClear 过滤）+ addSeg 拼接去重 + smoothPath。元素惰性创建、ChunkNav.dirty volatile 保证并发发布；clearance = Chebyshev 距离（8 邻域）；寻路 scratch 全 ThreadLocal；小图导航更新全量重算、大图有界泛洪 ±24
-- 调试可视化：MapRender.drawNavDebug（chunk 网格/门口/边路径），配 RouteData.debugWarmChunk 预热
-
-## 星图
-
-`world/stars/`：StarMap / StarNode / StarRoad，节点和航路各一棵四叉树，write/read 序列化完整（邻接只由 id 小的一侧 link 防重复边）。拾取：StarMap.pickNode（nodeTree 矩形查询+距离过滤）、Universe.selectedNode、InputProcess.pickNodeAt（命中开 StarNodeWindow）；DesktopInput/MobileInput.tap 最前面有 inUniverse 分流，宇宙点击不漏进指挥逻辑。
-
-## 存档
-
-全部自研二进制（不是 json），带 MAGIC：`AEVS`(GameIO/DataIO)、`AESS`(WorldIO)、`AEVP`(ProgressIO)；实体后写 8 字节 0xAE 结束标记。SAVE_VERSION=2（v2：CraftComp 改 @Write 写配方组 current+progress），读取校验版本、旧档拒载：单位补 isSelected、team（byte ordinal，经 @Write/@Read）、x/y、targetX/targetY；建筑走 create → read → rebuild → placeBuilding(b) 门面，读档瓦片装载完调 WorldData.mapLoaded()。改序列化要同步 bump SAVE_VERSION。
-
-## 内容体系
-
-`Contents` 按 CType 分类存数组 + 名称映射，ID 从 1 起，getByID O(1)。加载顺序 Items→Liquids→Floors→ENVBlocks→Blocks→Units→Enhancements→Stars→各 load()→Techs。
-
-**两套数组序别混（2026-10-06 踩坑）**：`ItemModule.items` 等"按内容 ID 索引"的数组，0 号位永远空、实际物品在 `items[type.id]`；而 `Contents.items`（getByType toArray 的产物）是**列表序**（0 号 = 第一个物品）。按 ID 查内容对象一律走 `Contents.getByID(CType, id)`，拿 `Contents.items[id]` 当 id 索引用会整体错位。
-
-`content/Xxx.java` 是静态注册清单，`type/type/XxxType.java` 是类型类（配置 + 类型级行为）。EntityType 接口连接两者：create(team,x,y) / sync / update / draw / kill / remove，实现者是 UnitType 与 BuildingType。方块经 Block.buildingType 反向持有自己的 BuildingType。
-
-生产建筑与配方体系（2026-10-07 起）：`world/blocks/production/Factory.java`（extends Block）持 `Ar<Recipe> recipes`（content 声明的**共享只读模板**），BuildingType.create 里 `Recipe.copy()` 深拷贝 + `bind(b.item, b.liquid, b.power)` 装配进实体的 RecipeStack——不拷贝的话同型建筑共享端对象会互相覆盖。`type/def/craft/` 是配方两端抽象：`cons/Consumer`（吃什么，ItemConsumer.canCons/cons）+ `output/Outputer`（吐什么，ItemOutputer.canOutput/output），端持 Item 堆栈（type+amount）；`Recipe.canCraft()` 全端校验通过才 `craft()` 结算（先全部 cons 再全部 output，原子性防丢产出）；`RecipeStack` = 配方组 + current 下标 + progress，切换配方 select() 清进度。当前 factory 唯一配方：每秒产 1 Ge 堆自身仓库。
-
-伤害结算三层：能力拦截（护盾）→ 护甲（倍率 × 抗性 − 强度）→ 本体。护盾体系是 Ability / Shield / ForceField 三件套；Enhancement（增强）是纯数据，行为在 EnhancementType，目前唯一实现是 ShieldBoostEnhancementType。
-
-## UI
-
-`ui/windows/Window.java` 是窗口基类，10 个具体窗口（CommandInfo / Data / Maps / Pause / Progress / TechTree / UnitDetail / BuildingDetail 点建筑弹出的信息面板（血量/库存/进度，open() 单例防堆积）/ StarNodeWindow 星节点右侧窄栏 / DebugWindow 注册式调试窗）；`ui/fragment/` 4 个 Fragment（HUD / Menu / Universe / Debug）。由 core/UI 统一创建。`stat/StatStack` 做属性面板的实时数据源（live lambda）。
-
-`ui/Bar.java`（2026-10-07，参考 Mindustry Bar 适配）：通用进度条 Element——`new Bar(Floatp fraction, Color)` 每帧取 0~1 比例绘制，自带 lerpDelta 平滑、数值下降 blink 闪烁、NaN/Inf 防护、`outline(color, stroke)` 描边、`snap()` 对齐；另有动态颜色构造（Prov<Color>，血量低变红这类）。绘制是纯色块（项目图集没有 Mindustry 的 bar/barTop 九宫格），文字由调用方配 Label。UnitDetailWindow / BuildingDetailWindow 已用它，别再手写匿名进度条。注意：条和文本同行时，文本格要 `.width(定宽)`——数值位数一变 Label 宽度就变，会把条的位置顶得左右晃。
-
-DebugWindow：HUD 左上「调试」按钮开关；`DebugWindow.register("名字", () -> {...})` 一行加测试项，标题也可传 `Supplier<String>` 做成动态（按钮每次点击后重取文案，开关类测试项文字跟着状态变）。预置：生成敌方炮塔 / 生成玩家单位 / 清空全部单位 / 打印导航统计 / 重新载入存档（Data.load(Fi, null)——Fi 版入口是 Data 不是 DataIO）/ 切换调试渲染器（setEnable 开关，Vergvoke 启动时创建且默认停用）/ 启动关闭UI边框（DebugRender.drawUI，渲染器启动后才生效）。
+| android-old | android-old/ | sdk14 的老安卓兼容版本，通常不用管，也别提议删,目前此模块处于瘫痪状态 |
+| tools | tools/ | 工具 IconGen/TexturePackerTool |
+| annotation | annotation/ | 注解以及其处理器 |
+| arc | arc/ | Arc fork 的 git submodule |
 
 ## 资源
 
 - assets/ —— 字体(normal.ttf)、本地化(language_zh_CN.properties)、着色器、精灵图集
-- assets-origin/ —— 原始素材(icon, sprites 子目录)(scheme 不要去管那是我的 IDE 的配色文件)
-- docs/ —— 游戏设定文档（伤害与防御、战舰与武器设定、各派系）
+- assets-origin/ —— 原始素材(icon, sprites 子目录)(scheme 不要去管那是我的 AIDE 的配色文件)
+- docs/ —— 游戏设定文档,不过目前已废弃
 
 ## 给 AI 的注意事项
 
-- 项目目前极早期，大量 test/占位符，不要动它们。
-- `caliniya.vergvoke.base.ecs` 包下的 Unit / Building / Systems / EntityArs 全是生成的，改了会被覆盖，要改去改 annotation 模块的 ECProcessor。
-- 容器统一用 `arc.struct.Ar` 家族（Ar/IntAr/FloatAr/BoolAr/ByteAr/LongAr/ShortAr）；命名风格沿用用户的习惯，别以"不规范"为由去改。`ObjectSet` 是布谷鸟哈希实现，与 Mindustry 上游不同，别"修"回去。
+- 在可以的情况下使用可复用的变量而不是在作用域内新建,这有助于提高性能
+- 尽可能使用通配导入
+- 对于非重复的代码段不要新方法(除非真的很长或者多次调用),这有助于减少内联
 - android-old 别动不动就要删掉。
-- 不要一天到晚追求规范。
+- 不要一天到晚追求规范,很多时候我们需要违背一些规范
