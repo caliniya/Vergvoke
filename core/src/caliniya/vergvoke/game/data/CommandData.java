@@ -3,6 +3,7 @@ package caliniya.vergvoke.game.data;
 import arc.func.*;
 import arc.struct.*;
 import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.game.*;
 
 /// 包括UI需要的建筑和单位，资源相关数据。
@@ -28,28 +29,12 @@ public class CommandData {
 		viewType = ViewType.game;
 	}
 
-	public static void findUnit(float x, float y, Boolf<Unit> F, Cons<Unit> C) {
-		Game.team
-				.data()
-				.find(
-						x,
-						y,
-						100f,
-						e -> {
-							if (e instanceof Unit) {
-								if (F.get((Unit) e)) {
-									C.get((Unit) e);
-								}
-							}
-						});
+	public static void select(float x, float y, Boolf<Entity<?, ?>> filter, Cons<Entity<?, ?>> e) {
+		Game.team.data().find(x, y, 1f, filter, e);
 	}
 
-	public static void findUnit(float x, float y, Cons<Unit> C) {
-		findUnit(
-				x,
-				y,
-				e -> true,
-				C);
+	public static void select(float x, float y, Cons<Entity<?, ?>> e) {
+		select(x, y, entity -> true, e);
 	}
 
 	public enum CommandType {
