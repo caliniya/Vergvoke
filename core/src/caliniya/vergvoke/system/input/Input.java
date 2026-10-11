@@ -4,16 +4,16 @@ import arc.*;
 import arc.graphics.g2d.*;
 import arc.input.GestureDetector.*;
 import arc.input.*;
+import arc.math.*;
 import arc.math.geom.*;
-import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.system.render.*;
-import caliniya.vergvoke.ui.*;
 import caliniya.vergvoke.ui.windows.*;
 
 /**
@@ -166,10 +166,10 @@ public abstract class Input implements InputProcessor, GestureListener {
 	 * 四叉树按外接正方形粗查，这里再用真实矩形精判（外接圆角落的误命中不生效）。
 	 * 结算后清除拖拽状态。
 	 *
-	 * @param x1   框选起点世界坐标
-	 * @param y1   框选起点世界坐标
-	 * @param x2   框选终点世界坐标
-	 * @param y2   框选终点世界坐标
+	 * @param x1 框选起点世界坐标
+	 * @param y1 框选起点世界坐标
+	 * @param x2 框选终点世界坐标
+	 * @param y2 框选终点世界坐标
 	 */
 	protected void boxSelect(float x1, float y1, float x2, float y2) {
 		boxDragging = false;
@@ -192,6 +192,62 @@ public abstract class Input implements InputProcessor, GestureListener {
 	protected void boxSelectEnd() {
 		Vec2 end = selEndWorld();
 		boxSelect(boxX1, boxY1, end.x, end.y);
+	}
+
+	// ===== 下令（平台无关操作，指挥模式下生效）=====
+
+	/**
+	 * 按当前指挥状态（{@link CommandData#commandType}）对选中单位下发指令。
+	 * Move → 就近可达点寻路移动；Stop → 原地停下；None → 不执行。
+	 */
+	protected void issueCommand(float wx, float wy) {
+		if (CommandData.checkedUnits.isEmpty())
+			return;
+
+		if (CommandData.commandType == CommandData.CommandType.Move) {
+			moveUnits(wx, wy);
+		} else if (CommandData.commandType == CommandData.CommandType.Stop) {
+			stopUnits();
+		}
+	}
+
+	/** 下达移动指令：目标点取就近可达瓦片中心，无选中单位或不可达（8 格内无空位）不下发。 */
+	protected void moveUnits(float wx, float wy) {
+		for (Unit u : CommandData.checkedUnits) {
+			if (u == null || u.health <= 0)
+				continue;
+			Vec2 dst = RouteData.nearestPassable(wx, wy, Mathf.ceil(u.sizet));
+			if (dst == null)
+				continue;
+
+			// 直接改字段：RouteSystem 每帧重算，pathed=false 触发重新寻路
+			synchronized (WorldData.moveunits) {
+				u.targetX = dst.x;
+				u.targetY = dst.y;
+				u.pathed = false;
+				u.path = null;
+				if (!WorldData.moveunits.array.contains(u)) {
+					WorldData.moveunits.add(u);
+				}
+			}
+		}
+	}
+
+	/** 停止选中单位：清速度/路径并摘出寻路队列（未在队列的直接原地清目标）。 */
+	protected void stopUnits() {
+		synchronized (WorldData.moveunits) {
+			for (Unit u : CommandData.checkedUnits) {
+				if (u == null || u.health <= 0)
+					continue;
+				u.speedX = 0;
+				u.speedY = 0;
+				u.targetX = u.x;
+				u.targetY = u.y;
+				u.path = null;
+				u.pathed = false;
+				WorldData.moveunits.remove(u);
+			}
+		}
 	}
 
 	/** 框选指示（前处理渲染回调）：拖拽中画选择矩形。 */

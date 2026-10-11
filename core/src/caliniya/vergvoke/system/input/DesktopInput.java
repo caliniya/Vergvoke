@@ -86,39 +86,41 @@ public class DesktopInput extends Input {
 			tranPos(x, y);
 			boxX1 = worldX;
 			boxY1 = worldY;
+			selStartX = x;
+			selStartY = y;
+			selEndX = x;
+			selEndY = y;
 			boxDragging = false;
 		}
 		return super.touchDown(x, y, pointer, button);
 	}
 
 	@Override
-	public boolean touchDragged(int screenX, int screenY, int pointer) {
-		// 左键拖拽中：更新框选终点（拖出 tap square 后 GestureDetector 会转 pan，这里兜底刷新状态）
-		if (canSelect() && pointer == 0 && CommandData.viewType == CommandData.ViewType.game) {
-			tranPos(screenX, screenY);
-			boxX2 = worldX;
-			boxY2 = worldY;
-		}
-		return super.touchDragged(screenX, screenY, pointer);
-	}
-
-	@Override
 	public boolean tap(float x, float y, int count, KeyCode button) {
-		if (!canSelect() || button != KeyCode.mouseLeft)
+		if (!canSelect())
 			return false;
 		tranPos(x, y);
-		// 四叉树按包围盒重叠判定，点选用小半径查询 + contains 精判
-		Game.team.data().intersect(worldX, worldY, 1f, e -> e instanceof Unit, this::tapSelect);
+
+		// 右键 = 按当前指挥状态下发指令
+		if (button == KeyCode.mouseRight) {
+			issueCommand(worldX, worldY);
+			return true;
+		}
+
+		// 左键 = 点选：四叉树按包围盒重叠判定，小半径查询 + contains 精判
+		if (button == KeyCode.mouseLeft) {
+			Game.team.data().intersect(worldX, worldY, 1f, e -> e instanceof Unit, this::tapSelect);
+			return false;
+		}
 		return false;
 	}
 
 	@Override
 	public boolean pan(float x, float y, float deltaX, float deltaY) {
-		// 左键拖拽 = 框选中：相机不平移，框选状态延续
-		if (canSelect() && CommandData.viewType == CommandData.ViewType.game) {
-			tranPos(x, y);
-			boxX2 = worldX;
-			boxY2 = worldY;
+		// 左键拖拽 = 框选中：只记屏幕终点，相机不平移（终点世界坐标绘制/结算时反投影）
+		if (canSelect()) {
+			selEndX = x;
+			selEndY = y;
 			boxDragging = true;
 			return true;
 		}
@@ -127,10 +129,11 @@ public class DesktopInput extends Input {
 
 	@Override
 	public boolean panStop(float x, float y, int pointer, KeyCode button) {
-		// 拖拽结束：结算框选（tap 路径不会走到 panStop，panning 才会）
+		// 拖拽结束：结算框选（终点实时反投影）
 		if (canSelect() && boxDragging) {
-			tranPos(x, y);
-			boxSelect(boxX1, boxY1, worldX, worldY);
+			selEndX = x;
+			selEndY = y;
+			boxSelectEnd();
 			return true;
 		}
 		return false;

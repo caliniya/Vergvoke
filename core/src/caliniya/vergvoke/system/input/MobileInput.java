@@ -25,6 +25,10 @@ public class MobileInput extends Input {
 			tranPos(x, y);
 			boxX1 = worldX;
 			boxY1 = worldY;
+			selStartX = x;
+			selStartY = y;
+			selEndX = x;
+			selEndY = y;
 		}
 		return super.touchDown(x, y, pointer, button);
 	}
@@ -36,6 +40,8 @@ public class MobileInput extends Input {
 			tranPos(x, y);
 			boxX1 = worldX;
 			boxY1 = worldY;
+			selEndX = x;
+			selEndY = y;
 			boxDragging = true;
 			return true;
 		}
@@ -47,11 +53,10 @@ public class MobileInput extends Input {
 		if (blocked())
 			return false;
 
-		// 框选拖拽：只累计选择区域，不动相机（终点在 panStop 用当前触点结算）
+		// 框选拖拽：只记屏幕终点，不动相机（终点世界坐标绘制/结算时反投影）
 		if (boxDragging) {
-			tranPos(x, y);
-			boxX2 = worldX;
-			boxY2 = worldY;
+			selEndX = x;
+			selEndY = y;
 			return true;
 		}
 
@@ -63,8 +68,9 @@ public class MobileInput extends Input {
 	@Override
 	public boolean panStop(float x, float y, int pointer, KeyCode button) {
 		if (boxDragging) {
-			tranPos(x, y);
-			boxSelect(boxX1, boxY1, worldX, worldY);
+			selEndX = x;
+			selEndY = y;
+			boxSelectEnd();
 			return true;
 		}
 		return false;
@@ -75,9 +81,20 @@ public class MobileInput extends Input {
 		if (!canSelect())
 			return false;
 		tranPos(x, y);
-		// 四叉树按包围盒重叠判定，点选用小半径查询 + contains 精判
-		Game.team.data().intersect(worldX, worldY, 1f, e -> e instanceof Unit, this::tapSelect);
-		return false;
+		// 指挥状态下 tap 点地图 = 下发当前指令；点选走长按外的普通 tap 也兼顾选单位：
+		// 先尝试点选，命中单位则只切换选中不 redundant 下发
+		boolean[] hit = {false};
+		Game.team.data().intersect(worldX, worldY, 1f, e -> e instanceof Unit, e -> {
+			if (((Unit) e).contains(worldX, worldY)) {
+				hit[0] = true;
+				tapSelect(e);
+			}
+		});
+		// 没点中单位 → 按当前指挥状态对选中单位下发指令
+		if (!hit[0]) {
+			issueCommand(worldX, worldY);
+		}
+		return true;
 	}
 
 	@Override

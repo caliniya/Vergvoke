@@ -731,6 +731,48 @@ public class RouteData {
 	// ==================== 查询（读锁）====================
 
 	/**
+	 * 世界坐标 → 就近可通行瓦片的世界中心坐标。
+	 * 点击点可通行则原样返回；否则从点击瓦片向外环形搜索最近可达瓦片（搜索半径上限 8 格）。
+	 *
+	 * @return 命中的可达点世界坐标（瓦片中心），找不到返回 null
+	 */
+	public static Vec2 nearestPassable(float wx, float wy, int unitSize) {
+		int tx = (int) (wx / WorldData.TILE_SIZE);
+		int ty = (int) (wy / WorldData.TILE_SIZE);
+		int cap = Mathf.clamp(unitSize - 1, 0, MAX_CAPABILITY);
+		NavLayer layer = layers[cap];
+
+		if (isPassable(layer, tx, ty, unitSize))
+			return new Vec2(tx * WorldData.TILE_SIZE + WorldData.TILE_SIZE / 2f, ty * WorldData.TILE_SIZE + WorldData.TILE_SIZE / 2f);
+
+		// 环形搜索：半径 1..8，第一圈命中即返回（最近）
+		for (int r = 1; r <= 8; r++) {
+			float best = Float.MAX_VALUE;
+			int bx = -1, by = -1;
+			for (int dx = -r; dx <= r; dx++) {
+				for (int dy = -r; dy <= r; dy++) {
+					// 只看当前环（|dx|、|dy| 至少一个 = r）
+					if (Math.max(Math.abs(dx), Math.abs(dy)) != r)
+						continue;
+					int px = tx + dx, py = ty + dy;
+					if (!isPassable(layer, px, py, unitSize))
+						continue;
+					// 距点击点最近的优先
+					float d = Mathf.dst2(wx, wy, px * WorldData.TILE_SIZE + WorldData.TILE_SIZE / 2f, py * WorldData.TILE_SIZE + WorldData.TILE_SIZE / 2f);
+					if (d < best) {
+						best = d;
+						bx = px;
+						by = py;
+					}
+				}
+			}
+			if (bx >= 0)
+				return new Vec2(bx * WorldData.TILE_SIZE + WorldData.TILE_SIZE / 2f, by * WorldData.TILE_SIZE + WorldData.TILE_SIZE / 2f);
+		}
+		return null;
+	}
+
+	/**
 	 * 获取路径（HPA*，capability 自动推导版）：
 	 * capability = unitSize - 1（钳到 0..MAX）——大单位上腐蚀层，可通行格更少、抽象图搜索空间更小。
 	 * 层目前只是逐级腐蚀（没有独立地形集），"跨越能力"语义等以后层支持独立地形再分开。
