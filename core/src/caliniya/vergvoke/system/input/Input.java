@@ -1,12 +1,19 @@
 package caliniya.vergvoke.system.input;
 
 import arc.*;
+import arc.graphics.g2d.*;
 import arc.input.GestureDetector.*;
 import arc.input.*;
 import arc.math.geom.*;
+import caliniya.vergvoke.base.game.*;
+import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.*;
+import caliniya.vergvoke.core.meta.ui.*;
+import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
+import caliniya.vergvoke.system.render.*;
+import caliniya.vergvoke.ui.*;
 import caliniya.vergvoke.ui.windows.*;
 
 /**
@@ -23,6 +30,8 @@ public abstract class Input implements InputProcessor, GestureListener {
 
 	public Input() {
 		Events.on(EventType.GamePause.class, e -> paused = e.pause);
+		// 框选指示挂进前处理渲染（建筑之后单位之前画）
+		PreRender.renders.add(this::drawBoxSel);
 	}
 
 	/** 是否应屏蔽背景输入：暂停中或存在可见的模态窗口。 */
@@ -88,6 +97,32 @@ public abstract class Input implements InputProcessor, GestureListener {
 	/// 捏合缩放开始前的缩放快照（touchDown 时记录）
 	protected float pinchSnapshot = 1f;
 
+	// ===== 框选状态（子类手势维护，绘制/结算共用）=====
+
+	/// 是否正在框选拖拽
+	public boolean boxDragging;
+
+	/// 框选起点世界坐标
+	public float boxX1, boxY1;
+
+	/// 框选起点的屏幕坐标（起点不随相机变，存世界坐标即可）
+	protected float selStartX, selStartY;
+
+	/// 框选终点的屏幕坐标（终点随相机变，绘制/结算时实时反投影）
+	protected float selEndX, selEndY;
+
+	/** 当前框选终点的世界坐标（相机移动后自动跟随）。 */
+	protected Vec2 selEndWorld() {
+		if (CommandData.viewType == CommandData.ViewType.game) {
+			return Core.camera.unproject(selEndX, selEndY);
+		} else if (
+				CommandData.viewType == CommandData.ViewType.uni
+		) {
+			return Render.uniCamera.unproject(selEndX, selEndY);
+		}
+		return Vec2.ZERO;
+	}
+
 	/** 按下时记录当前缩放，作为捏合缩放基准。 */
 	@Override
 	public boolean touchDown(float x, float y, int pointer, KeyCode button) {
@@ -99,5 +134,78 @@ public abstract class Input implements InputProcessor, GestureListener {
 			pinchSnapshot = Render.universeZoom;
 		}
 		return false;
+	}
+
+	// ===== 选中（平台无关操作，指挥模式下生效）=====
+
+	/** 切换单个单位的选中状态（已选取消，未选加入）。 */
+	protected void toggleUnit(Unit u) {
+		if (CommandData.checkedUnits.contains(u)) {
+			u.isSelected = false;
+			CommandData.checkedUnits.remove(u, true);
+		} else {
+			u.isSelected = true;
+			CommandData.checkedUnits.add(u);
+		}
+	}
+
+	/**
+	 * 点选：切换单个单位的选中态。
+	 *
+	 * @param e 命中的实体（由空间查询回调给出；非单位、非本方或没真正点中 hitbox 的忽略）
+	 */
+	protected void tapSelect(Entity<?, ?> e) {
+		if (e instanceof Unit u && u.team == Game.team && u.contains(worldX, worldY)) {
+			toggleUnit(u);
+			UI.hud.refreshCommand();
+		}
+	}
+
+	/**
+	 * 框选：矩形范围内友军单位已选的取消、未选的加入。
+	 * 四叉树按外接正方形粗查，这里再用真实矩形精判（外接圆角落的误命中不生效）。
+	 * 结算后清除拖拽状态。
+	 *
+	 * @param x1   框选起点世界坐标
+	 * @param y1   框选起点世界坐标
+	 * @param x2   框选终点世界坐标
+	 * @param y2   框选终点世界坐标
+	 */
+	protected void boxSelect(float x1, float y1, float x2, float y2) {
+		boxDragging = false;
+		float minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+		float minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+		Game.team.data().intersect(
+				(minX + maxX) / 2f,
+				(minY + maxY) / 2f,
+				Math.max(maxX - minX, maxY - minY) / 2f,
+				e -> e instanceof Unit && e.team == Game.team
+						&& ((Unit) e).x + ((Unit) e).hitboxSize() / 2f >= minX
+						&& ((Unit) e).x - ((Unit) e).hitboxSize() / 2f <= maxX
+						&& ((Unit) e).y + ((Unit) e).hitboxSize() / 2f >= minY
+						&& ((Unit) e).y - ((Unit) e).hitboxSize() / 2f <= maxY,
+				e -> toggleUnit((Unit) e));
+		UI.hud.refreshCommand();
+	}
+
+	/** 用当前框选状态结算（终点实时反投影，相机移动后松手也正确）。 */
+	protected void boxSelectEnd() {
+		Vec2 end = selEndWorld();
+		boxSelect(boxX1, boxY1, end.x, end.y);
+	}
+
+	/** 框选指示（前处理渲染回调）：拖拽中画选择矩形。 */
+	public void drawBoxSel() {
+		if (!boxDragging)
+			return;
+		Vec2 end = selEndWorld();
+		float minX = Math.min(boxX1, end.x), maxX = Math.max(boxX1, end.x);
+		float minY = Math.min(boxY1, end.y), maxY = Math.max(boxY1, end.y);
+		Draw.color(Pal.light, 0.15f);
+		Fill.rect((minX + maxX) / 2f, (minY + maxY) / 2f, maxX - minX, maxY - minY);
+		Draw.color(Pal.light, 0.9f);
+		Lines.stroke(1.5f);
+		Lines.rect(minX, minY, maxX - minX, maxY - minY);
+		Draw.color();
 	}
 }

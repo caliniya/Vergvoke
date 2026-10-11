@@ -10,7 +10,7 @@ public class BlockRender extends caliniya.vergvoke.system.System<BlockRender> {
 
 	@Override
 	public BlockRender init() {
-		this.index = 12;
+		this.index = 11;
 		Events.run(EventType.events.EnterUV, () -> paused = true);
 		Events.run(EventType.events.ExitUV, () -> paused = false);
 		return super.init(false, false);

@@ -16,9 +16,9 @@ public class PostRender extends caliniya.vergvoke.system.System<PostRender> {
 	@Override
 	public PostRender init() {
 		this.index = 20;
+		// 游戏视图叠加层：进宇宙暂停，退出恢复
 		Events.run(EventType.events.EnterUV, () -> paused = true);
 		Events.run(EventType.events.ExitUV, () -> paused = false);
-		paused = true;
 		return super.init(false, false);
 	}
 

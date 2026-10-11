@@ -16,9 +16,9 @@ public class PreRender extends caliniya.vergvoke.system.System<PreRender> {
 	@Override
 	public PreRender init() {
 		this.index = 12;
+		// 游戏视图叠加层：进宇宙暂停，退出恢复
 		Events.run(EventType.events.EnterUV, () -> paused = true);
 		Events.run(EventType.events.ExitUV, () -> paused = false);
-		paused = true;
 		return super.init(false, false);
 	}
 

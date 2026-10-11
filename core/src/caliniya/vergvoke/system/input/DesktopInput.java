@@ -1,11 +1,15 @@
 package caliniya.vergvoke.system.input;
 
 import arc.input.*;
+import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.core.*;
+import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
+import caliniya.vergvoke.ui.*;
 
 /**
- * 桌面端输入：方向键/WASD 平移相机，滚轮缩放。
+ * 桌面端输入：方向键/WASD 平移相机，滚轮缩放；
+ * 指挥模式下左键点选单位，左键拖拽框选（tap 与 pan 由 GestureDetector 区分）。
  */
 public class DesktopInput extends Input {
 
@@ -68,5 +72,67 @@ public class DesktopInput extends Input {
 			return false;
 		wheelZoom(amountY);
 		return true;
+	}
+
+	/** 指挥模式下游戏视图才响应选中类输入。 */
+	private boolean canSelect() {
+		return !blocked() && CommandData.commanding && CommandData.viewType == CommandData.ViewType.game && Game.inGame;
+	}
+
+	@Override
+	public boolean touchDown(float x, float y, int pointer, KeyCode button) {
+		// 左键按下且可选中：记框选起点（是否真的成框由 GestureDetector 区分 tap/pan 决定）
+		if (canSelect() && button == KeyCode.mouseLeft) {
+			tranPos(x, y);
+			boxX1 = worldX;
+			boxY1 = worldY;
+			boxDragging = false;
+		}
+		return super.touchDown(x, y, pointer, button);
+	}
+
+	@Override
+	public boolean touchDragged(int screenX, int screenY, int pointer) {
+		// 左键拖拽中：更新框选终点（拖出 tap square 后 GestureDetector 会转 pan，这里兜底刷新状态）
+		if (canSelect() && pointer == 0 && CommandData.viewType == CommandData.ViewType.game) {
+			tranPos(screenX, screenY);
+			boxX2 = worldX;
+			boxY2 = worldY;
+		}
+		return super.touchDragged(screenX, screenY, pointer);
+	}
+
+	@Override
+	public boolean tap(float x, float y, int count, KeyCode button) {
+		if (!canSelect() || button != KeyCode.mouseLeft)
+			return false;
+		tranPos(x, y);
+		// 四叉树按包围盒重叠判定，点选用小半径查询 + contains 精判
+		Game.team.data().intersect(worldX, worldY, 1f, e -> e instanceof Unit, this::tapSelect);
+		return false;
+	}
+
+	@Override
+	public boolean pan(float x, float y, float deltaX, float deltaY) {
+		// 左键拖拽 = 框选中：相机不平移，框选状态延续
+		if (canSelect() && CommandData.viewType == CommandData.ViewType.game) {
+			tranPos(x, y);
+			boxX2 = worldX;
+			boxY2 = worldY;
+			boxDragging = true;
+			return true;
+		}
+		return false;
+	}
+
+	@Override
+	public boolean panStop(float x, float y, int pointer, KeyCode button) {
+		// 拖拽结束：结算框选（tap 路径不会走到 panStop，panning 才会）
+		if (canSelect() && boxDragging) {
+			tranPos(x, y);
+			boxSelect(boxX1, boxY1, worldX, worldY);
+			return true;
+		}
+		return false;
 	}
 }
