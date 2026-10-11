@@ -53,8 +53,8 @@ public class HUDFragment {
 	/// 当前展示的建筑图标网格（悬停/选中刷新时重建内容）
 	private Table blockGrid;
 
-	/// 顶部信息标签（悬停/选中刷新时更新文本）
-	private Label infoLabel;
+	/// 顶部信息区（悬停/选中刷新时重建内容；后续放建筑需求等多行信息）
+	private Table infoTable;
 
 	/// 当前展示的分类（默认生产）
 	private BuildingType.BlockCategory curCate = BuildingType.BlockCategory.production;
@@ -150,9 +150,8 @@ public class HUDFragment {
 		buildingPanel.background(Styles.background);
 
 		// 顶部信息区：优先显示悬停项，无悬停显示选中项
-		infoLabel = new Label("");
-		infoLabel.setWrap(true);
-		buildingPanel.add(infoLabel).growX().left().pad(6f).row();
+		infoTable = new Table();
+		buildingPanel.add(infoTable).growX().left().pad(6f).minHeight(30f).row();
 		buildingPanel.image(Styles.divider, Pal.light).height(2f).growX().pad(4f).row();
 
 		// 中间：当前分类的图标网格（可滚动，固定 4×4 高度占位，即使为空也展开）
@@ -253,14 +252,16 @@ public class HUDFragment {
 
 	/** 刷新顶部信息区：悬停优先，无悬停显示选中；两者都没有时什么都不显示。 */
 	private void refreshBlockInfo() {
+		infoTable.clearChildren();
+		infoTable.left();
 		BuildingType show = hoverBlock != null ? hoverBlock : selBlock;
-		if (show == null) {
-			infoLabel.setText("");
-		} else {
-			// 目前所有信息都用名字代替，后续接入统计/描述
-			infoLabel.setText("[light]" + show.name + "[]"
-					+ (show == selBlock ? "  [gray](已选中)[]" : ""));
-		}
+		if (show == null)
+			return;
+		// 目前所有信息都用名字代替，后续在这里加建筑需求等多行内容
+		infoTable.add(new Image(show.region)).size(28f, 28f).left();
+		infoTable.add("[light]" + show.name + "[]").left().padLeft(6f);
+		if (show == selBlock)
+			infoTable.add("[gray](已选中)[]").left().padLeft(6f);
 	}
 
 	private void setupCommandPanel() {
