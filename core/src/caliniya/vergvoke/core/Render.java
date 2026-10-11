@@ -191,6 +191,12 @@ public class Render extends caliniya.vergvoke.system.System<Render> {
 			UI.camera.position.set(uiCenterX, uiCenterY);
 		}
 
+		// 7. 宇宙视图下同步缩放后的视口尺寸（缩放只改倍率，视口在这里落地）
+		if (CommandData.viewType == CommandData.ViewType.uni) {
+			uniCamera.width = Core.graphics.getWidth() * universeZoom;
+			uniCamera.height = Core.graphics.getHeight() * universeZoom;
+		}
+
 		for (caliniya.vergvoke.system.System<?> render : renders) {
 			render.updataSubmit(delta);
 		}

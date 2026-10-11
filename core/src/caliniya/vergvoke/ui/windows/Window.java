@@ -7,6 +7,7 @@ import arc.scene.event.*;
 import arc.scene.style.*;
 import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
+import arc.struct.*;
 import arc.util.*;
 import caliniya.vergvoke.ui.Button;
 
@@ -48,6 +49,19 @@ public class Window {
 		main = new Table();
 		top = new Table();
 		low = new Table();
+	}
+
+	/// 当前存在的模态窗口（build 时登记，remove 时移除）
+	private static final Ar<Window> modals = new Ar<>();
+
+	/** 界面上是否存在可见的模态窗口（输入层用它屏蔽背景输入）。 */
+	public static boolean hasModal() {
+		for (Window w : modals) {
+			// visible 标记可能被外部关掉（如暂停窗进宇宙视图时），removed 的窗口 parent 为 null
+			if (w.window != null && w.window.visible && w.window.parent != null)
+				return true;
+		}
+		return false;
 	}
 
 	/** 链式设置模态 */
@@ -178,6 +192,10 @@ public class Window {
 
 		Core.scene.add(window);
 
+		// 模态登记：供输入层 hasModal() 查询（visible 标记由各处自行控制）
+		if (modal && !modals.contains(this))
+			modals.add(this);
+
 		if (fullscreen) {
 			window.setSize(Core.scene.getWidth(), Core.scene.getHeight());
 		} else {
@@ -199,6 +217,7 @@ public class Window {
 	}
 
 	public void remove() {
+		modals.remove(this);
 		if (window != null) window.remove();
 		if (modalOverlay != null) {
 			modalOverlay.remove();

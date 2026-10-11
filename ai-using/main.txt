@@ -23,10 +23,85 @@
 - assets-origin/ —— 原始素材(icon, sprites 子目录)(scheme 不要去管那是我的 AIDE 的配色文件)
 - docs/ —— 游戏设定文档,不过目前已废弃
 
-## 给 AI 的注意事项
+尽可能遵守note中的要求
 
-- 在可以的情况下使用可复用的变量而不是在作用域内新建,这有助于提高性能
-- 尽可能使用通配导入
-- 对于非重复的代码段不要新方法(除非真的很长或者多次调用),这有助于减少内联
-- android-old 别动不动就要删掉。
-- 不要一天到晚追求规范,很多时候我们需要违背一些规范
+## 包结构 (core/src/caliniya/vergvoke)
+
+根目录:`Vergvoke`(ApplicationCore 入口)、`Init`(基础系统初始化)。
+
+**base/ —— 基础设施**
+| 包 | 内容 |
+|----|------|
+| base | (无直接类) |
+| base.api | `EntityType`(实体类型接口)、`DrawType`(绘制接口)、`TechNodeContent`(可进科技树的内容) |
+| base.game | `Entity`(实体基类)、`EntityAr`(带四叉树+读写锁的实体容器)、`ContentType`(内容基类)、`WorldChunk`/`MapChunk`(区块存储) |
+| base.type | `CType`(内容种类枚举)、`TeamTypes`(阵营)、`DamageType`(伤害类型)、`EventType`(事件) |
+| base.shaders | `Shaders` 及 `BlurShader`/`SpaceShader` |
+
+**core/ —— 全局单例与元数据**
+| 包 | 内容 |
+|----|------|
+| core | `Data`(加载/进入游戏流程)、`Render`(相机/缩放/震动)、`UI`(界面调度) |
+| core.meta.stat | `Stat`(统计项枚举)、`StatStack`/`StatData`/`StatType`/`StatUnit`(数据展示) |
+| core.meta.ui | `Pal`(调色板) |
+
+**game/ —— 游戏状态**
+| 包 | 内容 |
+|----|------|
+| game | `Game`(全局状态/主循环入口)、`Contents`(内容注册表)、`Entities`(ID/待销毁队列/索敌查询)、`Teams` |
+| game.data | `WorldData`(世界+空间划分门面)、`CommandData`(选中/指挥)、`RouteData`(寻路图)、`TeamData`(阵营实体查询)、`ProgressData`(进度) |
+
+**type/ —— 类型与组件**
+| 包 | 内容 |
+|----|------|
+| type | `Weapon`(武器实例)、`Bullet`(子弹实例)、`Item`(物品栈)、`Enhancement`(强化模组实例) |
+| type.type | 类型载体:`UnitType`/`BuildingType`/`ItemType`/`LiquidType`/`BulletType`/`WeaponType` |
+| type.ability | `Ability` 基类 + `HeatAbility`/`ShieldAbility`/`ShieldFieldAbility` |
+| type.ability.api | `Shield`/`ForceField`(能力接口) |
+| type.enhance | `EnhancementType`(强化模组类型) |
+| type.enhance.api | `Updatable`/`AbilityBind`/`EntityBind` 接口 |
+| type.enhance.shield | `ShieldBoostEnhancementType` |
+| type.module | `Module`(容量基类)及 `ItemModule`/`LiquidModule`/`PowerModule` |
+| type.def | `UnitDef`/`BuildingDef` —— **@Entity 声明,生成 base.ecs.Unit/Building** |
+| type.def.comps | **@Component 组件**:`StateComp`(1) `MoveComp`(2) `BlockComp`(3) `TargetComp`(4) `WeaponComp`(5) `TurretComp`(6) `RouteComp`(7) `CraftComp`(8) |
+| type.def.systems | `RouteSystem`(route 线程寻路调度) |
+| type.def.craft | (无直接类) |
+| type.def.craft.recipe | `Recipe`/`RecipeStack`(配方与配方组) |
+| type.def.craft.cons | `Consumer`/`ItemConsumer`(原料消耗) |
+| type.def.craft.output | `Outputer`/`ItemOutputer`(产出) |
+
+**world/ —— 世界数据**
+| 包 | 内容 |
+|----|------|
+| world | `World`(瓦片/区块/建筑索引)、`Floor`(地板)、`ENVBlock`(环境方块) |
+| world.blocks | (无直接类) |
+| world.blocks.defence | `Turret`(炮塔建筑类型) |
+| world.blocks.production | `Factory`(生产建筑类型) |
+| world.stars | `StarMap`/`StarNode`/`StarRoad`/`Universe`(星域与宇宙视图) |
+
+**system/ —— 系统与驱动**
+| 包 | 内容 |
+|----|------|
+| system | `System` 基类(可线程化/可暂停/带 TPS 统计) |
+| system.game | `GameProcess`(@SystemDef main,主线程更新+唯一销毁出口) |
+| system.world | `BulletProcess`(后台线程,双缓冲) |
+| system.render | `MapRender`/`UnitRender`/`BlockRender`/`UniverseRender`/`DebugRender` |
+| system.input | `Input` 基类 + `DesktopInput`/`MobileInput` |
+
+**其它**
+| 包 | 内容 |
+|----|------|
+| content | 内容注册:`Items`/`Liquids`/`Floors`/`ENVBlocks`/`Blocks`/`UnitTypes`/`Enhancements`/`Stars`/`Techs`/`Maps` |
+| campaign | `TechTree`/`TechNode`/`Campaign`(科技树) |
+| io | `GameIO`(存档调度)、`DataIO`(世界读写)、`WorldIO`(星域读写)、`ProgressIO`、`DataPaths`(数据目录) |
+| map | `Map`/`Maps`(地图文件列表) |
+| ui | `Styles`/`Button`/`Bar`/`Fonts` |
+| ui.fragment | `HUDFragment`/`MenuFragment`/`UniverseFragment`/`DebugFragment` |
+| ui.windows | `Window` 基类及各类窗口(Entity/Data/Pause/Maps/TechTree/Progress/CommandInfo/StarNode/Debug) |
+| base.ecs | **生成物,非源码**:`Unit`/`Building`/`EntityArs`/`Systems` |
+
+## 三个要点
+
+- **组件与实体是生成物**:`base.ecs` 由 `annotation` 模块在编译期生成,源码里没有;改动走 `type.def` 下的 `@Component`/`@Entity`。
+- **帧序**:`Systems.updateAll` = `e.sync()`(热量/能量/能力)→ 组件系统(按 index)→ `e.update()`。入口 `Vergvoke.update` → `Game.update`,仅 `Game.inGame && !focusPaused` 时跑。
+- **销毁只在主线程**:后台线程(BulletProcess/RouteSystem)判死只能 `Entities.markDead` 登记,由 `GameProcess` 统一销毁。

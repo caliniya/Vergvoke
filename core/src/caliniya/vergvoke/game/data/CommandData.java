@@ -1,9 +1,11 @@
 package caliniya.vergvoke.game.data;
 
+import arc.Events;
 import arc.func.*;
 import arc.struct.*;
 import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.game.*;
+import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.game.*;
 
 /// 包括UI需要的建筑和单位，资源相关数据。
@@ -27,6 +29,10 @@ public class CommandData {
 		commanding = false;
 		commandType = CommandType.Move;
 		viewType = ViewType.game;
+
+		// 视图切换统一在这里维护：所有切视图入口都走 EnterUV/ExitUV 事件
+		Events.run(EventType.events.EnterUV, () -> viewType = ViewType.uni);
+		Events.run(EventType.events.ExitUV, () -> viewType = ViewType.game);
 	}
 
 	public static void select(float x, float y, Boolf<Entity<?, ?>> filter, Cons<Entity<?, ?>> e) {
