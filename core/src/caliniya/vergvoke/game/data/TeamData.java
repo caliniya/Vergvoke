@@ -7,7 +7,7 @@ import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.base.type.*;
 
 /**
- * 简而言之阵营数据以及相关的工具
+ * 简而言之就是阵营数据以及相关的工具
  */
 public class TeamData {
 	public final TeamTypes team;
@@ -40,9 +40,10 @@ public class TeamData {
 	 * @param filter 额外过滤谓词
 	 */
 	public void intersect(float x, float y, float r, Boolf<Entity<?, ?>> filter, Cons<Entity<?, ?>> con) {
-		Boolf<Entity<?, ?>> f = filter != null ? filter : e -> true;
-		Boolf<Entity<?, ?>> teamFilter = e -> e.team == team && f.get(e);
-		EntityArs.Unit.intersect(x - r, y - r, r * 2, r * 2, teamFilter::get, con::get);
-		EntityArs.Building.intersect(x - r, y - r, r * 2, r * 2, teamFilter::get, con::get);
+		Boolf<Entity<?, ?>> f = filter != null
+				? e -> e.team == team && filter.get(e)
+				: e -> e.team == team;
+		EntityArs.Unit.intersect(x - r, y - r, r * 2, r * 2, f::get, con::get);
+		EntityArs.Building.intersect(x - r, y - r, r * 2, r * 2, f::get, con::get);
 	}
 }

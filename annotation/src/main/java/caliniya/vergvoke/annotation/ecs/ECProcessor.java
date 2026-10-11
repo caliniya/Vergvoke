@@ -245,7 +245,7 @@ public class ECProcessor extends Processor {
 	}
 
 	/**
-	 * @Save 只能出现在 @Component 的字段上：不能 static、不能和 @Import 混用、类型要能直接写、组件内 index 唯一
+	 * {@code @Save} 只能出现在 @Component 的字段上：不能 static、不能和 @Import 混用、类型要能直接写、组件内 index 唯一
 	 */
 	private boolean validateSaveTargets(Map<String, AType> components) {
 		boolean valid = true;
@@ -316,7 +316,7 @@ public class ECProcessor extends Processor {
 	}
 
 	/**
-	 * @Write / @Read 只能出现在 @Component 的方法上：签名要对、要成对、不能和 @Save 混用
+	 * {@code @Write} / @Read 只能出现在 @Component 的方法上：签名要对、要成对、不能和 @Save 混用
 	 */
 	private boolean validateSerializationMethods(Map<String, AType> components) {
 		boolean valid = true;
@@ -462,7 +462,6 @@ public class ECProcessor extends Processor {
 				error(annotationName + " method body is not accessible: " + label, method);
 				markBroken(owner.fullName());
 				valid = false;
-				continue;
 			}
 		}
 
@@ -566,7 +565,7 @@ public class ECProcessor extends Processor {
 
 		// --- @Entity.type()：类型目标 class，必须实现 EntityType ---
 		TypeMirror typeMirror = entityTypeOf(entity);
-		ClassName typeClassName = null;
+		ClassName typeClassName;
 		if (typeMirror == null) {
 			error(
 					"@Entity must declare type() = <EntityType实现类>.class, e.g. type = UnitType.class",
@@ -894,11 +893,11 @@ public class ECProcessor extends Processor {
 		if (trees == null) {
 			return null;
 		}
-		Tree tree = trees.getTree(method.e);
-		if (!(tree instanceof MethodTree)) {
+		MethodTree tree = trees.getTree(method.e);
+		if (tree == null) {
 			return null;
 		}
-		BlockTree body = ((MethodTree) tree).getBody();
+		BlockTree body = tree.getBody();
 		return body == null ? null : body.toString();
 	}
 
@@ -913,11 +912,11 @@ public class ECProcessor extends Processor {
 		if (trees == null) {
 			return 0;
 		}
-		Tree tree = trees.getTree(method);
-		if (!(tree instanceof MethodTree)) {
+		MethodTree tree = trees.getTree(method);
+		if (tree == null) {
 			return 0;
 		}
-		BlockTree body = ((MethodTree) tree).getBody();
+		BlockTree body = tree.getBody();
 		if (body == null) {
 			return 0;
 		}
@@ -1507,25 +1506,16 @@ public class ECProcessor extends Processor {
 	 */
 	private String writeStatement(VariableElement field) {
 		String name = field.getSimpleName().toString();
-		switch (field.asType().getKind()) {
-			case BOOLEAN:
-				return "w.bool(" + name + ")";
-			case BYTE:
-				return "w.b(" + name + ")";
-			case SHORT:
-			case CHAR:
-				return "w.s(" + name + ")";
-			case INT:
-				return "w.i(" + name + ")";
-			case LONG:
-				return "w.l(" + name + ")";
-			case FLOAT:
-				return "w.f(" + name + ")";
-			case DOUBLE:
-				return "w.d(" + name + ")";
-			default:
-				return "w.str(" + name + " == null ? \"\" : " + name + ")";
-		}
+		return switch (field.asType().getKind()) {
+			case BOOLEAN -> "w.bool(" + name + ")";
+			case BYTE -> "w.b(" + name + ")";
+			case SHORT, CHAR -> "w.s(" + name + ")";
+			case INT -> "w.i(" + name + ")";
+			case LONG -> "w.l(" + name + ")";
+			case FLOAT -> "w.f(" + name + ")";
+			case DOUBLE -> "w.d(" + name + ")";
+			default -> "w.str(" + name + " == null ? \"\" : " + name + ")";
+		};
 	}
 
 	/**
@@ -1533,43 +1523,25 @@ public class ECProcessor extends Processor {
 	 */
 	private String readStatement(VariableElement field) {
 		String name = field.getSimpleName().toString();
-		switch (field.asType().getKind()) {
-			case BOOLEAN:
-				return name + " = r.bool()";
-			case BYTE:
-				return name + " = r.b()";
-			case SHORT:
-				return name + " = r.s()";
-			case CHAR:
-				return name + " = (char)r.s()";
-			case INT:
-				return name + " = r.i()";
-			case LONG:
-				return name + " = r.l()";
-			case FLOAT:
-				return name + " = r.f()";
-			case DOUBLE:
-				return name + " = r.d()";
-			default:
-				return name + " = r.str()";
-		}
+		return switch (field.asType().getKind()) {
+			case BOOLEAN -> name + " = r.bool()";
+			case BYTE -> name + " = r.b()";
+			case SHORT -> name + " = r.s()";
+			case CHAR -> name + " = (char)r.s()";
+			case INT -> name + " = r.i()";
+			case LONG -> name + " = r.l()";
+			case FLOAT -> name + " = r.f()";
+			case DOUBLE -> name + " = r.d()";
+			default -> name + " = r.str()";
+		};
 	}
 
 	/** 这个类型能不能直接用 @Save 写出去 */
 	private boolean isSaveable(TypeMirror type) {
-		switch (type.getKind()) {
-			case BOOLEAN:
-			case BYTE:
-			case SHORT:
-			case CHAR:
-			case INT:
-			case LONG:
-			case FLOAT:
-			case DOUBLE:
-				return true;
-			default:
-				return isType(type, "java.lang.String");
-		}
+		return switch (type.getKind()) {
+			case BOOLEAN, BYTE, SHORT, CHAR, INT, LONG, FLOAT, DOUBLE -> true;
+			default -> isType(type, "java.lang.String");
+		};
 	}
 
 	/** 类型是否就是指定的那个类（取不到 TypeElement 时按全限定名比） */
@@ -1699,21 +1671,12 @@ public class ECProcessor extends Processor {
 	}
 
 	private String defaultValue(TypeMirror type) {
-		switch (type.getKind()) {
-			case BOOLEAN:
-				return "false";
-			case BYTE:
-			case CHAR:
-			case SHORT:
-			case INT:
-			case LONG:
-				return "0";
-			case FLOAT:
-			case DOUBLE:
-				return "0f";
-			default:
-				return "null";
-		}
+		return switch (type.getKind()) {
+			case BOOLEAN -> "false";
+			case BYTE, CHAR, SHORT, INT, LONG -> "0";
+			case FLOAT, DOUBLE -> "0f";
+			default -> "null";
+		};
 	}
 
 	/** 按系统分组：系统名 -> 实体名 -> 更新片段（组件系统 / Systems 生成共用） */
