@@ -28,6 +28,14 @@ public class BuildingType extends ContentType
 	/** 占地边长，格。 */
 	public int size = 2;
 
+	/** 建筑菜单分类（UI 分组用）。 */
+	public BlockCategory category = BlockCategory.misc;
+
+	/** 建筑分类（菜单分组）。 */
+	public enum BlockCategory {
+		turret, production, unit, logistics, misc
+	}
+
 	/** 允许建造。 */
 	public boolean buildable = true;
 

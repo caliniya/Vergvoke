@@ -4,6 +4,7 @@ import caliniya.vergvoke.type.*;
 import caliniya.vergvoke.type.def.craft.output.*;
 import caliniya.vergvoke.type.def.craft.recipe.*;
 import caliniya.vergvoke.type.type.*;
+import caliniya.vergvoke.type.type.BuildingType.BlockCategory;
 import caliniya.vergvoke.world.blocks.defence.*;
 import caliniya.vergvoke.world.blocks.production.*;
 
@@ -18,12 +19,14 @@ public class Blocks {
 				new BuildingType("test-building") {
 					{
 						this.size = 3;
+						this.category = BlockCategory.production;
 					}
 				};
 		testTurret =
 				new Turret("testturret") {
 					{
 						this.size = 3;
+						this.category = BlockCategory.turret;
 						this.bulletType =
 								new BulletType() {
 									{
@@ -36,6 +39,7 @@ public class Blocks {
 				new Factory("factory") {
 					{
 						this.size = 2;
+						this.category = BlockCategory.production;
 						this.recipes.add(
 								new Recipe()
 										.time(60f)

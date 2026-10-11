@@ -4,12 +4,21 @@ import arc.*;
 import arc.math.*;
 import arc.scene.actions.*;
 import arc.scene.event.*;
+import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
 import arc.util.*;
 import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.base.game.*;
+import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.*;
+import caliniya.vergvoke.core.meta.ui.*;
+import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
+import caliniya.vergvoke.type.type.*;
+import caliniya.vergvoke.type.type.BuildingType.*;
 import caliniya.vergvoke.ui.*;
+import caliniya.vergvoke.ui.Button;
+import caliniya.vergvoke.ui.layout.*;
 import caliniya.vergvoke.ui.windows.*;
 
 public class HUDFragment {
@@ -19,6 +28,8 @@ public class HUDFragment {
 	private Table buildingPanel;
 	private Table commandPanel;
 	private Table unitInfoTable;
+	private MeshLayout blockList;
+	private Table infoTable;
 	private Button moveBtn, stopBtn;
 
 	// A左上 B左下
@@ -89,17 +100,98 @@ public class HUDFragment {
 		buildingPanel = new Table();
 		buildingPanel.background(Styles.background);
 
-		buildingPanel.add("[lightgray]建筑菜单[]").row();
-		buildingPanel.add().height(10f).row();
+		// 最上：选中/悬停建筑的信息行（图标 + 名字 + 消耗占位）
+		infoTable = new Table();
+		buildingPanel.add(infoTable).growX().left().pad(6f).row();
+		buildingPanel.add().height(4f).row();
+		buildingPanel.image().color(Pal.light).fillX().height(2);
+		buildingPanel.row();
+		buildingPanel.add().height(4f).row();
 
-		Table btnRow = new Table();
-		btnRow.defaults().size(70f, 50f).pad(5f);
+		// 中：当前类别的建筑网格（可滚动）
+		blockList = new MeshLayout();
+		blockList.defaults().size(56f, 56f).pad(3f);
+		blockList.onHover = this::refreshBlockInfo;
+		blockList.onSelect = this::refreshBlockInfo;
+		ScrollPane pane = new ScrollPane(blockList);
+		pane.setFadeScrollBars(true);
+		buildingPanel.add(pane).growX().maxHeight(200f).pad(6f).row();
+		buildingPanel.add().height(6f).row();
+		buildingPanel.image().color(Pal.light).fillX().height(2);
+		buildingPanel.row();
+		buildingPanel.add().height(4f).row();
 
-		btnRow.button("@aa", () -> Log.info("打开电力建筑列表"));
-		btnRow.button("生产", () -> Log.info("打开生产建筑列表"));
-		btnRow.button("防御", () -> Log.info("打开防御建筑列表"));
+		// 下：类别行（点击切换上方列表）
+		Table catRow = new Table();
+		catRow.defaults().size(70f, 44f).pad(3f);
+		catRow.left().bottom();
+		BlockCategory[] cats = BlockCategory.values();
+		Button[] catBtns = new Button[cats.length];
+		for (int i = 0; i < cats.length; i++) {
+			BlockCategory cat = cats[i];
+			Button btn = new Button(catName(cat), () -> showCategory(cat, catBtns));
+			btn.userObject = cat;
+			catBtns[i] = btn;
+			catRow.add(btn);
+		}
+		buildingPanel.add(catRow).growX().left();
 
-		buildingPanel.add(btnRow);
+		showCategory(BlockCategory.production, catBtns);
+	}
+
+	/** 信息行内容：悬停优先，其次选中，都没有 = 提示文字。 */
+	private void refreshBlockInfo() {
+		infoTable.clearChildren();
+		BuildingType bt = null;
+		if (blockList.hoverItem != null)
+			bt = (BuildingType) blockList.hoverItem.userObject;
+		if (bt == null && blockList.selItem != null)
+			bt = (BuildingType) blockList.selItem.userObject;
+
+		if (bt == null) {
+			infoTable.add("[gray]悬停预览，左键选择[]").left().pad(2f);
+			return;
+		}
+
+		boolean selected = blockList.selItem != null && blockList.selItem.userObject == bt;
+		infoTable.add(new arc.scene.ui.Image(bt.region)).size(40f).left();
+		Table text = new Table();
+		text.add((selected ? "[light]" : "") + bt.localizedName + (selected ? "[]" : "")).left().row();
+		text.add("[gray]消耗：（未实现）[]").left();
+		infoTable.add(text).growX().left().padLeft(6f);
+	}
+
+	/** 刷新建筑网格：显示指定类别下所有可建造建筑，选中类别按钮高亮。 */
+	private void showCategory(BlockCategory cat, Button[] catBtns) {
+		for (Button catBtn : catBtns) {
+			catBtn.setChecked(catBtn.userObject == cat);
+		}
+
+		blockList.clearChildren();
+		blockList.defaults().size(56f, 56f).pad(3f);
+		boolean any = false;
+		for (ContentType c : Contents.getByType(CType.Block)) {
+			if (c instanceof BuildingType bt && bt.buildable && bt.category == cat) {
+				any = true;
+				MeshLayout.MeshItem item = blockList.item(bt.region, () -> Log.info("选中建筑：" + bt.name + "（建造逻辑未接入）"));
+				item.userObject = bt;
+			}
+		}
+		if (!any) {
+			blockList.add("[gray]该类别暂无建筑[]").left().pad(6f);
+		}
+		refreshBlockInfo();
+	}
+
+	/** 类别显示名（占位直写，以后挪 bundle）。 */
+	private static String catName(BlockCategory cat) {
+		return switch (cat) {
+			case turret -> "炮塔";
+			case production -> "生产";
+			case unit -> "单位";
+			case logistics -> "物流";
+			case misc -> "其他";
+		};
 	}
 
 	private void setupCommandPanel() {
@@ -207,14 +299,7 @@ public class HUDFragment {
 					.size(64f, 36f)
 					.padLeft(8f);
 			unitInfoTable.add(infoRow).growX().left().row();
-			// 血条（占满）+ 能量条（紧贴下方，长度一致）
-		/*	unitInfoTable.add(healthBar()).growX().minWidth(140f).height(10f).left().row();
-			if (u.energyMax > 0f) {
-				unitInfoTable.add(energyBar()).growX().height(10f).left().padTop(0f).row();
-			}
-			if (u.heatable && u.heatMax > 0f) {
-				unitInfoTable.add(heatBar()).growX().height(10f).left().padTop(2f).row();
-			}*/
+
 		} else {
 			for (Unit u : CommandData.checkedUnits) {
 				unitInfoTable.add("[light]" + u.type.name + "[]").left().pad(1f).row();
@@ -230,80 +315,6 @@ public class HUDFragment {
 				: "[gray]无指令[]";
 		unitInfoTable.add(cmdText).left().padTop(4f);
 	}
-
-//	/** 整合血条元素（核心/护甲/护盾三段 Bar,段宽按上限占比分配;复用实例,绘制时读取 selectedUnit）。 */
-//	private Element healthBar() {
-//		if (healthBarElement == null) {
-//			Table t = new Table();
-//			Bar coreBar = new Bar(() -> {
-//				Unit u = selectedUnit;
-//				return u == null || u.maxHealth <= 0f ? 0f : Mathf.clamp(u.health / u.maxHealth);
-//			}, Color.scarlet);
-//			Bar armorBar = new Bar(() -> {
-//				Unit u = selectedUnit;
-//				return u == null || u.armorMax <= 0f ? 0f : Mathf.clamp(u.armor / u.armorMax);
-//			}, Color.lightGray);
-//			Bar shieldBar = new Bar(() -> {
-//				Unit u = selectedUnit;
-//				return u == null || u.totalShieldMax() <= 0f
-//						? 0f
-//						: Mathf.clamp(u.totalShield() / u.totalShieldMax());
-//			}, Color.sky);
-//
-//			Cell<Bar> cc = t.add(coreBar).height(10f);
-//			Cell<Bar> ac = t.add(armorBar).height(10f);
-//			Cell<Bar> sc = t.add(shieldBar).height(10f);
-//
-//			// 段宽按三者上限占比分配,总宽跟随外层布局的实际宽度(growX 拉伸),上限变化时随帧刷新
-//			// 注意:Cell.width() 只改字段不触发重排,必须手动 invalidate,否则内层 Bar 停在初始 0 宽
-//			t.update(() -> {
-//				Unit u = selectedUnit;
-//				float coreMax = u == null ? 0f : Math.max(0f, u.maxHealth);
-//				float armorMax = u == null ? 0f : Math.max(0f, u.armorMax);
-//				float shieldMax = u == null ? 0f : Math.max(0f, u.totalShieldMax());
-//				float total = coreMax + armorMax + shieldMax;
-//				float w = t.getWidth();
-//				if (total <= 0f || w <= 0f) {
-//					cc.width(0f);
-//					ac.width(0f);
-//					sc.width(0f);
-//				} else {
-//					cc.width(w * coreMax / total);
-//					ac.width(w * armorMax / total);
-//					sc.width(w * shieldMax / total);
-//				}
-//				t.invalidate();
-//			});
-//
-//		}
-//		return healthBarElement;
-//	}
-//
-//	/** 整合能量条元素（复用一个实例，绘制时读取 selectedUnit）。 */
-//	private Element energyBar() {
-//		if (energyBarElement == null) {
-//			Bar bar = new Bar(() -> {
-//				Unit u = selectedUnit;
-//				return u == null || u.energyMax <= 0f ? 0f : Mathf.clamp(u.energy / u.energyMax);
-//			}, Pal.light);
-//			bar.setSize(10f, 10f);
-//		}
-//		return energyBarElement;
-//	}
-//
-//	/** 整合热量条元素（复用一个实例，绘制时读取 selectedUnit;不可产热的单位画空槽）。 */
-//	private Element heatBar() {
-//		if (heatBarElement == null) {
-//			Bar bar = new Bar(() -> {
-//				Unit u = selectedUnit;
-//				return u == null || !u.heatable || u.heatMax <= 0f
-//						? 0f
-//						: Mathf.clamp(u.heat / u.heatMax);
-//			}, Color.orange);
-//			bar.setSize(10f, 10f);
-//		}
-//		return heatBarElement;
-//	}
 
 	private void updateRightPanel() {
 		rightContainer.clearChildren();
