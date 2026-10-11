@@ -3,7 +3,7 @@ package caliniya.vergvoke.ui;
 import arc.*;
 import arc.graphics.*;
 import arc.scene.style.*;
-import arc.scene.ui.Button.*;
+import arc.scene.ui.Button;
 import arc.scene.ui.Dialog.*;
 import arc.scene.ui.ImageButton.*;
 import arc.scene.ui.Label.*;
@@ -20,10 +20,13 @@ public class Styles {
 	public static ScrollPaneStyle scrollPane;
 	public static TextFieldStyle textField;
 	public static TextButtonStyle textButton;
-	public static ButtonStyle bu;
 	public static DialogStyle window;
+	public static Button.ButtonStyle buttonStyle;
 
 	public static Drawable background;
+
+	/// 分割线（白块染色，高度由使用处 cell 指定）
+	public static Drawable divider;
 
 	public static void load() {
 
@@ -54,13 +57,6 @@ public class Styles {
 		textButton.down = buttondef.down;
 		Core.scene.addStyle(TextButtonStyle.class, textButton);
 
-		bu = new ButtonStyle();
-		bu.checked = sel;
-		bu.down = sel;
-		bu.up = null;
-		bu.over = sel;
-		Core.scene.addStyle(ButtonStyle.class, bu);
-
 		textField = new TextFieldStyle();
 		textField.font = Fonts.def;
 		textField.fontColor = Color.white; // 必需：文本颜色
@@ -72,5 +68,10 @@ public class Styles {
 		Core.scene.addStyle(TextFieldStyle.class, textField);
 
 		background = (NinePatchDrawable) Core.atlas.drawable("Window-2");
+
+		divider = new TextureRegionDrawable(Core.atlas.find("white"));
+
+		buttonStyle = new Button.ButtonStyle();
+		Core.scene.addStyle(Button.ButtonStyle.class, buttonStyle);
 	}
 }

@@ -1,11 +1,14 @@
 package caliniya.vergvoke.ui.fragment;
 
 import arc.*;
+import arc.input.*;
 import arc.math.*;
+import arc.scene.*;
 import arc.scene.actions.*;
 import arc.scene.event.*;
 import arc.scene.ui.*;
 import arc.scene.ui.layout.*;
+import arc.struct.*;
 import arc.util.*;
 import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.game.*;
@@ -15,22 +18,52 @@ import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.type.type.*;
-import caliniya.vergvoke.type.type.BuildingType.*;
 import caliniya.vergvoke.ui.*;
 import caliniya.vergvoke.ui.Button;
-import caliniya.vergvoke.ui.layout.*;
 import caliniya.vergvoke.ui.windows.*;
 
 public class HUDFragment {
 
 	private Table root;
 	private Table rightContainer;
+
+
 	private Table buildingPanel;
+
 	private Table commandPanel;
+
 	private Table unitInfoTable;
-	private MeshLayout blockList;
-	private Table infoTable;
+
 	private Button moveBtn, stopBtn;
+
+	// ===== 建筑面板状态 =====
+
+	/** 按分类分组的可建建筑（build 时构建一次） */
+	private ObjectMap<BuildingType.BlockCategory, Ar<BuildingType>> cateBlocks = new ObjectMap<>();
+
+	/** 当前选中的建筑（null = 未选中） */
+	private BuildingType selBlock;
+
+	/** 当前悬停的建筑（null = 无悬停，信息区显示选中项） */
+	private BuildingType hoverBlock;
+
+	/** 各分类页签按钮（切换分类时取消其它页签高亮） */
+	private ObjectMap<BuildingType.BlockCategory, Button> cateBtns = new ObjectMap<>();
+
+	/// 当前展示的建筑图标网格（悬停/选中刷新时重建内容）
+	private Table blockGrid;
+
+	/// 顶部信息标签（悬停/选中刷新时更新文本）
+	private Label infoLabel;
+
+	/// 当前展示的分类（默认生产）
+	private BuildingType.BlockCategory curCate = BuildingType.BlockCategory.production;
+
+	/** 图标格边长 */
+	private static final float iconSize = 64f;
+
+	/// 图标网格行列数（固定 4×4 标准，从左上角排列）
+	private static final int gridCol = 4, gridRow = 4;
 
 	// A左上 B左下
 	public Table a, b;
@@ -45,8 +78,7 @@ public class HUDFragment {
 		b = new Table().bottom().left();
 
 		a.add(
-						new Button(
-								"@菜单",
+						new Button("@菜单",
 								() -> UI.pauseWindow.build()))
 				.size(120f, 50f);
 
@@ -96,102 +128,139 @@ public class HUDFragment {
 		}
 	}
 
+	/** 收集所有可建建筑并按分类分组（build 时调一次）。 */
+	private void collectBlocks() {
+		cateBlocks.clear();
+		for (ContentType c : Contents.getByType(CType.Block)) {
+			BuildingType b = (BuildingType) c;
+			if (!b.buildable)
+				continue;
+			Ar<BuildingType> list = cateBlocks.get(b.category);
+			if (list == null)
+				cateBlocks.put(b.category, list = new Ar<>());
+			list.add(b);
+		}
+	}
+
+	/** 重建建筑面板：顶部信息区 + 中间图标网格 + 底部分类页签。 */
 	private void setupBuildingPanel() {
+		collectBlocks();
+
 		buildingPanel = new Table();
 		buildingPanel.background(Styles.background);
 
-		// 最上：选中/悬停建筑的信息行（图标 + 名字 + 消耗占位）
-		infoTable = new Table();
-		buildingPanel.add(infoTable).growX().left().pad(6f).row();
-		buildingPanel.add().height(4f).row();
-		buildingPanel.image().color(Pal.light).fillX().height(2);
-		buildingPanel.row();
-		buildingPanel.add().height(4f).row();
+		// 顶部信息区：优先显示悬停项，无悬停显示选中项
+		infoLabel = new Label("");
+		infoLabel.setWrap(true);
+		buildingPanel.add(infoLabel).growX().left().pad(6f).row();
+		buildingPanel.image(Styles.divider, Pal.light).height(2f).growX().pad(4f).row();
 
-		// 中：当前类别的建筑网格（可滚动）
-		blockList = new MeshLayout();
-		blockList.defaults().size(56f, 56f).pad(3f);
-		blockList.onHover = this::refreshBlockInfo;
-		blockList.onSelect = this::refreshBlockInfo;
-		ScrollPane pane = new ScrollPane(blockList);
-		pane.setFadeScrollBars(true);
-		buildingPanel.add(pane).growX().maxHeight(200f).pad(6f).row();
-		buildingPanel.add().height(6f).row();
-		buildingPanel.image().color(Pal.light).fillX().height(2);
-		buildingPanel.row();
-		buildingPanel.add().height(4f).row();
+		// 中间：当前分类的图标网格（可滚动，固定 4×4 高度占位，即使为空也展开）
+		blockGrid = new Table();
+		buildingPanel.add(new ScrollPane(blockGrid)).grow().minHeight(gridRow * (iconSize + 6f)).row();
+		buildingPanel.image(Styles.divider, Pal.light).height(2f).growX().pad(4f).row();
 
-		// 下：类别行（点击切换上方列表）
-		Table catRow = new Table();
-		catRow.defaults().size(70f, 44f).pad(3f);
-		catRow.left().bottom();
-		BlockCategory[] cats = BlockCategory.values();
-		Button[] catBtns = new Button[cats.length];
-		for (int i = 0; i < cats.length; i++) {
-			BlockCategory cat = cats[i];
-			Button btn = new Button(catName(cat), () -> showCategory(cat, catBtns));
-			btn.userObject = cat;
-			catBtns[i] = btn;
-			catRow.add(btn);
+		// 底部：分类页签
+		Table cateRow = new Table();
+		cateRow.defaults().size(64f, 40f).pad(3f);
+		for (BuildingType.BlockCategory cate : BuildingType.BlockCategory.values()) {
+			Button btn = new Button(cateName(cate), () -> switchCate(cate));
+			cateBtns.put(cate, btn);
+			cateRow.add(btn);
 		}
-		buildingPanel.add(catRow).growX().left();
+		buildingPanel.add(cateRow).growX().left();
 
-		showCategory(BlockCategory.production, catBtns);
-	}
-
-	/** 信息行内容：悬停优先，其次选中，都没有 = 提示文字。 */
-	private void refreshBlockInfo() {
-		infoTable.clearChildren();
-		BuildingType bt = null;
-		if (blockList.hoverItem != null)
-			bt = (BuildingType) blockList.hoverItem.userObject;
-		if (bt == null && blockList.selItem != null)
-			bt = (BuildingType) blockList.selItem.userObject;
-
-		if (bt == null) {
-			infoTable.add("[gray]悬停预览，左键选择[]").left().pad(2f);
-			return;
-		}
-
-		boolean selected = blockList.selItem != null && blockList.selItem.userObject == bt;
-		infoTable.add(new arc.scene.ui.Image(bt.region)).size(40f).left();
-		Table text = new Table();
-		text.add((selected ? "[light]" : "") + bt.localizedName + (selected ? "[]" : "")).left().row();
-		text.add("[gray]消耗：（未实现）[]").left();
-		infoTable.add(text).growX().left().padLeft(6f);
-	}
-
-	/** 刷新建筑网格：显示指定类别下所有可建造建筑，选中类别按钮高亮。 */
-	private void showCategory(BlockCategory cat, Button[] catBtns) {
-		for (Button catBtn : catBtns) {
-			catBtn.setChecked(catBtn.userObject == cat);
-		}
-
-		blockList.clearChildren();
-		blockList.defaults().size(56f, 56f).pad(3f);
-		boolean any = false;
-		for (ContentType c : Contents.getByType(CType.Block)) {
-			if (c instanceof BuildingType bt && bt.buildable && bt.category == cat) {
-				any = true;
-				MeshLayout.MeshItem item = blockList.item(bt.region, () -> Log.info("选中建筑：" + bt.name + "（建造逻辑未接入）"));
-				item.userObject = bt;
-			}
-		}
-		if (!any) {
-			blockList.add("[gray]该类别暂无建筑[]").left().pad(6f);
-		}
+		refreshBlockGrid();
 		refreshBlockInfo();
 	}
 
-	/** 类别显示名（占位直写，以后挪 bundle）。 */
-	private static String catName(BlockCategory cat) {
-		return switch (cat) {
-			case turret -> "炮塔";
-			case production -> "生产";
-			case unit -> "单位";
-			case logistics -> "物流";
-			case misc -> "其他";
-		};
+	/// 分类显示名（暂用英文名，后续接入本地化）。
+	private String cateName(BuildingType.BlockCategory cate) {
+		switch (cate) {
+			case turret:
+				return "防御";
+			case production:
+				return "生产";
+			case unit:
+				return "单位";
+			case logistics:
+				return "后勤";
+			default:
+				return "其他";
+		}
+	}
+
+	/** 切换分类页签：清除所选并重建图标网格，高亮当前页签。 */
+	private void switchCate(BuildingType.BlockCategory cate) {
+		curCate = cate;
+		selBlock = null;
+		refreshBlockInfo();
+		for (Button b : cateBtns.values())
+			b.setChecked(b == cateBtns.get(cate));
+		refreshBlockGrid();
+	}
+
+	/** 重建当前分类的图标网格：4×4 标准从左上角排列，图标用建筑贴图，选中项叠加 select 框（无按钮样式）。 */
+	private void refreshBlockGrid() {
+		blockGrid.clearChildren();
+		blockGrid.top().left();
+		Ar<BuildingType> list = cateBlocks.get(curCate, new Ar<>());
+		for (int i = 0; i < list.size; i++) {
+			BuildingType b = list.get(i);
+			// 图标 + 选中框叠放：图标内缩一圈，避免边缘被 select 框遮住
+			Stack stack = new Stack();
+			Table inner = new Table();
+			inner.add(new Image(b.region)).size(iconSize - 10f, iconSize - 10f);
+			stack.add(inner);
+			Image selImg = new Image(Styles.sel);
+			selImg.setScaling(Scaling.stretch);
+			selImg.visible = false;
+			stack.add(selImg);
+			stack.setSize(iconSize, iconSize);
+			stack.update(() -> selImg.visible = selBlock == b);
+			stack.addListener(new InputListener() {
+				@Override
+				public void enter(InputEvent event, float x, float y, int pointer, Element from) {
+					hoverBlock = b;
+					refreshBlockInfo();
+				}
+
+				@Override
+				public void exit(InputEvent event, float x, float y, int pointer, Element to) {
+					if (hoverBlock == b) {
+						hoverBlock = null;
+						refreshBlockInfo();
+					}
+				}
+
+				@Override
+				public boolean touchDown(InputEvent event, float x, float y, int pointer, KeyCode button) {
+					selectBlock(b);
+					return true;
+				}
+			});
+			blockGrid.add(stack).size(iconSize, iconSize).pad(3f);
+			if ((i + 1) % gridCol == 0)
+				blockGrid.row();
+		}
+	}
+
+	/** 点击图标切换选中（移动端无悬停，直接点击即选中）。 */
+	private void selectBlock(BuildingType b) {
+		selBlock = (selBlock == b) ? null : b;
+		refreshBlockInfo();
+	}
+
+	/** 刷新顶部信息区：悬停优先，无悬停显示选中；两者都没有时什么都不显示。 */
+	private void refreshBlockInfo() {
+		BuildingType show = hoverBlock != null ? hoverBlock : selBlock;
+		if (show == null) {
+			infoLabel.setText("");
+		} else {
+			// 目前所有信息都用名字代替，后续接入统计/描述
+			infoLabel.setText("[light]" + show.name + "[]"
+					+ (show == selBlock ? "  [gray](已选中)[]" : ""));
+		}
 	}
 
 	private void setupCommandPanel() {
