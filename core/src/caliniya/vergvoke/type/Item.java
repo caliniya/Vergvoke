@@ -6,7 +6,7 @@ import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.type.type.*;
 
 /**
- * 表示物品栈
+ * 表示单个物品栈
  */
 public class Item {
 
