@@ -53,11 +53,19 @@ public class BuildAi extends Ai {
 	public void update(Unit u, float dt) {
 		// cur 有效性自检：认领者看 main==u；指定目标看计划是否已出池
 		if (cur != null) {
-			boolean valid = (cur == orderedPlan) ? !cur.done : cur.main == u;
-			if (!valid) {
+			// 拆除目标建筑没了（被打爆/已被拆）：计划作废出池
+			if (cur.kind == 1 && cur.building != null && cur.building.type == null) {
+				BuildPlan.cancel(cur);
 				cur = null;
 				routed = false;
 				starve = 0f;
+			} else {
+				boolean valid = (cur == orderedPlan) ? !cur.done : cur.main == u;
+				if (!valid) {
+					cur = null;
+					routed = false;
+					starve = 0f;
+				}
 			}
 		}
 

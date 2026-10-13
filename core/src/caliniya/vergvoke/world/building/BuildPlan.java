@@ -355,6 +355,48 @@ public class BuildPlan {
 		}
 	}
 
+	/// 反查建筑的拆除计划（toggle 用；主线程）
+	public static Plan demolishPlanOf(Building b) {
+		if (b == null) {
+			return null;
+		}
+		synchronized (lock) {
+			for (Plan p : plans) {
+				if (p.kind == 1 && p.building == b) {
+					return p;
+				}
+			}
+			return null;
+		}
+	}
+
+	/**
+	 * 标记拆除 / 取消拆除（普通模式右键建筑；toggle）。
+	 *
+	 * <p>拆除与建造同池混列（kind=1），走同一套认领/前往/推进，只是方向相反：
+	 * 持续返还物品（×{@code Game.deconstructRefund}）而非消耗。
+	 *
+	 * @return true = 已标记拆除；false = 取消了已有标记
+	 */
+	public static boolean toggleDemolish(Building b) {
+		if (b == null || b.type == null) {
+			return false;
+		}
+		synchronized (lock) {
+			Plan exist = demolishPlanOf(b);
+			if (exist != null) {
+				cancel(exist);
+				return false;
+			}
+			Plan p = new Plan();
+			p.kind = 1;
+			p.building = b;
+			p.team = b.team;
+			plans.add(p);
+			return true;
+		}
+	}
+
 	// --- 副作用队列 ---
 
 	/** 登记副作用（ai 线程；只入队不执行）。 */
