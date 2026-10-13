@@ -21,9 +21,9 @@ public class DesktopInput extends Input {
 	private boolean up, down, left, right;
 
 	public DesktopInput() {
-		// 建造预览 + 计划脚印挂后处理（画在世界内容之上的顶层叠加；光标坐标每帧从 worldX/worldY 取）
+		// 建造预览 + 计划可视化挂后处理（画在世界内容之上的顶层叠加；光标坐标每帧从 worldX/worldY 取）
 		PostRender.renders.add(() -> BuildPlan.drawPreview(worldX, worldY));
-		PostRender.renders.add(BuildPlan::drawPlans);
+		PostRender.renders.add(BuildPlan::drawLinksAndFx);
 	}
 
 	@Override
@@ -159,6 +159,21 @@ public class DesktopInput extends Input {
 			return false;
 		}
 
+		// 普通模式：右键点建筑 = 标记拆除（进计划池，单位会自动来拆并持续返还物品）
+		if (!blocked() && CommandData.mode == CommandData.Mode.nor
+				&& CommandData.viewType == CommandData.ViewType.game && Game.inGame
+				&& button == KeyCode.mouseRight) {
+			tranPos(x, y);
+			int tx = (int) (worldX / WorldData.TILE_SIZE);
+			int ty = (int) (worldY / WorldData.TILE_SIZE);
+			Building b = WorldData.world != null ? WorldData.world.getBuilding(tx, ty) : null;
+			if (b != null && b.type != null) {
+				BuildPlan.addDemolish(b);
+				return true;
+			}
+			return false; // 点空地不消费（普通模式右键暂无其他行为）
+		}
+
 		if (!canSelect())
 			return false;
 		tranPos(x, y);
@@ -169,8 +184,15 @@ public class DesktopInput extends Input {
 			return true;
 		}
 
-		// 左键 = 点选：四叉树按包围盒重叠判定，小半径查询 + contains 精判
+		// 左键 = 建造命令优先（点正在建造的工地=协助建造，点计划=前往建造），否则点选单位
 		if (button == KeyCode.mouseLeft) {
+			BuildPlan.Plan plan = buildSiteAt(worldX, worldY);
+			if (plan == null) {
+				plan = BuildPlan.planAt(worldX, worldY);
+			}
+			if (plan != null && commandUnitsBuild(plan)) {
+				return true;
+			}
 			Game.team.data().intersect(worldX, worldY, 1f, e -> e instanceof Unit, this::tapSelect);
 			return false;
 		}

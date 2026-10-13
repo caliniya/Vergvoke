@@ -14,7 +14,9 @@ import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.system.render.*;
+import caliniya.vergvoke.type.ai.*;
 import caliniya.vergvoke.ui.windows.*;
+import caliniya.vergvoke.world.building.*;
 
 /**
  * 输入基类：实现平台无关的具体操作（移动相机 / 缩放等），平台子类在各手势、按键事件中接入这些操作。
@@ -216,6 +218,11 @@ public abstract class Input implements InputProcessor, GestureListener {
 		for (Unit u : CommandData.checkedUnits) {
 			if (u == null || u.health <= 0)
 				continue;
+			// 玩家指令优先：置 ordered 不再自动认领建造，并解绑当前认领（BuildAi 自检 cur.main 收尾）
+			if (u.ai != null) {
+				u.ai.ordered = true;
+			}
+			BuildPlan.releaseUnit(u);
 			Vec2 dst = RouteData.nearestPassable(wx, wy, Mathf.ceil(u.sizet));
 			if (dst == null)
 				continue;
@@ -248,6 +255,39 @@ public abstract class Input implements InputProcessor, GestureListener {
 				WorldData.moveunits.remove(u);
 			}
 		}
+	}
+
+	// ===== 建造命令（指挥模式：点工地=协助，点计划=前往；右键仍是移动）=====
+
+	/// 光标处正在建造的工地对应的计划（没有返回 null；未完工建筑才算工地）
+	protected BuildPlan.Plan buildSiteAt(float wx, float wy) {
+		int tx = (int) (wx / WorldData.TILE_SIZE), ty = (int) (wy / WorldData.TILE_SIZE);
+		Building b = WorldData.world != null ? WorldData.world.getBuilding(tx, ty) : null;
+		return b != null && b.type != null && !b.finished ? BuildPlan.planOfSite(b) : null;
+	}
+
+	/**
+	 * 对选中单位下达建造目标命令（协助/前往通用）：停自动认领、放手头计划、转指定目标。
+	 *
+	 * @return true = 有单位接收了命令
+	 */
+	protected boolean commandUnitsBuild(BuildPlan.Plan plan) {
+		if (plan == null || CommandData.checkedUnits.isEmpty()) {
+			return false;
+		}
+		boolean any = false;
+		for (Unit u : CommandData.checkedUnits) {
+			if (u == null || u.health <= 0 || !(u.ai instanceof BuildAi ai)) {
+				continue;
+			}
+			// 玩家指令优先：停自动认领，放手头计划，转去指定目标
+			u.ai.ordered = true;
+			BuildPlan.releaseUnit(u);
+			BuildPlan.claim(plan, u); // 抢到主位就当主（扣物品），抢不到就当协助
+			ai.orderedPlan = plan;
+			any = true;
+		}
+		return any;
 	}
 
 	/** 框选指示（前处理渲染回调）：拖拽中画选择矩形。 */

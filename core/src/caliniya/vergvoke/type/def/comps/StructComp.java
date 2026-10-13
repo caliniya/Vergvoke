@@ -15,8 +15,8 @@ public class StructComp {
 	/// 单次建造物品需求（类型级默认值，后续由 BuildingType 配置覆写）
 	public Item cost = new Item(Items.Ge, 10);
 
-	/// 当前进度 0..buildTime
-	public float progress;
+	/// 当前进度 0..buildTime（ai 线程写、主线程渲染读，volatile 保可见）
+	public volatile float progress;
 
 	/// 完工标记（FINISH 转正后 true）
 	public boolean finished;

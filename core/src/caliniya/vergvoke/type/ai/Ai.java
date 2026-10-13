@@ -11,11 +11,14 @@ import caliniya.vergvoke.base.ecs.Unit;
  *
  * <p>
  * 线程纪律（实现必须遵守）：只允许"思考"与写白名单数据——自身字段、{@code BuildPlan} 静态锁内、
- * {@code WorldData.moveusers}（synchronized 既有锁）、单位 {@code item}；创建/销毁实体、
+ * {@code WorldData.moveunits}（synchronized 既有锁）、单位 {@code item}；创建/销毁实体、
  * 碰 {@code EntityArs} / {@code RouteData} / 渲染 UI 等生命周期副作用一律登记
  * {@code BuildPlan.pend}，由主线程 {@code GameProcess} drain 执行。
  */
 public abstract class Ai {
+
+	/// 玩家是否已给该单位下过指令（主线程置位；置了就不自动认领建造计划——玩家指令优先）
+	public boolean ordered;
 
 	/// 每帧思考（ai 线程调用）；delta 为 60TPS 基准帧时间倍率（1.0 = 理想一帧）
 	public abstract void update(Unit u, float delta);

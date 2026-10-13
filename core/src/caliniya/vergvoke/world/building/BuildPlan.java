@@ -2,8 +2,12 @@ package caliniya.vergvoke.world.building;
 
 import arc.graphics.*;
 import arc.graphics.g2d.*;
+import arc.math.*;
 import arc.struct.*;
 import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.base.type.*;
+import caliniya.vergvoke.core.meta.ui.*;
+import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.type.type.*;
 
@@ -52,6 +56,9 @@ public class BuildPlan {
 		/// kind=0：锚点（左下角格）
 		public int tx, ty, angle;
 
+		/// 归属阵营（放置时记 Game.team；SPAWN 工地用）
+		public TeamTypes team;
+
 		/// 认领的主单位（null = 未认领）；volatile 供 ai 线程无锁读，主线程锁内写
 		public volatile Unit main;
 
@@ -63,6 +70,9 @@ public class BuildPlan {
 
 		/// kind=0：已登记 SPAWN 未执行（防重复登记）
 		public boolean spawning;
+
+		/// 出池标记（完工/取消后置 true；协助者靠它自检收尾）
+		public boolean done;
 	}
 
 	/** 副作用条目（op + 目标计划）。 */
@@ -74,19 +84,27 @@ public class BuildPlan {
 
 	// --- 主线程：放置 / 取消 ---
 
+	/** 尝试放置建造计划（默认玩家队）：canPlace 通过且与本队未开工计划脚印不重叠才入池。 */
+	public static boolean tryPlace(BuildingType block, int tx, int ty, int angle) {
+		return tryPlace(block, tx, ty, angle, Game.team);
+	}
+
 	/**
-	 * 尝试放置建造计划：canPlace 通过且与未开工计划脚印不重叠才入池。
+	 * 尝试放置建造计划：canPlace 通过且与{@code team} 未开工计划脚印不重叠才入池。
+	 *
+	 * <p>计划池全局共享但按 {@link Plan#team} 隔离——敌人 AI 同样走本建造系统，
+	 * 认领/重叠判定只认本队的，不会抢玩家的计划。
 	 *
 	 * @return true = 已入池
 	 */
-	public static boolean tryPlace(BuildingType block, int tx, int ty, int angle) {
+	public static boolean tryPlace(BuildingType block, int tx, int ty, int angle, TeamTypes team) {
 		if (block == null || !block.canPlace(tx, ty, angle)) {
 			return false;
 		}
 		synchronized (lock) {
 			// 与未开工计划脚印重叠也拒（错开锚点/换建筑类型都不行——spawn 时会互相覆盖拆除；
 			// 已 spawn 的脚印已被工地占了，canPlace 自然挡住）
-			if (overlapsPlans(block, tx, ty, angle)) {
+			if (overlapsPlans(block, tx, ty, angle, team)) {
 				return false;
 			}
 			Plan p = new Plan();
@@ -95,20 +113,21 @@ public class BuildPlan {
 			p.tx = tx;
 			p.ty = ty;
 			p.angle = angle % 4;
+			p.team = team;
 			plans.add(p);
 			return true;
 		}
 	}
 
 	/**
-	 * 与未开工计划的脚印是否重叠（主线程放置/预览用）。
+	 * 与{@code team} 未开工计划的脚印是否重叠（主线程放置/预览用）。
 	 *
 	 * <p>同锚点只是重叠的一种；错开锚点但脚印相交（2×2 放 (5,5) 与 (6,6)）同样要拒。
 	 */
-	public static boolean overlapsPlans(BuildingType block, int tx, int ty, int angle) {
+	public static boolean overlapsPlans(BuildingType block, int tx, int ty, int angle, TeamTypes team) {
 		synchronized (lock) {
 			for (Plan q : plans) {
-				if (q.kind != 0 || q.site != null || q.block == null) {
+				if (q.kind != 0 || q.site != null || q.block == null || q.team != team) {
 					continue;
 				}
 				if (footprintsIntersect(block, tx, ty, angle, q.block, q.tx, q.ty, q.angle)) {
@@ -219,6 +238,7 @@ public class BuildPlan {
 		synchronized (lock) {
 			plans.remove(p, true);
 			p.main = null;
+			p.done = true; // 出池标记：持有引用的协助者/命令单位靠它自检收尾
 		}
 	}
 
@@ -236,11 +256,98 @@ public class BuildPlan {
 		}
 	}
 
-	/** 从前向后找第一个未认领的计划（池内无已完成项——完工即出池）。 */
-	public static Plan firstUnclaimed() {
+	/// 标记拆除（普通模式右键点建筑）：入池 kind=1 计划；同一建筑只保留一条
+	public static void addDemolish(Building b) {
+		addDemolish(b, Game.team);
+	}
+
+	/// 标记拆除（带队伍）：拆除计划归下令人的队伍（claimFirst 按队隔离）
+	public static void addDemolish(Building b, TeamTypes team) {
+		if (b == null || b.type == null) {
+			return;
+		}
 		synchronized (lock) {
 			for (Plan p : plans) {
-				if (p.main == null) {
+				if (p.kind == 1 && p.building == b) {
+					return; // 已标记过
+				}
+			}
+			Plan p = new Plan();
+			p.kind = 1;
+			p.building = b;
+			p.team = team;
+			plans.add(p);
+		}
+	}
+
+	/**
+	 * 原子认领（ai 线程）：锁内找第一个本队未认领的计划并绑给 u（建造/拆除混列）。
+	 *
+	 * <p>find + 赋值分两步会被多个单位同时认领撞车，所以合并成一步；
+	 * 按 {@code u.team} 过滤——敌人认领不到玩家的计划。
+	 */
+	public static Plan claimFirst(Unit u) {
+		synchronized (lock) {
+			for (Plan p : plans) {
+				if (p.team == u.team && p.main == null && !p.done) {
+					p.main = u;
+					return p;
+				}
+			}
+			return null;
+		}
+	}
+
+	/** 解绑单位的一切认领（主线程：单位死亡 / 玩家下达移动指令）。 */
+	public static void releaseUnit(Unit u) {
+		synchronized (lock) {
+			for (Plan p : plans) {
+				if (p.main == u) {
+					p.main = null;
+				}
+			}
+		}
+	}
+
+	/// 尝试认领指定计划（玩家下令用）：已被认领则失败（调用方按协助处理）
+	public static boolean claim(Plan p, Unit u) {
+		if (p == null || u == null) {
+			return false;
+		}
+		synchronized (lock) {
+			if (p.main == null) {
+				p.main = u;
+				return true;
+			}
+			return false;
+		}
+	}
+
+	/// 光标世界坐标落在哪个未 spawn 的计划脚印上（指挥下令用；主线程）
+	public static Plan planAt(float wx, float wy) {
+		int tx = (int) (wx / WorldData.TILE_SIZE), ty = (int) (wy / WorldData.TILE_SIZE);
+		synchronized (lock) {
+			for (Plan p : plans) {
+				if (p.kind != 0 || p.block == null || p.site != null) {
+					continue;
+				}
+				int n = fillTiles(p.block, p.tx, p.ty, p.angle, true);
+				if (containsBuf(tileBufA, n, tx, ty)) {
+					return p;
+				}
+			}
+			return null;
+		}
+	}
+
+	/// 反查工地对应的计划（指挥协助令用；主线程）
+	public static Plan planOfSite(Building b) {
+		if (b == null) {
+			return null;
+		}
+		synchronized (lock) {
+			for (Plan p : plans) {
+				if (p.site == b) {
 					return p;
 				}
 			}
@@ -288,7 +395,7 @@ public class BuildPlan {
 		BuildingType block = CommandData.buildBlock;
 		int tx = (int) (wx / WorldData.TILE_SIZE), ty = (int) (wy / WorldData.TILE_SIZE);
 		int angle = CommandData.planAngle;
-		boolean ok = block.canPlace(tx, ty, angle) && !overlapsPlans(block, tx, ty, angle);
+		boolean ok = block.canPlace(tx, ty, angle) && !overlapsPlans(block, tx, ty, angle, Game.team);
 		float ts = WorldData.TILE_SIZE;
 
 		// 占位区外轮廓（一笔勾出整体边界，不再是每格一个框）
@@ -304,27 +411,76 @@ public class BuildPlan {
 	}
 
 	/**
-	 * 计划池脚印（P2 最小可视化）：每个 kind=0 计划画半透明贴图 + 细框，
-	 * 让"放下的计划"肉眼可见。锁内直画（临界区只有字段读；P3 由
-	 * {@link #drawLinksAndFx} 升级为认领连线 + 进度环后取代）。
+	 * 计划池可视化（挂 PostRender，每帧）：未 spawn 画脚印虚影，工地画进度条 + 火花，
+	 * 认领单位 ↔ 目标画连线。锁内直画（临界区只有字段读；progress 是 volatile）。
+	 *
+	 * <p>多队伍：目前全队都画（敌人计划也可见）；等战争迷雾/视线系统就位后按队伍过滤。
 	 */
-	public static void drawPlans() {
+	public static void drawLinksAndFx() {
 		synchronized (lock) {
+			float ts = WorldData.TILE_SIZE;
 			for (Plan p : plans) {
-				// 已 spawn 的有真实建筑/工地渲染，不用再画脚印
-				if (p.kind != 0 || p.block == null || p.site != null) {
-					continue;
+				float cx, cy;
+
+				if (p.kind == 1) {
+					// 拆除计划：建筑红叉标记（建筑没了的计划自清，不画）
+					Building b = p.building;
+					if (b == null || b.type == null) {
+						continue;
+					}
+					cx = b.x;
+					cy = b.y;
+					Draw.color(Color.scarlet, 0.3f);
+					Draw.rect(b.type.region, b.x, b.y, b.angle * 90f);
+					Draw.color(Color.scarlet, 0.9f);
+					Lines.stroke(2f);
+					float h = b.size / 2f;
+					Lines.line(b.x - h, b.y - h, b.x + h, b.y + h);
+					Lines.line(b.x - h, b.y + h, b.x + h, b.y - h);
+					Draw.color();
+				} else {
+					if (p.block == null) {
+						continue;
+					}
+					float psize = p.block.psize();
+					cx = (p.tx + p.block.size / 2f) * ts;
+					cy = (p.ty + p.block.size / 2f) * ts;
+
+					Building site = p.site;
+					if (site == null || site.type == null) {
+						// 未 spawn（或工地已毁）：脚印虚影 + 整体轮廓
+						Draw.color(Color.white, 0.25f);
+						Draw.rect(p.block.region, cx, cy, psize, psize, p.angle * 90f);
+						Draw.color(Color.sky, 0.5f);
+						Lines.stroke(1f);
+						drawFootprint(p.block, p.tx, p.ty, p.angle);
+						Draw.color();
+					} else {
+						// 工地：中心上方进度条 + 火花抖动
+						float prog = site.buildTime > 0f ? site.progress / site.buildTime : 1f;
+						float barW = psize * 0.8f, barH = 4f;
+						float barY = site.y + psize / 2f + 8f;
+						Draw.color(Color.darkGray, 0.8f);
+						Fill.rect(site.x, barY, barW, barH);
+						Draw.color(Pal.light, 0.95f);
+						Fill.rect(site.x - barW / 2f + barW * prog / 2f, barY, barW * prog, barH);
+						Draw.color(Color.orange, 0.7f);
+						for (int i = 0; i < 2; i++) {
+							Fill.rect(site.x + Mathf.random(psize) - psize / 2f,
+									site.y + Mathf.random(psize) - psize / 2f, 2f, 2f);
+						}
+						Draw.color();
+					}
 				}
-				float ts = WorldData.TILE_SIZE;
-				float psize = p.block.psize();
-				Draw.color(Color.white, 0.25f);
-				Draw.rect(p.block.region, p.tx * ts + psize / 2f, p.ty * ts + psize / 2f,
-						psize, psize, p.angle * 90f);
-				Draw.color(Color.sky, 0.5f);
-				Lines.stroke(1f);
-				// 整体外轮廓（与预览同款；已 spawn 的上面已跳过）
-				drawFootprint(p.block, p.tx, p.ty, p.angle);
-				Draw.color();
+
+				// 认领单位 ↔ 目标连线（拆除=红线）
+				Unit main = p.main;
+				if (main != null && main.type != null && main.health > 0f) {
+					Draw.color(p.kind == 1 ? Color.scarlet : Pal.light, 0.7f);
+					Lines.stroke(1.5f);
+					Lines.line(main.x, main.y, cx, cy);
+					Draw.color();
+				}
 			}
 		}
 	}

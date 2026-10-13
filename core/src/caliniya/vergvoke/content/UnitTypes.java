@@ -2,6 +2,7 @@ package caliniya.vergvoke.content;
 
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.type.ability.*;
+import caliniya.vergvoke.type.ai.*;
 import caliniya.vergvoke.type.type.*;
 
 public class UnitTypes {
@@ -18,6 +19,8 @@ public class UnitTypes {
 						// this.energy = 100;
 						this.energyMax = 100;
 						this.energyRegen = 10;
+						// 建造 AI：认领计划 → 前往 → spawn 工地 → 扣物品推进（P3 测试入口）
+						this.ai = new BuildAi();
 						// 类型级演示数据：护甲对动能 50% 抗性（DataWindow 可展示）
 						this.armorResist[DamageType.Kinetic.ordinal()] = 0.5f;
 						this.hitbox = new float[]{0f, 60f, 60f, 0f, 0f, 60f, 60f, 0f, 60f};

@@ -10,7 +10,6 @@ import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.io.*;
-import caliniya.vergvoke.type.enhance.shield.*;
 import caliniya.vergvoke.ui.*;
 
 public class MenuFragment {
@@ -53,6 +52,7 @@ public class MenuFragment {
 											() -> {
 												WorldData.initWorld(100, 100, true);
 												Data.loadSystems();
+/*
 
 												Unit A = UnitTypes.test.create(TeamTypes.Evoke, 100, 100);
 
@@ -67,6 +67,7 @@ public class MenuFragment {
 												b2t.maxStrengthBonus = 0.5f;
 												b2t.kineticResistBonus = 0.4f;
 												B.addEnhancement(b2t.create());
+*/
 
 												// 生成随机测试建筑
 												int padding = 5;

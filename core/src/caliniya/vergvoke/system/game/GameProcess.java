@@ -5,6 +5,8 @@ import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.game.Entity;
 import caliniya.vergvoke.game.*;
+import caliniya.vergvoke.game.data.*;
+import caliniya.vergvoke.world.building.*;
 
 // 在这里进行主线程游戏内容的更新
 @SystemDef(name = "GameProcess", thread = "main", index = 5)
@@ -22,6 +24,9 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 	 */
 	public Ar<Entity> freshKilled;
 
+	/** 建造副作用缓冲（复用，避免每帧 new）。 */
+	private final Ar<BuildPlan.Pend> buildPend = new Ar<>();
+
 	@Override
 	public GameProcess init() {
 		index = 5;
@@ -33,6 +38,20 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 
 	@Override
 	public void update(float delta) {
+		// 建造系统副作用队列：ai 线程只登记，这里锁外执行（SPAWN/FINISH 碰实体生命周期，
+		// 持 plans 锁去拿 EntityArs 写锁有死锁风险——drain 已保证锁内只拷快照）
+		BuildPlan.drain(buildPend);
+		for (BuildPlan.Pend e : buildPend) {
+			if (e.op == BuildPlan.SPAWN) {
+				spawnSite(e.plan);
+			} else if (e.op == BuildPlan.FINISH) {
+				finishSite(e.plan);
+			} else if (e.op == BuildPlan.DEMO) {
+				demolish(e.plan);
+			}
+		}
+		buildPend.clear();
+
 		// 先处理刚判死的实体（延迟最小化，防止血量变负才死）。
 		// 这是**唯一的销毁出口**：伤害结算可能在 BulletProcess 线程发生，那里只登记不销毁，
 		// 注销容器 / 回收 ID / 回池一律在这里（主线程）做。
@@ -91,5 +110,36 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 			b.kill();
 		}
 		deadBuildings.clear();
+	}
+
+	/** SPAWN：主线程 spawn 工地（建造中的建筑血量压到 1 点——{@code health<=0} 即死判定避开 0）。 */
+	private void spawnSite(BuildPlan.Plan p) {
+		if (p.site != null && p.site.type != null) {
+			return; // 防重（单位在半径内每帧都想提交）
+		}
+		Building b = WorldData.placeBuilding(p.block, p.tx, p.ty, p.angle, p.team);
+		b.health = 1f;
+		p.site = b;
+		p.spawning = false;
+	}
+
+	/** FINISH：工地转正（满血 + finished 标记），计划出池。 */
+	private void finishSite(BuildPlan.Plan p) {
+		Building b = p.site;
+		if (b == null || b.type == null) {
+			return; // 工地已被摧毁：BuildAi 自检 site 失效后会重新 spawn
+		}
+		b.health = b.maxHealth;
+		b.finished = true;
+		BuildPlan.cancel(p); // 出池 + 解绑认领（BuildAi 下帧自检清 cur）
+	}
+
+	/** DEMO：拆除完成，主线程移除建筑 + 计划出池。 */
+	private void demolish(BuildPlan.Plan p) {
+		Building b = p.building;
+		if (b != null && b.type != null) {
+			WorldData.removeBuilding(b);
+		}
+		BuildPlan.cancel(p);
 	}
 }
