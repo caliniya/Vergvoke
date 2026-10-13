@@ -309,6 +309,20 @@ public class BuildPlan {
 		}
 	}
 
+	/// 读档恢复建造计划（直接入池，不过 canPlace/防重——存的就是当时合法的位置）
+	public static void restorePlan(BuildingType block, int tx, int ty, int angle, TeamTypes team) {
+		Plan p = new Plan();
+		p.kind = 0;
+		p.block = block;
+		p.tx = tx;
+		p.ty = ty;
+		p.angle = angle % 4;
+		p.team = team;
+		synchronized (lock) {
+			plans.add(p);
+		}
+	}
+
 	/// 尝试认领指定计划（玩家下令用）：已被认领则失败（调用方按协助处理）
 	public static boolean claim(Plan p, Unit u) {
 		if (p == null || u == null) {

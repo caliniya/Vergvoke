@@ -12,6 +12,7 @@ import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.type.type.*;
 import caliniya.vergvoke.world.*;
+import caliniya.vergvoke.world.building.*;
 
 import java.io.*;
 
@@ -140,15 +141,34 @@ public class DataIO {
 					if (b != null && b.health > 0)
 						outBuildings.add(b);
 				});
-		w.i(outBuildings.size);
-		for (int i = 0; i < outBuildings.size; i++) {
-			Building b = outBuildings.get(i);
-			// 读取端据此 Contents.get(name, BuildingType.class) 还原类型
-			BuildingType blk = b.type;
-			w.str(blk == null ? "" : blk.internalName);
-			b.write(w);
-			w.b(END_MARKER);
+	w.i(outBuildings.size);
+	for (int i = 0; i < outBuildings.size; i++) {
+		Building b = outBuildings.get(i);
+		// 读取端据此 Contents.get(name, BuildingType.class) 还原类型
+		BuildingType blk = b.type;
+		w.str(blk == null ? "" : blk.internalName);
+		b.write(w);
+		w.b(END_MARKER);
+	}
+
+	// --- 建造计划（只存未完成的 kind=0；工地进度随建筑段的 StructComp 走。
+	// 拆除计划不存——读档丢失可接受。旧存档没有这一段，读新代码需重开档） ---
+	Ar<BuildPlan.Plan> outPlans = new Ar<>();
+	synchronized (BuildPlan.lock) {
+		for (BuildPlan.Plan p : BuildPlan.plans) {
+			if (p.kind == 0 && p.block != null && !p.done) {
+				outPlans.add(p);
+			}
 		}
+	}
+	w.i(outPlans.size);
+	for (int i = 0; i < outPlans.size; i++) {
+		BuildPlan.Plan p = outPlans.get(i);
+		w.str(p.block.internalName);
+		w.i(p.tx);
+		w.i(p.ty);
+		w.b((byte) p.angle);
+	}
 
 		// 至此内存中的存档数据写入完成 → 落盘
 		data = bos.toByteArray();
@@ -277,25 +297,44 @@ public class DataIO {
 		// 地图瓦片全部就位，重刷导航层（此前 RouteData.init 跑在空世界上，地图固体进不了导航图）
 		WorldData.mapLoaded();
 
-		// --- Buildings ---
-		int buildingCount = r.i();
-		for (int i = 0; i < buildingCount; i++) {
-			String typeName = r.str();
-			BuildingType type = Contents.get(typeName, BuildingType.class);
-			if (type != null) {
-				// 工厂只管构造（模块/self/运行时状态复位），read 把坐标阵营糊回来，
-				// rebuild 重算派生数据，最后由门面注册瓦片/导航/容器
-				Building b = type.create(TeamTypes.Evoke, 0, 0, 0);
-				b.read(r);
-				skipToEndMarker(r); // 校验结束标记
-				type.rebuild(b); // 坐标/阵营到手后重算占位形状与中心点
-				WorldData.placeBuilding(b);
-			} else {
-				Log.warn("Unknown block type in save: @, skipping...", typeName);
-				skipToEndMarker(r);
-			}
+	// --- Buildings ---
+	int buildingCount = r.i();
+	for (int i = 0; i < buildingCount; i++) {
+		String typeName = r.str();
+		BuildingType type = Contents.get(typeName, BuildingType.class);
+		if (type != null) {
+			// 工厂只管构造（模块/self/运行时状态复位），read 把坐标阵营糊回来，
+			// rebuild 重算派生数据，最后由门面注册瓦片/导航/容器
+			Building b = type.create(TeamTypes.Evoke, 0, 0, 0);
+			b.read(r);
+			skipToEndMarker(r); // 校验结束标记
+			type.rebuild(b); // 坐标/阵营到手后重算占位形状与中心点
+			WorldData.placeBuilding(b);
+		} else {
+			Log.warn("Unknown block type in save: @, skipping...", typeName);
+			skipToEndMarker(r);
 		}
 	}
+
+	// --- 建造计划（恢复未完成的 kind=0：str name, tx, ty, angle。
+	// 走 restorePlan 直接入池——存的就是当时合法的位置，不过 canPlace/防重。
+	// 工地（已 spawn 未完工）的计划也在里面，AI 到位后由 GameProcess.spawnSite
+	// 关联到 buildings 段恢复的建筑，不会重复 spawn） ---
+	int planCount = r.i();
+	for (int i = 0; i < planCount; i++) {
+		String blockName = r.str();
+		int tx = r.i();
+		int ty = r.i();
+		int angle = r.b();
+		BuildingType block = Contents.get(blockName, BuildingType.class);
+		if (block != null) {
+			// team=玩家；敌人的计划不存（读档丢失可接受）
+			BuildPlan.restorePlan(block, tx, ty, angle, Game.team);
+		} else {
+			Log.warn("Unknown block in build plan: @, skipping...", blockName);
+		}
+	}
+}
 
 	/**
 	 * 从当前读取位置开始，一路跳过字节直到找到 END_MARKER（8 个 0xAE）。 调用前假设 Reader 正处于未知数据的开头，调用后

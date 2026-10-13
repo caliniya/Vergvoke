@@ -117,6 +117,13 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 		if (p.site != null && p.site.type != null) {
 			return; // 防重（单位在半径内每帧都想提交）
 		}
+		// 读档恢复的工地计划：位置已有半成品建筑（buildings 段恢复的）→ 直接关联，别重复 spawn
+		Building exist = WorldData.world != null ? WorldData.world.getBuilding(p.tx, p.ty) : null;
+		if (exist != null && exist.type == p.block) {
+			p.site = exist;
+			p.spawning = false;
+			return;
+		}
 		Building b = WorldData.placeBuilding(p.block, p.tx, p.ty, p.angle, p.team);
 		b.health = 1f;
 		p.site = b;
