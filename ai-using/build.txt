@@ -1,0 +1,65 @@
+# 建造系统设计决策（2026-10-12 晚与用户确认整理）
+
+> 本文记录建造系统的已确认决策与待定项。后续实现以此为准；待定项动工前需再确认。
+> 开发注意事项仍以 note.txt 为准（arc 库优先、短命名、lambda 回调、匿名内部类、临时脚本放 temp/ 等）。
+
+## 相关代码位置
+
+| 内容 | 路径 |
+|------|------|
+| 建筑类型载体 | core/src/caliniya/vergvoke/type/type/BuildingType.java |
+| 建筑实体声明(@Entity) | core/src/caliniya/vergvoke/type/def/BuildingDef.java |
+| 单位实体声明(@Entity) | core/src/caliniya/vergvoke/type/def/UnitDef.java |
+| 建造能力组件(占位) | core/src/caliniya/vergvoke/type/def/comps/BuildComp.java |
+| 可被建造组件(占位) | core/src/caliniya/vergvoke/type/def/comps/StructComp.java |
+| 建造计划(空占位) | core/src/caliniya/vergvoke/world/building/BuildPlan.java |
+| 放置/移除编排 | core/src/caliniya/vergvoke/game/data/WorldData.java |
+| 指挥状态 | core/src/caliniya/vergvoke/game/data/CommandData.java |
+| 输入 | core/src/caliniya/vergvoke/system/input/{Input,DesktopInput,MobileInput}.java |
+| HUD 建筑面板 | core/src/caliniya/vergvoke/ui/fragment/HUDFragment.java |
+| 存档 | core/src/caliniya/vergvoke/io/DataIO.java（GameIO.SAVE_VERSION） |
+
+## 已确认决策
+
+1. **模式状态**：`CommandData.commanding`(bool) 改为 `Mode` 枚举（normal/command/build），`planAngle` 也放 CommandData。`commandType`(Move/Stop) 不动，与 Mode 正交。
+2. **进入/退出**：HUD 点建筑图标 = 选中并进入 build 模式；再点同一图标 = 取消选中回 normal；右键/Esc 退出放置模式（不影响已放置的计划）。
+3. **放置预览**：build 模式下光标跟随预览，按格吸附；锚点 = 左下角格，绕锚点旋转，全部建筑可转（R 循环 0-3，桌面端）。可建 = 半透明虚影，不可建 = 红色着色。预览渲染挂 `PreRender.renders`（与 `Input.drawBoxSel` 同机制，建筑之后单位之前画）。
+4. **合法性**：`BuildingType` 加可覆写判断方法，基类查 越界/已有建筑/固体 ENVBlock，子类覆写加额外规则；预览与正式 spawn 调用同一方法。
+5. **计划 = 纯数据**（BuildPlan 计划池）：放置落点后加入计划，不立即生成实体；单位靠近（进入建造半径）才 spawn“工地中”的 Building 实体，spawn 时占位瓦片立即注册（防抢占）。
+6. **组件挂载**：BuildComp（建造能力）挂 UnitDef；StructComp（可被建造）挂 BuildingDef。先挂上，生成物(base.ecs)后处理。建筑作为建造方暂缓。
+7. **StructComp 语义**：有此组件的实体可用“建造”方式生成；需要提供建造时所需的一切（具体包含哪些待定，见待定项）。未来单位也可如此生产（先不管）。
+8. **单位物品**：单位获得 `ItemModule`（Entity 已有字段，`UnitType.create` 未装配，需补）；单位生成时直接塞一些初始物品（种类/数量待定）。
+9. **消耗/加速模型**：主建造单位携带物品；开始建造后按进度持续扣减，扣减速率受主单位 `buildEfficiency` 影响——**效率 >1 则消耗更少物品**（消耗量 = 基础需求 × 进度增量 ÷ buildEfficiency）。辅助加成 = **Σ 辅助单位 `buildSpeed`**（纯加法，只加速，不参与物品消耗）。辅助须在建造半径内。
+10. **认领**：AI 自动从前往后寻找 未完成、未认领 的计划干活。手动优先/指派暂不实现。
+11. **AI 框架**：为实体实现可选的附加 AI 控制框架（可挂载/拆卸），建造 AI 是其中一种。何时建造何时协助的算法未想好，当前行为 = 从前往后找未完成未认领的计划。
+12. **取消**：建造模式下左键点已存在的计划 = 取消；计划随时可取消。
+13. **拆除**：普通模式下**右键点击建筑** → 标记拆除，拆除计划加入 BuildPlan（与建造计划同一个池，带 build/demolish 类型标记）；拆除 = 建造的反向逻辑（生成拆除计划 → 单位前往 → 按进度持续返还物品）。`Game` 加拆除返还系数，默认 0.5。建造/拆除中途实体被摧毁，已消耗/已返还都不补回。**建造模式下右键 = 退出到普通模式**（不影响已放计划）。
+14. **完工**：同一 Building 实体 progress 满 → health 回满、StructComp 标记完成，转入正常更新。
+15. **中断**：建造中单位收到玩家新指令 = 放弃任务回池；主单位死亡 = 任务回未认领态，工地进度保留。
+16. **建造半径**：BuildComp.buildRange，单位进入半径才开工；路径终点用 `RouteData.nearestPassable` 到工地附近。
+17. **存档**：计划进存档。DataIO 在 buildings 段后加 plans 段（type/tx/ty/angle；StructComp 只存 progress；主单位 id 不存，读档后全部回未认领态）。`SAVE_VERSION` 只为发布 bump，开发期存档格式可直接改。
+18. **未来项（先不做）**：敌人附近按单位模式(战斗/工作/撤退)切换；手动优先建造/指派单位；移动端放置输入；单位通过 StructComp“打印”生产；物流（单位从建筑搬运物品）。
+19. **认领算法（2026-10-13 定）**：每个单位持一个计时器，每固定间隔（默认 0.5s，待确认）若空闲则从前向后查找第一个未认领的计划认领。当前占位规则：认领即当主建造（建造/协助分配算法以后再做）。空闲默认定义 = 无建造任务 且 无玩家移动指令（不在 `WorldData.moveunits`）。
+20. **初始物品/消耗（2026-10-13 定）**：单位出生塞 100 Ge；单次建造总需求 = StructComp.cost（默认 Ge×10），主单位按进度持续扣（扣减量 = cost × 进度增量 ÷ buildEfficiency，efficiency>1 扣更少）。单位可独立建 10 次。注意 `UnitType.itemCap` 默认 50 < 100，需调大（建议 200）。
+21. **buildRange 默认 7 格**（224px）。
+22. **建造视觉（2026-10-13 定）**：单位↔建造目标连线 + 工地特效，挂 `PostRender.renders`（后处理层，index=20，已存在）。特效形态（进度环 + 火花粒子）由实现方定，能看出来即可，事后可调。
+
+## 待定项（动工前需确认）
+
+- ~~拆除“悬停即标记”~~ 已定：普通模式右键点建筑标记拆除，加入 BuildPlan 池（带类型标记）；建造模式右键退回普通模式。
+- ~~加速模型~~ 已定：辅助加成 = Σ 辅助 `buildSpeed`；`buildEfficiency` 只影响主单位物品消耗（>1 消耗更少）。
+- **StructComp 的“一切”**：建造所需的具体字段——已定雏形：`buildTime` + `cost`（ItemStack/Item，默认 Ge×10）；其余（电力等）用户未想好，先只做物品。
+- **建造/协助分配算法**：什么时候当主建造、什么时候当辅助——未想好；当前占位行为 = 只认领未认领计划当主建造。
+- **计时器间隔**：默认 0.5s，待确认。
+- **单位 itemCap**：现默认 50，要塞 100 初始物品需调大，建议 200，待确认。
+- **拆除返还公式**：默认 已扣部分 × Game.deconstructRefund(0.5)，按进度持续返还给主拆单位背包（满仓钳住），待确认。
+
+## 实施顺序建议
+
+1. CommandData Mode 枚举 + 调用点迁移（HUDFragment/Input）
+2. BuildingType 合法性方法 + BuildComp/StructComp 字段 + UnitDef/BuildingDef 挂载（触发 base.ecs 重新生成）
+3. BuildPlan 计划池 + DesktopInput 放置输入 + 预览渲染
+4. UnitType.create 补 ItemModule + 初始物品
+5. AI 框架（实体可选 AI）+ 建造 AI：认领/spawn/进度推进/持续扣物品
+6. 拆除反向逻辑 + Game 返还系数
+7. DataIO plans 段存档

@@ -1,0 +1,188 @@
+# 建造系统实施方案 v2（2026-10-13，修订 AI 架构）
+
+> v1 变更：AI 从"组件内方法"改为 **AiComp(挂载) + Ai 抽象(独立实现) + AiSystem(独立线程统一处理)**；
+> 预览移到 PostRender；锚点=左下角跟随光标；消耗取整(去小数)。
+> 设计决策仍见 build.txt。
+
+## 0. 并行 AI 线程评估（结论）
+
+- **难度 中 / 可行性 高 / 当前收益 低 / 未来收益 高 / 风险 中**。
+- 骨架现成：`System` 自带线程循环+60TPS+GamePause 暂停+TPS 统计；`@ThreadDef`+`@SystemDef(thread=)` 由生成的 `Systems.startThreads()` 自动实例化起线程（RouteSystem 先例）；`EntityAr.each()` 读锁跨线程迭代安全；`synchronized(WorldData.moveunits)` 是既有跨线程写寻路的模式。
+- **红线：AI 线程零实体生命周期操作**（不 spawn / 不 remove / 不 kill）。导航图(RouteData)、四叉树、渲染中迭代都经不起跨线程写。AI 只思考，副作用登记队列，主线程执行（复刻 `Entities.markDead`/`GameProcess.drainDead` 模式）。
+- 附带收益：想切回主线程只需 `AiSystem.init(false)`，AI 逻辑零改动。
+
+## 1. AI 架构（v2 核心）
+
+```
+UnitType.ai (Ai 原型配置, null=无 AI)
+   └─ create 时 copy 给实体
+AiComp (@Component, 挂 UnitDef)
+   └─ public Ai ai;            // 本实体的 AI 实例(可有可无)
+       // 未来加: 状态设置基础方法(停火/战斗/撤退), 现在只挂字段
+Ai (抽象类, type/ai)
+   └─ update(Unit u, float dt) + copy()
+BuildAi extends Ai (type/ai)
+   └─ 建造 AI: timer / curPlan / 认领 / 前往 / 推进 / 扣物品 / 拆除
+       // 只写: 自身字段, plans(锁内), moveusers(既有锁), unit.item, pend 队列
+AiSystem (@ThreadDef("ai") + @SystemDef(thread="ai", index=2), extends System)
+   └─ ai 线程统一驱动: each EntityArs.Unit → 逐个 u.ai.update(u, delta)
+```
+
+**线程纪律（写死在注释里）**
+- AI 线程可写：BuildAi 自身字段、`plan.*`（`BuildPlan` 静态锁内）、`moveusers`（synchronized 既有锁）、`u.item`（单位物品目前只有 AI 动，未来物流接入需加锁）、`pend` 队列（锁内）。
+- AI 线程不可做：创建/销毁实体、碰 `EntityArs.*.add/remove`、碰 `RouteData`、碰渲染/UI。
+- 主线程可写：`plan` 结构增删（放置/取消，锁内）、`plan.main` 解绑（单位死亡/打断，锁内）、`pend` drain 后执行副作用。
+- 跨帧引用 `plan.main`：主线程 destroy 时锁内解绑；AI 用前查 `u.type != null && u.health > 0`（reset 置空 type = 已回池）。
+- 渲染读 `plan`：主线程，锁内快照。
+
+**副作用队列（pend）**：`BuildPlan.pend`，synchronized。op：`SPAWN`(工地)、`FINISH`(转正)、`DEMO`(拆除完成移除建筑)。AI 只 `pend.submit(op, plan)`；主线程 `GameProcess.update` 开头 drain（仿 drainDead：**锁内取快照、锁外执行**，避免持 plans 锁拿 EntityArs 写锁的死锁可能）。
+
+## 2. 数据设计
+
+### BuildPlan（world/building/BuildPlan.java）
+```java
+public class BuildPlan {
+    public static final Object lock = new Object();     // 计划池 + pend 共用
+    public static final Ar<Plan> plans = new Ar<>();
+    private static final Ar<Pend> pend = new Ar<>();    // 副作用队列(主线程 drain)
+
+    public static class Plan {
+        public byte kind;            // 0=建造 1=拆除
+        public BuildingType block;   // kind=0
+        public Building building;    // kind=1 被拆建筑
+        public int tx, ty, angle;    // kind=0 锚点(左下角格)
+        public volatile Unit main;   // 认领的主单位, null=未认领
+        public Building site;        // kind=0 已 spawn 工地
+        public float progress;       // kind=1 拆除进度 0..1
+        public boolean spawning;     // kind=0 已登记 SPAWN 未执行(防重复)
+    }
+    // 静态方法(全部 synchronized(lock))：tryPlace / addDemolish / cancel / release /
+    // firstUnclaimed / drawPreview(PostRender) / drawLinksAndFx(PostRender)
+    // pend 侧：submit(op, plan) / drain(Ar<Pend> out) —— 主线程锁外执行
+}
+```
+
+### AiComp（type/def/comps/AiComp.java，新建）
+```java
+@Component(name = "Ai", index = 10)     // UnitDef 侧现最大 7(Build=9, Ai=10)
+public class AiComp {
+    public Ai ai;   // 本实体 AI，null = 无（UnitType.ai 为 null 或不挂本组件）
+    // 未来: setState(...) 等基础状态方法(停火/战斗/撤退)
+}
+```
+
+### BuildComp（type/def/comps/BuildComp.java）—— 退化为纯能力数据，无 @Updata
+```java
+@Component(name = "Build", index = 9)
+public class BuildComp {
+    public boolean canBuild = true;
+    public float buildSpeed = 1f;        // 建造速度；辅助加成 = Σ 辅助单位此值
+    public float buildEfficiency = 1f;   // 消耗效率，>1 消耗更少
+    public float buildRange = 7f * WorldData.TILE_SIZE;
+}
+```
+
+### StructComp（type/def/comps/StructComp.java）
+```java
+@Component(index = 9, name = "Struct")   // BuildingDef 侧现最大 8
+public class StructComp {
+    public float buildTime = 300f;                  // delta 累积, 300=5 秒
+    public Item cost = new Item(Items.Ge, 10);      // 单次建造物品需求
+    public float progress;                          // 建造进度 0..buildTime
+    public boolean finished;                        // 完工标记
+    @Write public void write(Writes w) { w.f(progress); w.bool(finished); }
+    @Read  public void read(Reads r) { progress = r.f(); finished = r.bool(); }
+}
+```
+无 @Updata：推进由认领单位的 BuildAi 驱动（ai 线程），单位撤走就停。
+
+### Ai / BuildAi（type/ai/，新建）
+```java
+public abstract class Ai {
+    public abstract void update(Unit u, float dt);
+    public abstract Ai copy();
+}
+
+public class BuildAi extends Ai {
+    public float timer;                 // 认领扫描计时(0.5s 间隔)
+    public float consumed;              // 物品消耗浮点累计(取整去小数)
+    public BuildPlan.Plan cur;          // 当前认领计划
+
+    public void update(Unit u, float dt) {
+        // 1. cur==null 且 !ordered 且 canBuild: timer 到点 → firstUnclaimed 认领
+        // 2. 有 cur: kind=0 → 未 spawn 则寻路前往(进 buildRange 登记 SPAWN);
+        //    spawn 后按 buildSpeed*dt 推进, 缺料钳住; 满登记 FINISH
+        //    kind=1 → 前往→按进度持续返还(×Game.deconstructRefund)→满登记 DEMO
+        // 3. cur 失效(main 被解绑/建筑没了) → cur=null
+    }
+    public Ai copy() { return new BuildAi(); }
+}
+```
+
+## 3. 文件清单
+
+**新建（5 个）**
+| 文件 | 内容 |
+|------|------|
+| `type/ai/Ai.java` | 抽象类：update(Unit,float) + copy() |
+| `type/ai/BuildAi.java` | 建造 AI（per-unit 状态 + 逻辑，只思考不碰实体生命周期） |
+| `type/def/systems/AiSystem.java` | `@ThreadDef("ai")`+`@SystemDef(thread="ai",index=2)`，extends System，each 驱动 u.ai |
+| `type/def/comps/AiComp.java` | @Component(index=10)，持 `Ai ai` |
+| `world/building/BuildPlan.java` | 重写空类：计划池 + Plan + pend 队列 + 放置/认领 + 两个 draw |
+
+**修改（12 个）**
+| 文件 | 改动 |
+|------|------|
+| `game/data/CommandData.java` | `commanding`→`Mode{nor,cmd,build}`；+`buildBlock`、`planAngle`；commandType 不动 |
+| `game/Game.java` | +`deconstructRefund = 0.5f` |
+| `type/type/BuildingType.java` | +`canPlace(tx,ty,angle)`：越界/占位格已有建筑/固体 ENVBlock，可覆写 |
+| `type/type/UnitType.java` | +`ai`(Ai 原型) 字段；create 无条件 `u.ai = ai != null ? ai.copy() : null`；itemCap 50→200；装配 `ItemModule(itemCap)`+`addItem(Ge,100)`；remove 里锁内释放认领的计划 |
+| `type/def/comps/BuildComp.java` | 挂 @Component(index=9)，纯数据（无 @Updata） |
+| `type/def/comps/StructComp.java` | 挂 @Component(index=9)，字段 + @Write/@Read |
+| `type/def/UnitDef.java` | comps + BuildComp + AiComp |
+| `type/def/BuildingDef.java` | comps + StructComp |
+| `system/input/DesktopInput.java` | build 模式 tap=放置/R=旋转/右键=退 nor；nor 模式右键点建筑=拆除计划；moveUsers 释放认领+置 ordered |
+| `ui/fragment/HUDFragment.java` | selBlock→CommandData.buildBlock+Mode.build；commanding→Mode.cmd |
+| `io/DataIO.java` | buildings 段后加 plans 段（只存 kind=0：str name, tx, ty, angle） |
+| `system/game/GameProcess.java` | update 开头 drain `BuildPlan.pend` 执行副作用（SPAWN/FINISH/DEMO） |
+
+**生成物**：base.ecs.Unit/Building 重新生成（你本地 JDK17 编译）。AiSystem 由 `Systems.startThreads()` 自动起 ai 线程。
+
+## 4. 执行流
+
+**放置**：HUD 点图标 → `CommandData{mode=build, buildBlock=b}` → tap → 锚点=光标左下角格 `tx=(int)(wx/TS), ty=(int)(wy/TS)` → `BuildPlan.tryPlace`（`canPlace`）→ 入池。R 旋 `planAngle`（绕锚点）。右键/Esc → mode=nor。
+
+**认领**（ai 线程）：BuildAi.timer≥0.5s 且 cur==null && !ordered && canBuild → `firstUnclaimed()`（从前向后，build/demo 混列）→ 认领（锁内）。
+
+**前往**：`plan.site==null` → `RouteData.nearestPassable(目标中心, ceil(sizet))` → synchronized(moveusers) 写 targetX/Y、pathed=false、add。
+
+**SPAWN**：单位与目标 `dst2Surface ≤ buildRange` → `pend.submit(SPAWN, plan)` → 主线程 drain：`WorldData.placeBuilding(block,tx,ty,angle,team)`，site StructComp progress=0、health=0。
+
+**建造推进**（ai 线程，单位在场每帧）：`d = buildSpeed*dt`；`consumed += cost.amount × d/buildTime ÷ buildEfficiency`；`while(consumed>=1){ item.removeItem(cost.type,1); consumed-=1; }`（**取整去小数，跨帧累计，避免每帧截断为 0**）；缺料(remove 返回 0)→ 钳住不推进；`progress+=d`；满 → `pend.submit(FINISH)` → 主线程：site.health=maxHealth、finished=true、plan 出池、cur=null。
+
+**拆除推进**（反向）：kind=1 → 前往 → `refund` 同款累计 `addItem`（满仓钳住）→ 满 → `pend.submit(DEMO)` → 主线程：`WorldData.removeBuilding(building)`、plan 出池。
+
+**异常分支**：单位死亡（UnitType.remove，主线程）→ 锁内 `plan.main=null, u.cur=null`；玩家新指令（moveUsers）→ 同上 + ordered=true；取消（build 模式左键点计划）→ site 存在则登记移除（走 pend）、plan 出池；工地被摧毁 → site=null（重建判定：位置仍合法则重新登记 SPAWN）。
+
+**存档**：write：`i(plans.size)` + 每条 kind=0（str block.name, tx, ty, angle）；read 对称。StructComp progress/finished 随实体自动走。demo 计划不存（读档丢失，注释说明）。**不碰 SAVE_VERSION**。
+
+## 5. 渲染（全部挂 PostRender.renders，DesktopInput 构造器注册）
+
+- `BuildPlan.drawPreview()`：build 模式下光标处贴图半透明虚影（可建）/ 红色 tint（不可建）+ 占位格线。画在世界内容之上（半透明不影响操作视线）。
+- `BuildPlan.drawLinksAndFx()`：① 认领单位↔目标连线（Pal.light，1.5px）；② 工地进度环 + 火花粒子（Mathf.random 抖动小矩形）。
+
+## 6. 分阶段实施
+
+| 阶段 | 内容 | 可验证 |
+|------|------|--------|
+| P0 | CommandData Mode 重构 + HUDFragment/Input 迁移 | 面板切换行为不变 |
+| P1 | 组件挂载(UnitDef/BuildingDef + Build/Ai/Struct) + Ai/AiSystem 骨架 + UnitType 物品 + Game 系数 | base.ecs 重新生成，ai 线程起来，编译通过 |
+| P2 | BuildPlan 池 + canPlace + 放置输入 + 预览渲染(PostRender) | 能放计划、红绿预览、取消 |
+| P3 | BuildAi 全链路 + pend 副作用 + 主线程 drain + 连线特效 | 单位自动认领→前往→spawn→扣物品→完工 |
+| P4 | 拆除流（右键标记/返还/移除） | 拆一半取消/摧毁行为正确 |
+| P5 | DataIO plans 段 + StructComp 读写 | 存读往返 |
+
+## 7. 待确认（2 个）
+
+1. **AiComp 是否现在就挂 UnitDef**：挂了所有单位都带 ai 字段（null 开销仅一个引用）；不挂则将来再加要重新生成。建议挂。
+2. **AiSystem 默认起线程**：按你的设计默认 `@ThreadDef("ai")` 自动起并行线程。若 P3 联调期觉得难排查，可临时把 `thread` 改成 `"main"`（一行切换，逻辑不动）。
