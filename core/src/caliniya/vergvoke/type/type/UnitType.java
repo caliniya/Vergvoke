@@ -11,12 +11,15 @@ import caliniya.vergvoke.base.api.*;
 import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.base.type.*;
+import caliniya.vergvoke.content.*;
 import caliniya.vergvoke.core.meta.stat.*;
 import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.type.*;
 import caliniya.vergvoke.type.ability.*;
+import caliniya.vergvoke.type.ai.*;
+import caliniya.vergvoke.type.module.*;
 import caliniya.vergvoke.ui.*;
 
 public class UnitType extends ContentType implements EntityType, DrawType<Unit>, TechNodeContent {
@@ -35,9 +38,12 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
 	public float sizet = 2f;
 
 	// 单位的容量，使用通用的模块规则
-	public int itemCap = 50;
+	public int itemCap = 200;
 	public float liquidCap;
 	public float powerCap;
+
+	/// AI 原型（null = 无 AI）：create 时 copy 成实例，挂到生成实体的 AiComp.ai 字段
+	public Ai ai;
 
 	// 防护（类型默认，实例可覆盖）
 	public float armorMax; // 护甲容量上限
@@ -133,6 +139,13 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
 		u.speedt = speedt;
 		u.speed = speed;
 		u.sizet = sizet;
+		// AI 原型拷贝：对象池复用也每次重赋（上个实例可能还挂在旧计划上，不能串）
+		u.ai = ai != null ? ai.copy() : null;
+		// 物品模块：reset 会置空 item，这里重建并塞初始 100 Ge（建造消耗由 BuildAi 扣）
+		if (u.item == null && itemCap > 0) {
+			u.item = new ItemModule(itemCap);
+			u.item.addItem(Items.Ge, 100);
+		}
 		u.team = team;
 		u.x = x;
 		u.y = y;

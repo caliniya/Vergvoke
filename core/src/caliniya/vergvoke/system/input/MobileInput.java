@@ -15,7 +15,7 @@ public class MobileInput extends Input {
 
 	/** 指挥模式下游戏视图才响应选中类输入。 */
 	private boolean canSelect() {
-		return !blocked() && CommandData.commanding && CommandData.viewType == CommandData.ViewType.game && Game.inGame;
+		return !blocked() && CommandData.mode == CommandData.Mode.cmd && CommandData.viewType == CommandData.ViewType.game && Game.inGame;
 	}
 
 	@Override

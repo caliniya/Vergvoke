@@ -2,9 +2,9 @@ package caliniya.vergvoke.type.def;
 
 import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.type.def.comps.*;
-import caliniya.vergvoke.type.type.UnitType;
+import caliniya.vergvoke.type.type.*;
 
-@Entity(comps = { StateComp.class, MoveComp.class, RouteComp.class, WeaponComp.class,
-        TargetComp.class }, name = "Unit", type = UnitType.class)
+@Entity(comps = {StateComp.class, MoveComp.class, RouteComp.class, WeaponComp.class,
+		TargetComp.class, BuildComp.class, AiComp.class}, name = "Unit", type = UnitType.class)
 public class UnitDef {
 }

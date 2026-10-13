@@ -41,9 +41,6 @@ public class HUDFragment {
 	/** 按分类分组的可建建筑（build 时构建一次） */
 	private ObjectMap<BuildingType.BlockCategory, Ar<BuildingType>> cateBlocks = new ObjectMap<>();
 
-	/** 当前选中的建筑（null = 未选中） */
-	private BuildingType selBlock;
-
 	/** 当前悬停的建筑（null = 无悬停，信息区显示选中项） */
 	private BuildingType hoverBlock;
 
@@ -89,7 +86,7 @@ public class HUDFragment {
 
 		Button commandBtn = new Button(
 				() -> {
-					CommandData.commanding = !CommandData.commanding;
+					CommandData.mode = CommandData.mode == CommandData.Mode.cmd ? CommandData.Mode.nor : CommandData.Mode.cmd;
 					updateRightPanel();
 				},
 				"@command");
@@ -192,7 +189,8 @@ public class HUDFragment {
 	/** 切换分类页签：清除所选并重建图标网格，高亮当前页签。 */
 	private void switchCate(BuildingType.BlockCategory cate) {
 		curCate = cate;
-		selBlock = null;
+		CommandData.buildBlock = null;
+		CommandData.mode = CommandData.Mode.nor;
 		refreshBlockInfo();
 		for (Button b : cateBtns.values())
 			b.setChecked(b == cateBtns.get(cate));
@@ -216,7 +214,7 @@ public class HUDFragment {
 			selImg.visible = false;
 			stack.add(selImg);
 			stack.setSize(iconSize, iconSize);
-			stack.update(() -> selImg.visible = selBlock == b);
+			stack.update(() -> selImg.visible = CommandData.buildBlock == b);
 			stack.addListener(new InputListener() {
 				@Override
 				public void enter(InputEvent event, float x, float y, int pointer, Element from) {
@@ -244,9 +242,10 @@ public class HUDFragment {
 		}
 	}
 
-	/** 点击图标切换选中（移动端无悬停，直接点击即选中）。 */
+	/** 点击图标切换选中（移动端无悬停，直接点击即选中）；选中即进入建造模式。 */
 	private void selectBlock(BuildingType b) {
-		selBlock = (selBlock == b) ? null : b;
+		CommandData.buildBlock = (CommandData.buildBlock == b) ? null : b;
+		CommandData.mode = CommandData.buildBlock != null ? CommandData.Mode.build : CommandData.Mode.nor;
 		refreshBlockInfo();
 	}
 
@@ -254,13 +253,13 @@ public class HUDFragment {
 	private void refreshBlockInfo() {
 		infoTable.clearChildren();
 		infoTable.left();
-		BuildingType show = hoverBlock != null ? hoverBlock : selBlock;
+		BuildingType show = hoverBlock != null ? hoverBlock : CommandData.buildBlock;
 		if (show == null)
 			return;
 		// 目前所有信息都用名字代替，后续在这里加建筑需求等多行内容
 		infoTable.add(new Image(show.region)).size(28f, 28f).left();
 		infoTable.add("[light]" + show.name + "[]").left().padLeft(6f);
-		if (show == selBlock)
+		if (show == CommandData.buildBlock)
 			infoTable.add("[gray](已选中)[]").left().padLeft(6f);
 	}
 
@@ -388,7 +387,7 @@ public class HUDFragment {
 
 	private void updateRightPanel() {
 		rightContainer.clearChildren();
-		Table currentPanel = CommandData.commanding ? commandPanel : buildingPanel;
+		Table currentPanel = CommandData.mode == CommandData.Mode.cmd ? commandPanel : buildingPanel;
 		currentPanel.clearActions();
 		Cell<Table> cell = rightContainer.add(currentPanel).bottom();
 
