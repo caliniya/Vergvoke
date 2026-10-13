@@ -13,6 +13,7 @@ import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.type.module.*;
 import caliniya.vergvoke.ui.*;
+import caliniya.vergvoke.world.*;
 
 /**
  * 建筑的类型载体：配置与类型级行为，实体侧是 {@code @Entity} 生成的
@@ -84,6 +85,40 @@ public class BuildingType extends ContentType
 		return psize;
 	}
 
+	/**
+	 * 放置合法性（类型级，子类可覆写追加额外逻辑）：占位格逐一检查——
+	 * 越界 / 已有建筑（含工地）/ 固体 ENVBlock 均不可放。
+	 *
+	 * <p>{@code isSolid} 已含越界与固体判定，但非固体建筑也不能叠放，补一条 getBuilding。
+	 */
+	public boolean canPlace(int tx, int ty, int angle) {
+		World w = WorldData.world;
+		if (w == null) {
+			return false;
+		}
+		int[] offs = shapeOffsets != null ? getRotatedOffsets(angle % 4, shapeOffsets) : null;
+		if (offs != null) {
+			for (int i = 0; i < offs.length; i += 2) {
+				if (!tileFree(w, tx + offs[i], ty + offs[i + 1])) {
+					return false;
+				}
+			}
+		} else {
+			for (int dx = 0; dx < size; dx++) {
+				for (int dy = 0; dy < size; dy++) {
+					if (!tileFree(w, tx + dx, ty + dy)) {
+						return false;
+					}
+				}
+			}
+		}
+		return true;
+	}
+
+	private static boolean tileFree(World w, int tx, int ty) {
+		return !w.isSolid(tx, ty) && w.getBuilding(tx, ty) == null;
+	}
+
 
 	public Building create(TeamTypes team, int tx, int ty, int angle) {
 		float psize = psize();
@@ -97,6 +132,13 @@ public class BuildingType extends ContentType
 		b.angle = angle % 4;
 		b.tileSize = size;
 		b.shapeOffsets = shapeOffsets != null
+				? getRotatedOffsets(b.angle, shapeOffsets)
+				: null;
+
+		// StructComp：建造占位数据（与 BlockComp 同源灌入；StructComp 是建造语义的形状权威，
+		// 未来可建造单位不经 BlockComp 也能有占位）
+		b.structSize = size;
+		b.shape = shapeOffsets != null
 				? getRotatedOffsets(b.angle, shapeOffsets)
 				: null;
 
@@ -151,6 +193,11 @@ public class BuildingType extends ContentType
 		b.angle = b.angle % 4;
 		b.tileSize = size;
 		b.shapeOffsets = shapeOffsets != null
+				? getRotatedOffsets(b.angle, shapeOffsets)
+				: null;
+		// StructComp 占位数据随重建刷新（与 BlockComp 同源）
+		b.structSize = size;
+		b.shape = shapeOffsets != null
 				? getRotatedOffsets(b.angle, shapeOffsets)
 				: null;
 		b.x = b.tx * WorldData.TILE_SIZE + psize / 2f;
