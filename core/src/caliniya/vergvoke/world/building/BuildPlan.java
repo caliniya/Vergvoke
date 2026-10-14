@@ -648,6 +648,10 @@ public class BuildPlan {
 		Draw.flush();
 		Draw.shader();
 		Draw.color();
+		// [诊断-临时] prog 极低时强制 0.5：区分"progress 没涨"与"shader 链问题"（验证后删）
+		if (prog < 0.05f) {
+			prog = 0.5f;
+		}
 		// [诊断-临时] 无条件红框：确认 drawSite 被调用且位置/尺寸正确（验证后删）
 		Draw.color(Color.scarlet);
 		Lines.stroke(2f);
