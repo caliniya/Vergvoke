@@ -9,6 +9,7 @@ import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
+import caliniya.vergvoke.type.ai.*;
 import caliniya.vergvoke.type.type.*;
 
 /**
@@ -272,27 +273,24 @@ public class BuildPlan {
 					return; // 已标记过
 				}
 			}
-			cancelBuildOf(b); // 在造工地：取消建造计划，直接转拆
-			Plan p = new Plan();
-			p.kind = 1;
-			p.building = b;
-			p.team = team;
-			plans.add(p);
+			startDemolish(b, team);
 		}
 	}
 
 	/**
-	 * 原子认领（ai 线程）：锁内找第一个本队未认领的计划并绑给 u（建造/拆除混列）。
+	 * 原子认领（ai 线程）：锁内找第一个本队未认领的计划并绑给 u。
 	 *
-	 * <p>find + 赋值分两步会被多个单位同时认领撞车，所以合并成一步；
-	 * 按 {@code u.team} 过滤——敌人认领不到玩家的计划。
+	 * <p>拆除优先于建造（kind=1 先扫）——标记了拆除就该尽快响应；同 kind 内按入池序
+	 * （先来先建）。按 {@code u.team} 过滤——敌人认领不到玩家的计划。
 	 */
 	public static Plan claimFirst(Unit u) {
 		synchronized (lock) {
-			for (Plan p : plans) {
-				if (p.team == u.team && p.main == null && !p.done) {
-					p.main = u;
-					return p;
+			for (int kind = 1; kind >= 0; kind--) {
+				for (Plan p : plans) {
+					if (p.kind == kind && p.team == u.team && p.main == null && !p.done) {
+						p.main = u;
+						return p;
+					}
 				}
 			}
 			return null;
@@ -404,23 +402,39 @@ public class BuildPlan {
 				cancel(exist);
 				return false;
 			}
-			cancelBuildOf(b); // 在造工地：取消建造计划，直接转拆
-			Plan p = new Plan();
-			p.kind = 1;
-			p.building = b;
-			p.team = b.team;
-			plans.add(p);
+			startDemolish(b, b.team);
 			return true;
 		}
 	}
 
-	/// 取消某建筑的建造计划（拆除在建工地时用；出池 + 解绑，BuildAi 自检收尾）
-	private static void cancelBuildOf(Building b) {
+	/**
+	 * 入池拆除计划，并把在建工地的原建造单位直接转派过来（调用方持锁）。
+	 *
+	 * <p>不等认领队列：单位刚从造它被叫停，立刻转岗去拆，视觉上立马开始拆。
+	 * 转派 = 占主位（{@code d.main}）+ 派指定目标（{@code ai.orderedPlan}，主线程写、
+	 * ai 线程下帧自检 {@code cur.main} 失效后接管）。
+	 */
+	private static Plan startDemolish(Building b, TeamTypes team) {
+		Plan d = new Plan();
+		d.kind = 1;
+		d.building = b;
+		d.team = team;
+		plans.add(d);
+
+		// 在造工地：取消建造计划（工地与进度保留，只停建），原建造单位转派来拆
 		for (Plan p : plans) {
 			if (p.kind == 0 && p.site == b) {
-				cancel(p); // 可重入锁；工地和进度保留，只是没人再造
+				Unit u = p.main;
+				cancel(p);
+				if (u != null && u.health > 0f && u.ai instanceof BuildAi ai) {
+					d.main = u;
+					ai.orderedPlan = d;
+					u.ai.ordered = true; // 玩家介入：同 moveUsers 语义，之后不自动认领
+				}
+				break; // 一个工地一条建造计划
 			}
 		}
+		return d;
 	}
 
 	// --- 副作用队列 ---
