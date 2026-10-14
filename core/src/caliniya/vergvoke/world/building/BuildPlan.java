@@ -4,7 +4,9 @@ import arc.graphics.*;
 import arc.graphics.g2d.*;
 import arc.math.*;
 import arc.struct.*;
+import arc.util.*;
 import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.base.shaders.Shaders;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.game.*;
@@ -519,8 +521,9 @@ public class BuildPlan {
 	}
 
 	/**
-	 * 计划池可视化（挂 PostRender，每帧）：未 spawn 画脚印虚影，工地画进度条 + 火花，
-	 * 认领单位 ↔ 目标画连线。锁内直画（临界区只有字段读；progress 是 volatile）。
+	 * 计划池可视化（挂 PostRender，每帧）：未 spawn 画脚印虚影，工地走 blockbuild
+	 * shader（中心擦除+前沿亮边+轮廓扫描，建造青/拆除红），认领单位 ↔ 目标画连线。
+	 * 锁内直画（临界区只有字段读；progress 是 volatile）。
 	 *
 	 * <p>多队伍：目前全队都画（敌人计划也可见）；等战争迷雾/视线系统就位后按队伍过滤。
 	 */
@@ -538,14 +541,20 @@ public class BuildPlan {
 					}
 					cx = b.x;
 					cy = b.y;
-					Draw.color(Color.scarlet, 0.3f);
-					Draw.rect(b.type.region, b.x, b.y, b.angle * 90f);
-					Draw.color(Color.scarlet, 0.9f);
-					Lines.stroke(2f);
-					float h = b.size / 2f;
-					Lines.line(b.x - h, b.y - h, b.x + h, b.y + h);
-					Lines.line(b.x - h, b.y + h, b.x + h, b.y - h);
-					Draw.color();
+					if (b.finished) {
+						// 还没开拆（成品）：红叉标记
+						Draw.color(Color.scarlet, 0.3f);
+						Draw.rect(b.type.region, b.x, b.y, b.angle * 90f);
+						Draw.color(Color.scarlet, 0.9f);
+						Lines.stroke(2f);
+						float h = b.size / 2f;
+						Lines.line(b.x - h, b.y - h, b.x + h, b.y + h);
+						Lines.line(b.x - h, b.y + h, b.x + h, b.y - h);
+						Draw.color();
+					} else {
+						// 拆除中（已降级）：红色 shader 倒扣视觉，progress 越低遮挡越多
+						drawSite(b, b.buildTime > 0f ? b.progress / b.buildTime : 0f, Color.scarlet);
+					}
 				} else {
 					if (p.block == null) {
 						continue;
@@ -564,14 +573,10 @@ public class BuildPlan {
 						drawFootprint(p.block, p.tx, p.ty, p.angle);
 						Draw.color();
 					} else {
-						// 工地：中心上方进度条 + 火花抖动
+						// 工地：blockbuild shader（中心擦除+前沿亮边+轮廓扫描），建造青
 						float prog = site.buildTime > 0f ? site.progress / site.buildTime : 1f;
-						float barW = psize * 0.8f, barH = 4f;
-						float barY = site.y + psize / 2f + 8f;
-						Draw.color(Color.darkGray, 0.8f);
-						Fill.rect(site.x, barY, barW, barH);
-						Draw.color(Pal.light, 0.95f);
-						Fill.rect(site.x - barW / 2f + barW * prog / 2f, barY, barW * prog, barH);
+						drawSite(site, prog, Pal.light);
+						// 前沿抖火花（普通批次，活跃反馈）
 						Draw.color(Color.orange, 0.7f);
 						for (int i = 0; i < 2; i++) {
 							Fill.rect(site.x + Mathf.random(psize) - psize / 2f,
@@ -606,16 +611,21 @@ public class BuildPlan {
 				if (tracked) {
 					return;
 				}
-				float psize = b.size;
-				float prog = b.buildTime > 0f ? b.progress / b.buildTime : 1f;
-				float barW = psize * 0.8f, barH = 4f;
-				float barY = b.y + psize / 2f + 8f;
-				Draw.color(Color.darkGray, 0.8f);
-				Fill.rect(b.x, barY, barW, barH);
-				Draw.color(Color.sky, 0.9f);
-				Fill.rect(b.x - barW / 2f + barW * prog / 2f, barY, barW * prog, barH);
-				Draw.color();
+				drawSite(b, b.buildTime > 0f ? b.progress / b.buildTime : 1f, Pal.light);
 			});
 		}
+	}
+
+	/// 工地 shader 绘制（blockbuild：中心擦除+前沿亮边+轮廓扫描；tint=亮边/扫描线颜色）
+	private static void drawSite(Building b, float prog, Color tint) {
+		Shaders.blockbuild.progress = prog;
+		Shaders.blockbuild.time = Time.time;
+		Shaders.blockbuild.alpha = 1f;
+		Draw.color(tint);
+		Draw.shader(Shaders.blockbuild);
+		Draw.rect(b.type.region, b.x, b.y, b.size, b.size, b.angle * 90f);
+		Draw.flush();
+		Draw.shader();
+		Draw.color();
 	}
 }
