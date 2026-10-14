@@ -1,5 +1,6 @@
 package caliniya.vergvoke.world.building;
 
+import arc.*;
 import arc.graphics.*;
 import arc.graphics.g2d.*;
 import arc.math.*;
@@ -26,6 +27,9 @@ public class BuildPlan {
 
 	/// 计划池 + pend 队列共用锁
 	public static final Object lock = new Object();
+
+	/// [诊断-临时] drawLinksAndFx 一次性日志标志（验证后删）
+	private static boolean diagLogged;
 
 	/**
 	 * 占位格缓冲（世界格坐标成对 x,y；仅主线程放置/预览/绘制路径用，消费完再给别人）。
@@ -528,6 +532,20 @@ public class BuildPlan {
 	 * <p>多队伍：目前全队都画（敌人计划也可见）；等战争迷雾/视线系统就位后按队伍过滤。
 	 */
 	public static void drawLinksAndFx() {
+		// [诊断-临时] 首次调用打一次日志，验证 PreRender 调用链（验证后删）
+		if (!diagLogged) {
+			diagLogged = true;
+			int sites = 0, raw = 0;
+			synchronized (lock) {
+				for (Plan q : plans) {
+					raw++;
+					if (q.kind == 0 && q.site != null) {
+						sites++;
+					}
+				}
+			}
+			Log.info("diag drawLinksAndFx: plans=@ sites=@", raw, sites);
+		}
 		synchronized (lock) {
 			float ts = WorldData.TILE_SIZE;
 			for (Plan p : plans) {
@@ -629,6 +647,11 @@ public class BuildPlan {
 		Draw.rect(b.type.region, b.x, b.y, b.size, b.size, b.angle * 90f);
 		Draw.flush();
 		Draw.shader();
+		Draw.color();
+		// [诊断-临时] 无条件红框：确认 drawSite 被调用且位置/尺寸正确（验证后删）
+		Draw.color(Color.scarlet);
+		Lines.stroke(2f);
+		Lines.rect(b.x - b.size / 2f, b.y - b.size / 2f, b.size, b.size);
 		Draw.color();
 	}
 }
