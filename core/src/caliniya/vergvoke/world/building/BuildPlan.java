@@ -66,9 +66,6 @@ public class BuildPlan {
 		/// kind=0：已 spawn 的工地（未进半径为 null）
 		public Building site;
 
-		/// kind=1：拆除进度 0..1
-		public float progress;
-
 		/// kind=0：已登记 SPAWN 未执行（防重复登记）
 		public boolean spawning;
 
@@ -368,6 +365,35 @@ public class BuildPlan {
 		}
 	}
 
+	/**
+	 * 把无计划的在建工地纳入建造（指挥下令用；主线程）。
+	 *
+	 * <p>取消拆除后半成品工地（progress 被扣一半、没人建）的恢复入口；
+	 * 已有计划的原地返回。工地直接以 {@code site} 入池，不走 spawn 流程。
+	 */
+	public static Plan adoptSite(Building b) {
+		if (b == null || b.type == null || b.finished) {
+			return null;
+		}
+		synchronized (lock) {
+			for (Plan p : plans) {
+				if (p.site == b) {
+					return p;
+				}
+			}
+			Plan p = new Plan();
+			p.kind = 0;
+			p.block = b.type;
+			p.tx = b.tx;
+			p.ty = b.ty;
+			p.angle = b.angle;
+			p.team = b.team;
+			p.site = b;
+			plans.add(p);
+			return p;
+		}
+	}
+
 	/// 反查建筑的拆除计划（toggle 用；主线程）
 	public static Plan demolishPlanOf(Building b) {
 		if (b == null) {
@@ -564,6 +590,32 @@ public class BuildPlan {
 					Draw.color();
 				}
 			}
+
+			// 无计划的半成品工地（拆一半取消留下的）：画进度条，提示它还能被下令续建
+			EntityArs.Building.each(b -> {
+				if (b == null || b.type == null || b.finished) {
+					return;
+				}
+				boolean tracked = false;
+				for (Plan q : plans) {
+					if (q.site == b || q.building == b) {
+						tracked = true;
+						break;
+					}
+				}
+				if (tracked) {
+					return;
+				}
+				float psize = b.size;
+				float prog = b.buildTime > 0f ? b.progress / b.buildTime : 1f;
+				float barW = psize * 0.8f, barH = 4f;
+				float barY = b.y + psize / 2f + 8f;
+				Draw.color(Color.darkGray, 0.8f);
+				Fill.rect(b.x, barY, barW, barH);
+				Draw.color(Color.sky, 0.9f);
+				Fill.rect(b.x - barW / 2f + barW * prog / 2f, barY, barW * prog, barH);
+				Draw.color();
+			});
 		}
 	}
 }

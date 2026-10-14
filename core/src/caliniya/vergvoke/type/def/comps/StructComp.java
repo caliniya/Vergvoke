@@ -18,8 +18,8 @@ public class StructComp {
 	/// 当前进度 0..buildTime（ai 线程写、主线程渲染读，volatile 保可见）
 	public volatile float progress;
 
-	/// 完工标记（FINISH 转正后 true）
-	public boolean finished;
+	/// 完工标记（FINISH 转正后 true；ai 线程降级拆除时写、主线程渲染读，volatile 保可见）
+	public volatile boolean finished;
 
 	/**
 	 * 方形占位边长（格；{@link #shape} 为 null 时生效）。

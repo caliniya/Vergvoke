@@ -259,11 +259,12 @@ public abstract class Input implements InputProcessor, GestureListener {
 
 	// ===== 建造命令（指挥模式：点工地=协助，点计划=前往；右键仍是移动）=====
 
-	/// 光标处正在建造的工地对应的计划（没有返回 null；未完工建筑才算工地）
+	/// 光标处正在建造的工地对应的计划（没有返回 null；未完工建筑才算工地）。
+	/// 无计划的裸工地（拆一半取消留下的）顺手 adopt 入池——给它恢复建造的入口
 	protected BuildPlan.Plan buildSiteAt(float wx, float wy) {
 		int tx = (int) (wx / WorldData.TILE_SIZE), ty = (int) (wy / WorldData.TILE_SIZE);
 		Building b = WorldData.world != null ? WorldData.world.getBuilding(tx, ty) : null;
-		return b != null && b.type != null && !b.finished ? BuildPlan.planOfSite(b) : null;
+		return b != null && b.type != null && !b.finished ? BuildPlan.adoptSite(b) : null;
 	}
 
 	/**

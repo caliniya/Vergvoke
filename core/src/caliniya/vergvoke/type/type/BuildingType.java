@@ -141,6 +141,8 @@ public class BuildingType extends ContentType
 		b.shape = shapeOffsets != null
 				? getRotatedOffsets(b.angle, shapeOffsets)
 				: null;
+		// 默认成品；工地（spawnSite）会显式置 false
+		b.finished = true;
 
 		// 派生坐标 / 战斗基础
 		b.x = tx * WorldData.TILE_SIZE + psize / 2f;

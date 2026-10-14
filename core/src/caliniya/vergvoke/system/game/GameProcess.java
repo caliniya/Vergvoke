@@ -129,6 +129,7 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 		}
 		Building b = WorldData.placeBuilding(p.block, p.tx, p.ty, p.angle, p.team);
 		b.health = 1f;
+		b.finished = false; // 建造中：无功能、进度可视化（create 默认成品，工地显式压下）
 		p.site = b;
 		p.spawning = false;
 	}

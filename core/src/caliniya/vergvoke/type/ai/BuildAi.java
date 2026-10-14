@@ -189,6 +189,15 @@ public class BuildAi extends Ai {
 			return;
 		}
 
+		// 成品开拆：降级为"建造中"（无功能、半透明态），从满进度开始倒扣。
+		// 在建工地无需转化——它本来就是建造中态，倒扣现有进度即可
+		// （建造 20% 的工地只扣 20%，工作量与建造投入严格匹配）
+		if (b.finished) {
+			b.finished = false;
+			b.progress = b.buildTime;
+			b.health = 1f; // 同 spawnSite：建造中=几乎无血量（躲 GameProcess 的 health<=0 即死判定）
+		}
+
 		// 和建造侧对称：返还只经主单位收（多人各收一份会超发物品）；
 		// 主收不下（背包满）或没有主（死了/被命令走开）= 全员停工，主没了则超时放弃后回池自愈
 		Unit payer = p.main;
@@ -202,27 +211,25 @@ public class BuildAi extends Ai {
 		}
 
 		float d = u.buildSpeed * dt;
-
-		// 主单位：整段拆除共返还 cost × 建成比例 × 返还系数，按拆除进度线性给（取整去小数同 consumed）。
-		// 建成比例：工地按在建进度算（拆半成品只返已投入的部分），成品 = 1
+		// 不能拆超过已有进度（ clamp ）；返还 = cost × 拆除量/buildTime × 返还系数（取整去小数同 consumed）
+		float delta = Math.min(d, b.progress);
 		if (payer == u) {
-			float built = b.buildTime > 0f ? Math.min(1f, b.progress / b.buildTime) : 1f;
-			refunded += b.cost.amount * built * Game.deconstructRefund * (d / b.buildTime);
+			refunded += b.cost.amount * delta / b.buildTime * Game.deconstructRefund;
 			while (refunded >= 1f) {
 				if (u.item.addItem(b.cost.type, 1) == 0) {
 					starve += dt;
 					giveUpIfStarved(p, u);
-					return; // 背包满钳住：refunded 保留欠账
+					return; // 背包满钳住：refunded 保留欠账，progress 不动等空位
 				}
 				refunded -= 1f;
 			}
 		}
 
 		starve = 0f;
-		p.progress += d; // 协助者到场即加速度（各写各的，天然累加）
-		if (p.progress >= b.buildTime) {
-			p.progress = b.buildTime;
-			BuildPlan.submit(BuildPlan.DEMO, p);
+		b.progress -= delta; // 倒扣建造进度（协助者到场即加速度，各写各的天然累加）
+		if (b.progress <= 0f) {
+			b.progress = 0f;
+			BuildPlan.submit(BuildPlan.DEMO, p); // 主线程移除建筑 + 出池
 			cur = null;
 			routed = false;
 			if (orderedPlan == p) {
