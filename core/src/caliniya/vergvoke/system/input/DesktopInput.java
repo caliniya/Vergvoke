@@ -21,9 +21,11 @@ public class DesktopInput extends Input {
 	private boolean up, down, left, right;
 
 	public DesktopInput() {
-		// 建造预览 + 计划可视化挂后处理（画在世界内容之上的顶层叠加；光标坐标每帧从 worldX/worldY 取）
-		PostRender.renders.add(() -> BuildPlan.drawPreview(worldX, worldY));
-		PostRender.renders.add(BuildPlan::drawLinksAndFx);
+		// 工地特效挂前处理（建筑之后、单位之前画——对应 Mindustry 的 Layer.blockBuilding：
+		// 单位能挡住特效，但工地本体已被 BlockRender 跳过，贴图全由 shader 输出）；
+		// 光标坐标每帧从 worldX/worldY 取
+		PreRender.renders.add(() -> BuildPlan.drawPreview(worldX, worldY));
+		PreRender.renders.add(BuildPlan::drawLinksAndFx);
 	}
 
 	@Override

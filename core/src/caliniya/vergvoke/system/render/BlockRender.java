@@ -27,6 +27,11 @@ public class BlockRender extends caliniya.vergvoke.system.System<BlockRender> {
 			if (blk == null)
 				continue;
 
+			// 建造中的工地不画本体：贴图完全由 blockbuild shader 输出（PreRender 阶段，
+			// 中心擦除+亮边+扫描）——画了完整贴图会把 shader 的遮挡区透出来，特效全废
+			if (!b.finished)
+				continue;
+
 			// 剔除检测：如果不在视野内则跳过
 			if (shouldDraw(b.x, b.y, blk.psize)) {
 				// 绘制建筑（走 Entity.draw → BuildingType.draw）
