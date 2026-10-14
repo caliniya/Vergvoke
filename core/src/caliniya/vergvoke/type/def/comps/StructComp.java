@@ -1,7 +1,12 @@
 package caliniya.vergvoke.type.def.comps;
 
+import arc.graphics.*;
+import arc.graphics.g2d.*;
+import arc.util.*;
 import arc.util.io.*;
 import caliniya.vergvoke.annotation.Annotations.*;
+import caliniya.vergvoke.base.ecs.*;
+import caliniya.vergvoke.base.shaders.*;
 import caliniya.vergvoke.content.*;
 import caliniya.vergvoke.type.*;
 
@@ -32,6 +37,20 @@ public class StructComp {
 
 	/// 占位形状偏移（成对 dx,dy；null = 方形）。异形轮廓/单位占地区域都用它；来源同 {@link #structSize}
 	public int[] shape;
+
+	/// 工地 shader 绘制（blockbuild：中心擦除+前沿亮边+轮廓扫描；tint=亮边/扫描线颜色）
+	public static void drawSite(Building b, float prog, Color tint) {
+		Shaders.blockbuild.region = b.type.region;
+		Shaders.blockbuild.progress = prog;
+		Shaders.blockbuild.time = Time.globalTime;
+		Shaders.blockbuild.alpha = 1f;
+		Draw.color(tint);
+		Draw.shader(Shaders.blockbuild);
+		Draw.rect(b.type.region, b.x, b.y, b.size, b.size, b.angle * 90f);
+		Draw.flush();
+		Draw.shader();
+		Draw.color();
+	}
 
 	@Write
 	public void write(Writes w) {

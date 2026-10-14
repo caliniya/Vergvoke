@@ -4,14 +4,13 @@ import arc.graphics.*;
 import arc.graphics.g2d.*;
 import arc.math.*;
 import arc.struct.*;
-import arc.util.*;
 import caliniya.vergvoke.base.ecs.*;
-import caliniya.vergvoke.base.shaders.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.type.ai.*;
+import caliniya.vergvoke.type.def.comps.*;
 import caliniya.vergvoke.type.type.*;
 
 /**
@@ -554,7 +553,7 @@ public class BuildPlan {
 						Draw.color();
 					} else {
 						// 拆除中（已降级）：红色 shader 倒扣视觉，progress 越低遮挡越多
-						drawSite(b, b.buildTime > 0f ? b.progress / b.buildTime : 0f, Color.scarlet);
+						StructComp.drawSite(b, b.buildTime > 0f ? b.progress / b.buildTime : 0f, Color.scarlet);
 					}
 				} else {
 					if (p.block == null) {
@@ -576,7 +575,7 @@ public class BuildPlan {
 					} else {
 						// 工地：blockbuild shader（中心擦除+前沿亮边+轮廓扫描），建造青
 						float prog = site.buildTime > 0f ? site.progress / site.buildTime : 1f;
-						drawSite(site, prog, Pal.light);
+						StructComp.drawSite(site, prog, Pal.light);
 						// 前沿抖火花（普通批次，活跃反馈）
 						Draw.color(Color.orange, 0.7f);
 						for (int i = 0; i < 2; i++) {
@@ -612,24 +611,9 @@ public class BuildPlan {
 				if (tracked) {
 					return;
 				}
-				drawSite(b, b.buildTime > 0f ? b.progress / b.buildTime : 1f, Pal.light);
+				StructComp.drawSite(b, b.buildTime > 0f ? b.progress / b.buildTime : 1f, Pal.light);
 			});
 		}
 	}
 
-	/// 工地 shader 绘制（blockbuild：中心擦除+前沿亮边+轮廓扫描；tint=亮边/扫描线颜色）
-	private static void drawSite(Building b, float prog, Color tint) {
-		// region 必须每批设——不设的话 apply() 走空 region 兜底（uv=整图集），
-		// frag 的擦除/亮边/扫描几何全错乱
-		Shaders.blockbuild.region = b.type.region;
-		Shaders.blockbuild.progress = prog;
-		Shaders.blockbuild.time = Time.globalTime;
-		Shaders.blockbuild.alpha = 1f;
-		Draw.color(tint);
-		Draw.shader(Shaders.blockbuild);
-		Draw.rect(b.type.region, b.x, b.y, b.size, b.size, b.angle * 90f);
-		Draw.flush();
-		Draw.shader();
-		Draw.color();
-	}
 }

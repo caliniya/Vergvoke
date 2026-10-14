@@ -3,7 +3,6 @@ package caliniya.vergvoke.base.shaders;
 import arc.*;
 import arc.graphics.*;
 import arc.graphics.g2d.*;
-import arc.util.*;
 
 /**
  * 建造进度着色器（Mindustry blockbuild 移植，frag 文件零改动）。
@@ -30,10 +29,7 @@ public class BlockBuildShader extends Shader {
 
 
 	public BlockBuildShader() {
-		// 专用 vert：对齐 SpriteBatch mesh（a_position/a_color/a_texCoord0/a_mix_color +
-		// u_projTrans → v_color/v_texCoords）。不能用 default.vert——那是后处理简化版，
-		// 没有 v_color，frag 的 varying 对不上直接编译失败
-		super(Core.files.internal("shaders/blockbuild.vert"), Core.files.internal("shaders/blockbuild.frag"));
+		super(Core.files.internal("shaders/default2.vert"), Core.files.internal("shaders/blockbuild.frag"));
 	}
 
 	@Override
