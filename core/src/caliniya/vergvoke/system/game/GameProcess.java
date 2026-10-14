@@ -114,6 +114,9 @@ public class GameProcess extends caliniya.vergvoke.system.System<GameProcess> {
 
 	/** SPAWN：主线程 spawn 工地（建造中的建筑血量压到 1 点——{@code health<=0} 即死判定避开 0）。 */
 	private void spawnSite(BuildPlan.Plan p) {
+		if (p.done) {
+			return; // 提交后、drain 前被玩家取消：别 spawn 出没人管的孤儿工地
+		}
 		if (p.site != null && p.site.type != null) {
 			return; // 防重（单位在半径内每帧都想提交）
 		}

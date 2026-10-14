@@ -79,10 +79,15 @@ public class MobileInput extends Input {
 
 	@Override
 	public boolean tap(float x, float y, int count, KeyCode button) {
-		// 普通模式：点建筑 = 标记拆除（移动端无右键，点按即标记；与桌面右键同款）
+		// 普通模式：点计划 = 取消；点建筑 = 标记拆除（移动端无右键，点按即标记；与桌面右键同款）
 		if (!blocked() && CommandData.mode == CommandData.Mode.nor
 				&& CommandData.viewType == CommandData.ViewType.game && Game.inGame) {
 			tranPos(x, y);
+			BuildPlan.Plan plan = BuildPlan.planAt(worldX, worldY);
+			if (plan != null) {
+				BuildPlan.cancel(plan);
+				return true;
+			}
 			int tx = (int) (worldX / WorldData.TILE_SIZE);
 			int ty = (int) (worldY / WorldData.TILE_SIZE);
 			Building b = WorldData.world != null ? WorldData.world.getBuilding(tx, ty) : null;

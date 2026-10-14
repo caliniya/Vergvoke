@@ -272,6 +272,7 @@ public class BuildPlan {
 					return; // 已标记过
 				}
 			}
+			cancelBuildOf(b); // 在造工地：取消建造计划，直接转拆
 			Plan p = new Plan();
 			p.kind = 1;
 			p.building = b;
@@ -388,7 +389,8 @@ public class BuildPlan {
 	 * 标记拆除 / 取消拆除（普通模式右键建筑；toggle）。
 	 *
 	 * <p>拆除与建造同池混列（kind=1），走同一套认领/前往/推进，只是方向相反：
-	 * 持续返还物品（×{@code Game.deconstructRefund}）而非消耗。
+	 * 持续返还物品（×{@code Game.deconstructRefund}）而非消耗。目标若是在造的工地，
+	 * 先取消它的建造计划——直接开拆，不等造完。
 	 *
 	 * @return true = 已标记拆除；false = 取消了已有标记
 	 */
@@ -402,12 +404,22 @@ public class BuildPlan {
 				cancel(exist);
 				return false;
 			}
+			cancelBuildOf(b); // 在造工地：取消建造计划，直接转拆
 			Plan p = new Plan();
 			p.kind = 1;
 			p.building = b;
 			p.team = b.team;
 			plans.add(p);
 			return true;
+		}
+	}
+
+	/// 取消某建筑的建造计划（拆除在建工地时用；出池 + 解绑，BuildAi 自检收尾）
+	private static void cancelBuildOf(Building b) {
+		for (Plan p : plans) {
+			if (p.kind == 0 && p.site == b) {
+				cancel(p); // 可重入锁；工地和进度保留，只是没人再造
+			}
 		}
 	}
 

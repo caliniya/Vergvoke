@@ -153,17 +153,28 @@ public class DesktopInput extends Input {
 				return true;
 			}
 			if (button == KeyCode.mouseRight) {
+				// 右键点到计划 = 取消该计划（不退出模式）；点空地才退出建造模式
+				BuildPlan.Plan plan = BuildPlan.planAt(worldX, worldY);
+				if (plan != null) {
+					BuildPlan.cancel(plan);
+					return true;
+				}
 				exitBuild();
 				return true;
 			}
 			return false;
 		}
 
-		// 普通模式：右键点建筑 = 标记拆除（进计划池，单位会自动来拆并持续返还物品）
+		// 普通模式：右键点计划 = 取消；点建筑 = 标记拆除（进计划池，单位会自动来拆并持续返还物品）
 		if (!blocked() && CommandData.mode == CommandData.Mode.nor
 				&& CommandData.viewType == CommandData.ViewType.game && Game.inGame
 				&& button == KeyCode.mouseRight) {
 			tranPos(x, y);
+			BuildPlan.Plan plan = BuildPlan.planAt(worldX, worldY);
+			if (plan != null) {
+				BuildPlan.cancel(plan);
+				return true;
+			}
 			int tx = (int) (worldX / WorldData.TILE_SIZE);
 			int ty = (int) (worldY / WorldData.TILE_SIZE);
 			Building b = WorldData.world != null ? WorldData.world.getBuilding(tx, ty) : null;
