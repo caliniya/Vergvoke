@@ -6,7 +6,7 @@ import arc.math.*;
 import arc.struct.*;
 import arc.util.*;
 import caliniya.vergvoke.base.ecs.*;
-import caliniya.vergvoke.base.shaders.Shaders;
+import caliniya.vergvoke.base.shaders.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.core.meta.ui.*;
 import caliniya.vergvoke.game.*;
@@ -619,7 +619,7 @@ public class BuildPlan {
 	/// 工地 shader 绘制（blockbuild：中心擦除+前沿亮边+轮廓扫描；tint=亮边/扫描线颜色）
 	private static void drawSite(Building b, float prog, Color tint) {
 		Shaders.blockbuild.progress = prog;
-		Shaders.blockbuild.time = Time.time;
+		Shaders.blockbuild.time = Time.globalTime;
 		Shaders.blockbuild.alpha = 1f;
 		Draw.color(tint);
 		Draw.shader(Shaders.blockbuild);
