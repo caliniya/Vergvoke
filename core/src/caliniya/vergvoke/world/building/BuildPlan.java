@@ -618,6 +618,9 @@ public class BuildPlan {
 
 	/// 工地 shader 绘制（blockbuild：中心擦除+前沿亮边+轮廓扫描；tint=亮边/扫描线颜色）
 	private static void drawSite(Building b, float prog, Color tint) {
+		// region 必须每批设——不设的话 apply() 走空 region 兜底（uv=整图集），
+		// frag 的擦除/亮边/扫描几何全错乱
+		Shaders.blockbuild.region = b.type.region;
 		Shaders.blockbuild.progress = prog;
 		Shaders.blockbuild.time = Time.globalTime;
 		Shaders.blockbuild.alpha = 1f;
