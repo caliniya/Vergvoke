@@ -3,6 +3,7 @@ package caliniya.vergvoke.base.shaders;
 import arc.*;
 import arc.graphics.*;
 import arc.graphics.g2d.*;
+import arc.util.*;
 
 /**
  * 建造进度着色器（Mindustry blockbuild 移植，frag 文件零改动）。
@@ -27,8 +28,6 @@ public class BlockBuildShader extends Shader {
 	/// 当前绘制的贴图区域（每批前设）
 	public TextureRegion region = new TextureRegion();
 
-	/// [诊断-临时] apply 首次日志标志（验证后删）
-	private boolean diagApplied;
 
 	public BlockBuildShader() {
 		// 专用 vert：对齐 SpriteBatch mesh（a_position/a_color/a_texCoord0/a_mix_color +
@@ -39,21 +38,6 @@ public class BlockBuildShader extends Shader {
 
 	@Override
 	public void apply() {
-		// [诊断-临时] 首次打 uniform 存在性+值：loc=-1 = uniform 被编译优化掉/名字错，
-		// setUniformf 会静默失败 → uniform 保持默认（u_progress=0 → 全透明）（验证后删）
-		if (!diagApplied) {
-			diagApplied = true;
-			Log.info(
-					"diag blockbuild apply: prog=@ time=@ alpha=@ hasTex=@ | loc prog=@ time=@ alpha=@ uv=@ uv2=@ texsize=@ tex=@",
-					progress, time, alpha, region.texture != null,
-					fetchUniformLocation("u_progress", false),
-					fetchUniformLocation("u_time", false),
-					fetchUniformLocation("u_alpha", false),
-					fetchUniformLocation("u_uv", false),
-					fetchUniformLocation("u_uv2", false),
-					fetchUniformLocation("u_texsize", false),
-					fetchUniformLocation("u_texture", false));
-		}
 		setUniformf("u_progress", progress);
 		setUniformf("u_time", time);
 		setUniformf("u_alpha", alpha);
