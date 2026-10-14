@@ -58,7 +58,7 @@ public class CommandData {
 
 	/// 交互模式
 	public enum Mode {
-		nor, cmd, build
+		nor, cmd, build, demo
 	}
 
 	public enum ViewType {

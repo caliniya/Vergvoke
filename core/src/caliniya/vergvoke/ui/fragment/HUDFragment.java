@@ -36,6 +36,9 @@ public class HUDFragment {
 
 	private Button moveBtn, stopBtn;
 
+	/// 移动端拆除模式按钮（模式按钮列第一个；进入/退出 toggle，按下高亮）
+	private Button demoBtn;
+
 	// ===== 建筑面板状态 =====
 
 	/** 按分类分组的可建建筑（build 时构建一次） */
@@ -87,11 +90,26 @@ public class HUDFragment {
 		Button commandBtn = new Button(
 				() -> {
 					CommandData.mode = CommandData.mode == CommandData.Mode.cmd ? CommandData.Mode.nor : CommandData.Mode.cmd;
+					refreshModeButtons();
 					updateRightPanel();
 				},
 				"@command");
 
 		b.add(commandBtn).size(120f, 50f).margin(10f);
+
+		// 移动端模式按钮列：拆除模式（进入/退出 toggle）。桌面端拆除走普通模式右键，不占按钮
+		if (Core.app.isMobile()) {
+			demoBtn = new Button(
+					"拆除",
+					() -> {
+						CommandData.mode = CommandData.mode == CommandData.Mode.demo
+								? CommandData.Mode.nor
+								: CommandData.Mode.demo;
+						refreshModeButtons();
+						updateRightPanel();
+					});
+			b.add(demoBtn).size(120f, 50f).margin(10f);
+		}
 
 		// === 右下角：动态面板容器 ===""
 		rightContainer = new Table();
@@ -246,6 +264,7 @@ public class HUDFragment {
 	private void selectBlock(BuildingType b) {
 		CommandData.buildBlock = (CommandData.buildBlock == b) ? null : b;
 		CommandData.mode = CommandData.buildBlock != null ? CommandData.Mode.build : CommandData.Mode.nor;
+		refreshModeButtons(); // 离开拆除模式时清按钮高亮
 		refreshBlockInfo();
 	}
 
@@ -397,5 +416,12 @@ public class HUDFragment {
 		float height = currentPanel.getPrefHeight();
 		currentPanel.setTranslation(0, -height);
 		currentPanel.addAction(Actions.translateBy(0, height, 0.3f, Interp.fade));
+	}
+
+	/// 刷新模式按钮高亮（目前只有拆除按钮；模式按钮列扩充后统一在这里刷）
+	private void refreshModeButtons() {
+		if (demoBtn != null) {
+			demoBtn.setChecked(CommandData.mode == CommandData.Mode.demo);
+		}
 	}
 }

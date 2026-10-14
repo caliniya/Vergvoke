@@ -79,8 +79,9 @@ public class MobileInput extends Input {
 
 	@Override
 	public boolean tap(float x, float y, int count, KeyCode button) {
-		// 普通模式：点计划 = 取消；点建筑 = 标记拆除（移动端无右键，点按即标记；与桌面右键同款）
-		if (!blocked() && CommandData.mode == CommandData.Mode.nor
+		// 普通/拆除模式：点计划 = 取消；点建筑 = 标记拆除（移动端无右键，点按即标记；与桌面右键同款）
+		if (!blocked()
+				&& (CommandData.mode == CommandData.Mode.nor || CommandData.mode == CommandData.Mode.demo)
 				&& CommandData.viewType == CommandData.ViewType.game && Game.inGame) {
 			tranPos(x, y);
 			BuildPlan.Plan plan = BuildPlan.planAt(worldX, worldY);
