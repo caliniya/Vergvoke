@@ -5,7 +5,6 @@ import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
-import caliniya.vergvoke.system.render.*;
 
 /**
  * 桌面端输入：方向键/WASD 平移相机，滚轮缩放；
@@ -76,7 +75,7 @@ public class DesktopInput extends Input {
 
 	/** 指挥模式下游戏视图才响应选中类输入。 */
 	private boolean canSelect() {
-		return !blocked() && CommandData.mode == CommandData.Mode.cmd && CommandData.viewType == CommandData.ViewType.game && Game.inGame;
+		return !blocked() && CommandData.mode == CommandData.Mode.Command && CommandData.viewType == CommandData.ViewType.game && Game.inGame;
 	}
 
 	@Override

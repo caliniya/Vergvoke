@@ -12,18 +12,18 @@ import caliniya.vergvoke.system.System;
  * 本系统只当"调度壳"：遍历走 {@code each}（读锁全程持有，EntityAr 的
  * iterator 非线程安全，不能 for-each），逐个调 {@code u.ai.update}。
  * 实体生命周期副作用由各 AI 登记 {@code BuildPlan.pend}，主线程 {@code GameProcess}
- * drain 执行（线程纪律见 {@code Ai}）。
+ * drain 执行（线程纪律见 {@code AI}）。
  */
-@ThreadDef(name = "ai")
-@SystemDef(name = "AiSystem", thread = "ai", index = 2)
-public class AiSystem extends System<AiSystem> {
+@ThreadDef(name = "AI")
+@SystemDef(name = "AISystem", thread = "AI", index = 2)
+public class AISystem extends System<AISystem> {
 
 	/**
 	 * 全局实例（构造器赋值；实例化由 Systems.startThreads 完成）。
 	 */
-	public static AiSystem it;
+	public static AISystem it;
 
-	public AiSystem() {
+	public AISystem() {
 		it = this;
 	}
 

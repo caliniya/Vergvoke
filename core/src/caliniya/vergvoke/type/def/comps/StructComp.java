@@ -5,7 +5,7 @@ import caliniya.vergvoke.annotation.Annotations.*;
 import caliniya.vergvoke.content.*;
 import caliniya.vergvoke.type.*;
 
-/// 可被建造组件：以"建造"方式生成实体所需的全部数据（挂 BuildingDef，工地/成品共有；无 @Updata，推进由认领单位的 BuildAi 驱动）
+/// 可被建造组件：以"建造"方式生成实体所需的全部数据（挂 BuildingDef，工地/成品共有；无 @Updata，推进由认领单位的 BuildAI 驱动）
 @Component(name = "Struct", index = 9)
 public class StructComp {
 

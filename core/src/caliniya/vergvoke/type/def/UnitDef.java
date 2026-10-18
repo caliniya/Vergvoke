@@ -5,6 +5,6 @@ import caliniya.vergvoke.type.def.comps.*;
 import caliniya.vergvoke.type.type.*;
 
 @Entity(comps = {StateComp.class, MoveComp.class, RouteComp.class, WeaponComp.class,
-		TargetComp.class, AiComp.class}, name = "Unit", type = UnitType.class)
+		TargetComp.class, AIComp.class}, name = "Unit", type = UnitType.class)
 public class UnitDef {
 }

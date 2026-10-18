@@ -197,16 +197,16 @@ public abstract class Input implements InputProcessor, GestureListener {
 	// ===== 下令（平台无关操作，指挥模式下生效）=====
 
 	/**
-	 * 按当前指挥状态（{@link CommandData#commandType}）对选中单位下发指令。
+	 * 按当前指挥状态（{@link CommandData#commandMode}）对选中单位下发指令。
 	 * Move → 就近可达点寻路移动；Stop → 原地停下；None → 不执行。
 	 */
 	protected void issueCommand(float wx, float wy) {
 		if (CommandData.checkedUnits.isEmpty())
 			return;
 
-		if (CommandData.commandType == CommandData.CommandType.Move) {
+		if (CommandData.commandMode == CommandData.CommandMode.Move) {
 			moveUnits(wx, wy);
-		} else if (CommandData.commandType == CommandData.CommandType.Stop) {
+		} else if (CommandData.commandMode == CommandData.CommandMode.Stop) {
 			stopUnits();
 		}
 	}

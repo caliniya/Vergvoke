@@ -1,9 +1,9 @@
 package caliniya.vergvoke.type.def.comps;
 
 import caliniya.vergvoke.annotation.Annotations.*;
-import caliniya.vergvoke.game.data.WorldData;
+import caliniya.vergvoke.game.data.*;
 
-/// 建造能力组件：纯数据（建造逻辑在 BuildAi）；辅助加成 = Σ 各辅助单位 buildSpeed
+/// 建造能力组件：纯数据（建造逻辑在 BuildAI）；辅助加成 = Σ 各辅助单位 buildSpeed
 @Component(name = "Build", index = 9)
 public class BuildComp {
 

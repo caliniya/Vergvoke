@@ -89,7 +89,7 @@ public class HUDFragment {
 
 		Button commandBtn = new Button(
 				() -> {
-					CommandData.mode = CommandData.mode == CommandData.Mode.cmd ? CommandData.Mode.nor : CommandData.Mode.cmd;
+					CommandData.mode = CommandData.mode == CommandData.Mode.Command ? CommandData.Mode.Normal : CommandData.Mode.Command;
 					refreshModeButtons();
 					updateRightPanel();
 				},
@@ -102,9 +102,9 @@ public class HUDFragment {
 			demoBtn = new Button(
 					"拆除",
 					() -> {
-						CommandData.mode = CommandData.mode == CommandData.Mode.demo
-								? CommandData.Mode.nor
-								: CommandData.Mode.demo;
+						CommandData.buildMode = CommandData.buildMode == CommandData.BuildMode.Remove
+								? CommandData.BuildMode.Build
+								: CommandData.BuildMode.Remove;
 						refreshModeButtons();
 						updateRightPanel();
 					});
@@ -305,8 +305,8 @@ public class HUDFragment {
 		// 直接指挥行（单选，按下高亮）
 		Table directRow = new Table();
 		directRow.defaults().size(85f, 44f).pad(3f);
-		moveBtn = new Button("移动", () -> setCommand(CommandData.CommandType.Move));
-		stopBtn = new Button("停止", () -> setCommand(CommandData.CommandType.Stop));
+		moveBtn = new Button("移动", () -> setCommand(CommandData.CommandMode.Move));
+		stopBtn = new Button("停止", () -> setCommand(CommandData.CommandMode.Stop));
 		moveBtn.setChecked(true); // 默认移动模式
 		directRow.left().bottom();
 		directRow.add(moveBtn);
@@ -335,7 +335,7 @@ public class HUDFragment {
 				u.isSelected = false;
 		}
 		CommandData.checkedUnits.clear();
-		CommandData.commandType = CommandData.CommandType.Move; // 恢复默认移动模式
+		CommandData.commandMode = CommandData.CommandMode.Move; // 恢复默认移动模式
 		moveBtn.setChecked(true);
 		stopBtn.setChecked(false);
 		refreshCommand();
@@ -351,10 +351,10 @@ public class HUDFragment {
 	}
 
 	/** 切换直接指挥状态（单选：点中高亮，再点取消，切换时其他自动关）。 */
-	private void setCommand(CommandData.CommandType type) {
-		CommandData.commandType = (CommandData.commandType == type) ? CommandData.CommandType.None : type;
-		moveBtn.setChecked(CommandData.commandType == CommandData.CommandType.Move);
-		stopBtn.setChecked(CommandData.commandType == CommandData.CommandType.Stop);
+	private void setCommand(CommandData.CommandMode type) {
+		CommandData.commandMode = (CommandData.commandMode == type) ? CommandData.CommandMode.None : type;
+		moveBtn.setChecked(CommandData.commandMode == CommandData.CommandMode.Move);
+		stopBtn.setChecked(CommandData.commandMode == CommandData.CommandMode.Stop);
 		refreshCommand();
 	}
 
@@ -396,9 +396,9 @@ public class HUDFragment {
 
 		// 当前指令状态提示
 		unitInfoTable.row();
-		String cmdText = CommandData.commandType == CommandData.CommandType.Move
+		String cmdText = CommandData.commandMode == CommandData.CommandMode.Move
 				? "[sky]移动指令中：点地图目标[]"
-				: CommandData.commandType == CommandData.CommandType.Stop
+				: CommandData.commandMode == CommandData.CommandMode.Stop
 				? "[sky]停止指令中：点击执行[]"
 				: "[gray]无指令[]";
 		unitInfoTable.add(cmdText).left().padTop(4f);

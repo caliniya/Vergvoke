@@ -42,8 +42,8 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
 	public float liquidCap;
 	public float powerCap;
 
-	/// AI 原型（null = 无 AI）：create 时 copy 成实例，挂到生成实体的 AiComp.ai 字段
-	public Ai ai;
+	/// AI 原型（null = 无 AI）：create 时 copy 成实例，挂到生成实体的 AIComp.ai 字段
+	public AI ai;
 
 	// 防护（类型默认，实例可覆盖）
 	public float armorMax; // 护甲容量上限
@@ -141,7 +141,7 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
 		u.sizet = sizet;
 		// AI 原型拷贝：对象池复用也每次重赋（上个实例可能还挂在旧计划上，不能串）
 		u.ai = ai != null ? ai.copy() : null;
-		// 物品模块：reset 会置空 item，这里重建并塞初始 100 Ge（建造消耗由 BuildAi 扣）
+		// 物品模块：reset 会置空 item，这里重建并塞初始 100 Ge（建造消耗由 BuildAI 扣）
 		if (u.item == null && itemCap > 0) {
 			u.item = new ItemModule(itemCap);
 			u.item.addItem(Items.Ge, 100);

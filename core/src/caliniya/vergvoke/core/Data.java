@@ -51,7 +51,6 @@ public class Data {
 		WorldData.rebuildTransientContainers();
 	}
 
-	/** 把手写系统初始化并挂进生成侧调度数组（重复调用不会重复添加）。 */
 	private static void register(caliniya.vergvoke.system.System<?> system) {
 		if (system != null && !Systems.systems.contains(system)) {
 			Systems.systems.add(system.init());
@@ -62,7 +61,7 @@ public class Data {
 	// 同时将游戏UI切换到游戏内部
 	public static void enter() {
 		register(GameProcess.it);
-		register(Render.it);
+		Render.it.init();
 
 		// 渲染器也统一初始化（并入 Render 后不再走上面的系统列表）
 		for (caliniya.vergvoke.system.System<?> render : Render.renders) {

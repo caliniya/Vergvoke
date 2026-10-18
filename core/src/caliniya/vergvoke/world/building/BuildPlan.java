@@ -1,6 +1,7 @@
 package caliniya.vergvoke.world.building;
 
 import arc.struct.*;
+import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.type.type.*;
 
@@ -42,6 +43,10 @@ public class BuildPlan {
 		public int x;
 		public int y;
 		public BuildingType type;
+		public boolean build = true;
+
+		/// 对于拆除的目标
+		public Building target = null;
 
 		public Plan(int x, int y, BuildingType type) {
 			this.x = x;
