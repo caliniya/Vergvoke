@@ -1,12 +1,7 @@
 package caliniya.vergvoke.type.def.comps;
 
-import arc.graphics.*;
-import arc.graphics.g2d.*;
-import arc.util.*;
 import arc.util.io.*;
 import caliniya.vergvoke.annotation.Annotations.*;
-import caliniya.vergvoke.base.ecs.*;
-import caliniya.vergvoke.base.shaders.*;
 import caliniya.vergvoke.content.*;
 import caliniya.vergvoke.type.*;
 
@@ -17,40 +12,18 @@ public class StructComp {
 	/// 建造所需累计进度（delta 累积；300 = 5 秒）
 	public float buildTime = 300f;
 
-	/// 单次建造物品需求（类型级默认值，后续由 BuildingType 配置覆写）
+	/// 单次建造物品需求
 	public Item cost = new Item(Items.Ge, 10);
 
-	/// 当前进度 0..buildTime（ai 线程写、主线程渲染读，volatile 保可见）
+	///
 	public volatile float progress;
 
-	/// 完工标记（FINISH 转正后 true；ai 线程降级拆除时写、主线程渲染读，volatile 保可见）
 	public volatile boolean finished;
 
-	/**
-	 * 方形占位边长（格；{@link #shape} 为 null 时生效）。
-	 *
-	 * <p>建造语义的形状权威在本组件，不依赖 BlockComp——建筑侧由
-	 * {@code BuildingType.create/rebuild} 从类型配置灌入；未来可建造单位不经
-	 * BlockComp 也能凭它得到合理占地区域。读档同走 create 重建，不进序列化。
-	 */
 	public int structSize = 1;
 
-	/// 占位形状偏移（成对 dx,dy；null = 方形）。异形轮廓/单位占地区域都用它；来源同 {@link #structSize}
+	/// 占位形状偏移（成对 dx,dy；null = 方形）{@link #structSize}
 	public int[] shape;
-
-	/// 工地 shader 绘制（blockbuild：中心擦除+前沿亮边+轮廓扫描；tint=亮边/扫描线颜色）
-	public static void drawSite(Building b, float prog, Color tint) {
-		Shaders.blockbuild.region = b.type.region;
-		Shaders.blockbuild.progress = prog;
-		Shaders.blockbuild.time = Time.globalTime;
-		Shaders.blockbuild.alpha = 1f;
-		Draw.color(tint);
-		Draw.shader(Shaders.blockbuild);
-		Draw.rect(b.type.region, b.x, b.y, b.size, b.size, b.angle * 90f);
-		Draw.flush();
-		Draw.shader();
-		Draw.color();
-	}
 
 	@Write
 	public void write(Writes w) {

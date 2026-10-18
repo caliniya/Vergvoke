@@ -25,7 +25,7 @@ public class WorldData {
 	}
 
 	public static void initWorld(int w, int h, boolean space) {
-		Game.team = TeamTypes.Evoke;
+		Game.team = TeamType.Evoke;
 
 		EntityArs.Unit.clear();
 		EntityArs.Building.clear();
@@ -61,7 +61,7 @@ public class WorldData {
 	}
 
 	/** 放置建筑 */
-	public static Building placeBuilding(BuildingType block, int tx, int ty, int angle, TeamTypes team) {
+	public static Building placeBuilding(BuildingType block, int tx, int ty, int angle, TeamType team) {
 		Building b = block.create(team, tx, ty, angle);
 		placeTiles(b);
 		// 容器注册：渲染/更新/索敌全走 EntityArs.Building，漏了建筑就会"消失"

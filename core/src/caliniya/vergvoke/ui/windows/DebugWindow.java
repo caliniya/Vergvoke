@@ -74,7 +74,7 @@ public class DebugWindow extends Window {
 							WorldData.world.W / 2,
 							WorldData.world.H / 2,
 							0,
-							TeamTypes.Mutex);
+							TeamType.Mutex);
 				});
 
 		register(

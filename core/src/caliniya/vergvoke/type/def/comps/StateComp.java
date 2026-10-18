@@ -4,30 +4,30 @@ import arc.util.io.Reads;
 import arc.util.io.Writes;
 
 import caliniya.vergvoke.annotation.Annotations.*;
-import caliniya.vergvoke.base.type.TeamTypes;
+import caliniya.vergvoke.base.type.TeamType;
 
 @Component(name = "State", index = 1, proc = "main")
 public class StateComp {
 
-    /** 是否被玩家选中。 */
-    public boolean isSelected;
+	/** 是否被玩家选中。 */
+	public boolean isSelected;
 
-    /** 阵营（@Import 借 Entity 基类字段；@Write/@Read 方法体里引用它做存档恢复）。 */
-    @Import
-    public TeamTypes team;
+	/** 阵营（@Import 借 Entity 基类字段；@Write/@Read 方法体里引用它做存档恢复）。 */
+	@Import
+	public TeamType team;
 
-    /** 组件里有 @Save 字段就不能再用 @Write/@Read，所以选中位 + 阵营一起走方法式序列化。 */
-    @Write
-    public void write(Writes w) {
-        w.bool(isSelected);
-        w.b((byte) (team == null ? -1 : team.ordinal()));
-    }
+	/** 组件里有 @Save 字段就不能再用 @Write/@Read，所以选中位 + 阵营一起走方法式序列化。 */
+	@Write
+	public void write(Writes w) {
+		w.bool(isSelected);
+		w.b((byte) (team == null ? -1 : team.ordinal()));
+	}
 
-    @Read
-    public void read(Reads r) {
-        isSelected = r.bool();
-        int ord = r.b();
-        TeamTypes[] values = TeamTypes.values();
-        team = (ord >= 0 && ord < values.length) ? values[ord] : null;
-    }
+	@Read
+	public void read(Reads r) {
+		isSelected = r.bool();
+		int ord = r.b();
+		TeamType[] values = TeamType.values();
+		team = (ord >= 0 && ord < values.length) ? values[ord] : null;
+	}
 }

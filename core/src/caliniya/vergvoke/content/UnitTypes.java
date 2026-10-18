@@ -2,7 +2,6 @@ package caliniya.vergvoke.content;
 
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.type.ability.*;
-import caliniya.vergvoke.type.ai.*;
 import caliniya.vergvoke.type.type.*;
 
 public class UnitTypes {

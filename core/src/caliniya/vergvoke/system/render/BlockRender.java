@@ -42,7 +42,7 @@ public class BlockRender extends caliniya.vergvoke.system.System<BlockRender> {
 				}
 				// 调试绘制
 				if (UnitRender.debug) { // 复用 UnitRender 的 debug 开关
-					blk.drawDebug(b);
+					//blk.drawDebug(b);
 				}
 				Draw.color(); // 重置颜色
 			}

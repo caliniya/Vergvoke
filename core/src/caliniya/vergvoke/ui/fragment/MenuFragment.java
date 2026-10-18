@@ -54,11 +54,11 @@ public class MenuFragment {
 												Data.loadSystems();
 /*
 
-												Unit A = UnitTypes.test.create(TeamTypes.Evoke, 100, 100);
+												Unit A = UnitTypes.test.create(TeamType.Evoke, 100, 100);
 
 												A.addEnhancement(Enhancements.shieldBoost.create());
 
-												Unit B = UnitTypes.test.create(TeamTypes.Mutex, 400, 100);
+												Unit B = UnitTypes.test.create(TeamType.Mutex, 400, 100);
 												ShieldBoostEnhancementType b1t = new ShieldBoostEnhancementType(false);
 												b1t.maxStrengthBonus = 2f;
 												b1t.kineticResistBonus = 0.1f;
@@ -81,7 +81,7 @@ public class MenuFragment {
 														i--;
 														continue;
 													}
-													WorldData.placeBuilding(Blocks.TestBlock, bx, by, 0, TeamTypes.Mutex);
+													WorldData.placeBuilding(Blocks.TestBlock, bx, by, 0, TeamType.Mutex);
 												}
 
 												// --- 新增：在地图中心生成敌方测试炮塔 ---
@@ -90,7 +90,7 @@ public class MenuFragment {
 
 												Building enemyTurret
 														= WorldData.placeBuilding(
-														Blocks.testTurret, centerX, centerY, 0, TeamTypes.Mutex);
+														Blocks.testTurret, centerX, centerY, 0, TeamType.Mutex);
 
 												// 导航增量更新已由 WorldData.placeBuilding 内部处理，不再手动全量重建
 												ObjectMap<String, String> tag = new ObjectMap<String, String>();
@@ -108,7 +108,7 @@ public class MenuFragment {
 									new Button(
 											"test3",
 											() -> {
-												Game.team = TeamTypes.Evoke;
+												Game.team = TeamType.Evoke;
 												Data.load(
 														Core.settings.getDataDirectory().child("map/space.aevs"),
 														() -> {

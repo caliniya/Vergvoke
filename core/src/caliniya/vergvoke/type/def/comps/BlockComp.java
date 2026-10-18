@@ -55,7 +55,7 @@ public class BlockComp {
 	@Import
 	public int id;
 	@Import
-	public TeamTypes team;
+	public TeamType team;
 	@Import
 	public ItemModule item;
 	@Import
@@ -174,7 +174,7 @@ public class BlockComp {
 		ty = r.i();
 		health = r.f();
 		int ord = r.b();
-		TeamTypes[] values = TeamTypes.values();
+		TeamType[] values = TeamType.values();
 		team = (ord >= 0 && ord < values.length) ? values[ord] : null;
 		id = Entities.checkoutID(r.i());
 

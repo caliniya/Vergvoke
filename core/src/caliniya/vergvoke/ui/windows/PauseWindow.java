@@ -57,7 +57,7 @@ public class PauseWindow extends Window {
 			return;
 		}
 
-		Unit u = UnitTypes.test.create(TeamTypes.Evoke, 0, 0);
+		Unit u = UnitTypes.test.create(TeamType.Evoke, 0, 0);
 		u.health = 500;
 		u.maxHealth = 500;
 		u.armor = 500;

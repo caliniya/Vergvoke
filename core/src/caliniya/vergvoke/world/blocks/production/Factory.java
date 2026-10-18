@@ -3,7 +3,7 @@ package caliniya.vergvoke.world.blocks.production;
 import arc.struct.Ar;
 
 import caliniya.vergvoke.base.ecs.Building;
-import caliniya.vergvoke.base.type.TeamTypes;
+import caliniya.vergvoke.base.type.TeamType;
 import caliniya.vergvoke.type.def.craft.recipe.Recipe;
 import caliniya.vergvoke.type.def.craft.recipe.RecipeStack;
 import caliniya.vergvoke.type.type.BuildingType;
@@ -23,7 +23,7 @@ public class Factory extends BuildingType {
 
 	/** 把共享配方模板深拷贝进实例并绑定运行时模块;默认选第一条(无配方 current = -1,不开工)。 */
 	@Override
-	public Building create(TeamTypes team, int tx, int ty, int angle) {
+	public Building create(TeamType team, int tx, int ty, int angle) {
 		Building b = super.create(team, tx, ty, angle);
 		b.stack = new RecipeStack();
 		for (Recipe r : recipes) {

@@ -10,9 +10,10 @@ import caliniya.vergvoke.base.type.*;
  * 简而言之就是阵营数据以及相关的工具
  */
 public class TeamData {
-	public final TeamTypes team;
 
-	public TeamData(TeamTypes team) {
+	public TeamType team;
+
+	public TeamData(TeamType team) {
 		this.team = team;
 	}
 

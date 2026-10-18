@@ -6,11 +6,10 @@ import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.system.render.*;
-import caliniya.vergvoke.world.building.*;
 
 /**
  * 桌面端输入：方向键/WASD 平移相机，滚轮缩放；
- * 指挥模式下左键点选单位，左键拖拽框选（tap 与 pan 由 GestureDetector 区分）。
+ * 指挥模式下左键点选单位，左键拖拽框选（tap 与 pan 由 GestureDetector 区分），右键下发指令。
  */
 public class DesktopInput extends Input {
 
@@ -19,14 +18,6 @@ public class DesktopInput extends Input {
 
 	/// 方向键/WASD 按住标志
 	private boolean up, down, left, right;
-
-	public DesktopInput() {
-		// 工地特效挂前处理（建筑之后、单位之前画——对应 Mindustry 的 Layer.blockBuilding：
-		// 单位能挡住特效，但工地本体已被 BlockRender 跳过，贴图全由 shader 输出）；
-		// 光标坐标每帧从 worldX/worldY 取
-		PreRender.renders.add(() -> BuildPlan.drawPreview(worldX, worldY));
-		PreRender.renders.add(BuildPlan::drawLinksAndFx);
-	}
 
 	@Override
 	public void update(float delta) {
@@ -50,18 +41,6 @@ public class DesktopInput extends Input {
 	public boolean keyDown(KeyCode key) {
 		if (blocked())
 			return false;
-
-		// 建造模式：R 旋转放置朝向（绕锚点 0-3），Esc 退回普通模式
-		if (canBuild()) {
-			if (key == KeyCode.r) {
-				CommandData.planAngle = (CommandData.planAngle + 1) % 4;
-				return true;
-			}
-			if (key == KeyCode.escape) {
-				exitBuild();
-				return true;
-			}
-		}
 
 		if (key == KeyCode.w || key == KeyCode.up)
 			up = true;
@@ -95,36 +74,9 @@ public class DesktopInput extends Input {
 		return true;
 	}
 
-	@Override
-	public boolean mouseMoved(int screenX, int screenY) {
-		// 建造模式持续跟踪光标世界坐标：只在 tap 时 tranPos 的话，预览不跟随悬停移动
-		// （arc fork 的 InputProcessor.mouseMoved 是 int 签名，int 自动拓宽传 tranPos）
-		if (canBuild()) {
-			tranPos(screenX, screenY);
-		}
-		return false;
-	}
-
 	/** 指挥模式下游戏视图才响应选中类输入。 */
 	private boolean canSelect() {
 		return !blocked() && CommandData.mode == CommandData.Mode.cmd && CommandData.viewType == CommandData.ViewType.game && Game.inGame;
-	}
-
-	/** 建造模式下游戏视图才响应放置类输入。 */
-	private boolean canBuild() {
-		return !blocked() && CommandData.mode == CommandData.Mode.build
-				&& CommandData.viewType == CommandData.ViewType.game && Game.inGame;
-	}
-
-	/**
-	 * 退出建造模式：回普通模式并清掉选中建筑。
-	 *
-	 * <p>选中态必须一起清——{@code selectBlock} 是切换逻辑，留着高亮会让再点同一图标
-	 * 变成“先取消选中”，得点两次才能重新进入建造。
-	 */
-	private void exitBuild() {
-		CommandData.mode = CommandData.Mode.nor;
-		CommandData.buildBlock = null;
 	}
 
 	@Override
@@ -145,48 +97,6 @@ public class DesktopInput extends Input {
 
 	@Override
 	public boolean tap(float x, float y, int count, KeyCode button) {
-		// 建造模式：左键放置计划（锚点=光标左下角格），右键退回普通模式
-		if (canBuild()) {
-			tranPos(x, y);
-			if (button == KeyCode.mouseLeft) {
-				int tx = (int) (worldX / WorldData.TILE_SIZE);
-				int ty = (int) (worldY / WorldData.TILE_SIZE);
-				BuildPlan.tryPlace(CommandData.buildBlock, tx, ty, CommandData.planAngle);
-				return true;
-			}
-			if (button == KeyCode.mouseRight) {
-				// 右键点到计划 = 取消该计划（不退出模式）；点空地才退出建造模式
-				BuildPlan.Plan plan = BuildPlan.planAt(worldX, worldY);
-				if (plan != null) {
-					BuildPlan.cancel(plan);
-					return true;
-				}
-				exitBuild();
-				return true;
-			}
-			return false;
-		}
-
-		// 普通模式：右键点计划 = 取消；点建筑 = 标记拆除（进计划池，单位会自动来拆并持续返还物品）
-		if (!blocked() && CommandData.mode == CommandData.Mode.nor
-				&& CommandData.viewType == CommandData.ViewType.game && Game.inGame
-				&& button == KeyCode.mouseRight) {
-			tranPos(x, y);
-			BuildPlan.Plan plan = BuildPlan.planAt(worldX, worldY);
-			if (plan != null) {
-				BuildPlan.cancel(plan);
-				return true;
-			}
-			int tx = (int) (worldX / WorldData.TILE_SIZE);
-			int ty = (int) (worldY / WorldData.TILE_SIZE);
-			Building b = WorldData.world != null ? WorldData.world.getBuilding(tx, ty) : null;
-			if (b != null && b.type != null) {
-				BuildPlan.addDemolish(b);
-				return true;
-			}
-			return false; // 点空地不消费（普通模式右键暂无其他行为）
-		}
-
 		if (!canSelect())
 			return false;
 		tranPos(x, y);
@@ -197,15 +107,8 @@ public class DesktopInput extends Input {
 			return true;
 		}
 
-		// 左键 = 建造命令优先（点正在建造的工地=协助建造，点计划=前往建造），否则点选单位
+		// 左键 = 点选：四叉树按包围盒重叠判定，小半径查询 + contains 精判
 		if (button == KeyCode.mouseLeft) {
-			BuildPlan.Plan plan = buildSiteAt(worldX, worldY);
-			if (plan == null) {
-				plan = BuildPlan.planAt(worldX, worldY);
-			}
-			if (plan != null && commandUnitsBuild(plan)) {
-				return true;
-			}
 			Game.team.data().intersect(worldX, worldY, 1f, e -> e instanceof Unit, this::tapSelect);
 			return false;
 		}

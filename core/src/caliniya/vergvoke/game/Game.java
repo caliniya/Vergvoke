@@ -6,7 +6,7 @@ import caliniya.vergvoke.world.stars.*;
 
 public class Game {
 	// 表示玩家队伍
-	public static TeamTypes team;
+	public static TeamType team;
 
 	// 表示当前处于的星域
 	public static StarMap starMap;

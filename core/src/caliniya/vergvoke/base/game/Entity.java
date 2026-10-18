@@ -50,7 +50,7 @@ public abstract class Entity<T extends ContentType & EntityType, E extends Entit
 	public float maxHealth;
 	public int id;
 
-	public volatile TeamTypes team;
+	public volatile TeamType team;
 
 	public volatile TeamData teamData;
 

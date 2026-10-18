@@ -43,7 +43,7 @@ public class Turret extends BuildingType {
 
 	/** 追加把战斗参数拷进实例（TurretComp / TargetComp 运行时读这些字段）。 */
 	@Override
-	public Building create(TeamTypes team, int tx, int ty, int angle) {
+	public Building create(TeamType team, int tx, int ty, int angle) {
 		Building b = super.create(team, tx, ty, angle);
 		b.reloadTime = reloadTime;
 		b.rotateSpeed = rotateSpeed;

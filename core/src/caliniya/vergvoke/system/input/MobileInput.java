@@ -6,7 +6,6 @@ import caliniya.vergvoke.core.*;
 import caliniya.vergvoke.game.*;
 import caliniya.vergvoke.game.data.*;
 import caliniya.vergvoke.ui.*;
-import caliniya.vergvoke.world.building.*;
 
 /**
  * 移动端输入：拖拽平移相机，双指捏合缩放；
@@ -79,41 +78,9 @@ public class MobileInput extends Input {
 
 	@Override
 	public boolean tap(float x, float y, int count, KeyCode button) {
-		// 普通/拆除模式：点计划 = 取消；点建筑 = 标记拆除（移动端无右键，点按即标记；与桌面右键同款）
-		if (!blocked()
-				&& (CommandData.mode == CommandData.Mode.nor || CommandData.mode == CommandData.Mode.demo)
-				&& CommandData.viewType == CommandData.ViewType.game && Game.inGame) {
-			tranPos(x, y);
-			BuildPlan.Plan plan = BuildPlan.planAt(worldX, worldY);
-			if (plan != null) {
-				BuildPlan.cancel(plan);
-				return true;
-			}
-			int tx = (int) (worldX / WorldData.TILE_SIZE);
-			int ty = (int) (worldY / WorldData.TILE_SIZE);
-			Building b = WorldData.world != null ? WorldData.world.getBuilding(tx, ty) : null;
-			if (b != null && b.type != null) {
-				BuildPlan.addDemolish(b);
-				return true;
-			}
-			return false; // 点空地不消费（相机平移走 pan）
-		}
-
 		if (!canSelect())
 			return false;
 		tranPos(x, y);
-		// 指挥模式建造命令：点正在建造的工地 = 协助建造；双击计划 = 前往建造。
-		// 其余单击照常走下面的移动指令/点选（单击=移动，不拦截）
-		BuildPlan.Plan site = buildSiteAt(worldX, worldY);
-		if (site != null && commandUnitsBuild(site)) {
-			return true;
-		}
-		if (count >= 2) {
-			BuildPlan.Plan plan = BuildPlan.planAt(worldX, worldY);
-			if (plan != null && commandUnitsBuild(plan)) {
-				return true;
-			}
-		}
 		// 指挥状态下 tap 点地图 = 下发当前指令；点选走长按外的普通 tap 也兼顾选单位：
 		// 先尝试点选，命中单位则只切换选中不 redundant 下发
 		boolean[] hit = {false};

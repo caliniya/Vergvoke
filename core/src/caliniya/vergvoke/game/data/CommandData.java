@@ -18,12 +18,6 @@ public class CommandData {
 	/// 交互模式：普通 / 指挥 / 建造（原 commanding 布尔，枚举后放置与拆除接入）
 	public static Mode mode = Mode.nor;
 
-	/// 建造模式选中的建筑（null = 未选中）
-	public static BuildingType buildBlock;
-
-	/// 建造模式放置朝向 0-3
-	public static int planAngle;
-
 	/** 当前指挥状态（默认移动模式）。 */
 	public static CommandType commandType = CommandType.Move;
 
@@ -34,8 +28,6 @@ public class CommandData {
 	public static void init() {
 		checkedUnits.clear();
 		mode = Mode.nor;
-		buildBlock = null;
-		planAngle = 0;
 		commandType = CommandType.Move;
 		viewType = ViewType.game;
 
@@ -58,7 +50,7 @@ public class CommandData {
 
 	/// 交互模式
 	public enum Mode {
-		nor, cmd, build, demo
+		nor, cmd
 	}
 
 	public enum ViewType {

@@ -120,7 +120,7 @@ public class BuildingType extends ContentType
 	}
 
 
-	public Building create(TeamTypes team, int tx, int ty, int angle) {
+	public Building create(TeamType team, int tx, int ty, int angle) {
 		float psize = psize();
 
 		Building b = Pools.obtain(Building.class, Building::new);
@@ -210,9 +210,9 @@ public class BuildingType extends ContentType
 		b.self = b;
 	}
 
-	/** 建筑按瓦片放置，不走世界坐标创建；真要采样居中位置用 {@link #create(TeamTypes, int, int, int)} 的 tx/ty。 */
+	/** 建筑按瓦片放置，不走世界坐标创建；真要采样居中位置用 {@link #create(TeamType, int, int, int)} 的 tx/ty。 */
 	@Override
-	public Entity<?, ?> create(TeamTypes team, float x, float y) {
+	public Entity<?, ?> create(TeamType team, float x, float y) {
 		throw new UnsupportedOperationException("建筑按 tx/ty/angle 放置，走 create(team, tx, ty, angle)");
 	}
 

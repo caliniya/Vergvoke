@@ -21,7 +21,6 @@ import caliniya.vergvoke.type.ability.*;
 import caliniya.vergvoke.type.ai.*;
 import caliniya.vergvoke.type.module.*;
 import caliniya.vergvoke.ui.*;
-import caliniya.vergvoke.world.building.*;
 
 public class UnitType extends ContentType implements EntityType, DrawType<Unit>, TechNodeContent {
 
@@ -115,7 +114,7 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
 	/** {@link EntityType}：用本类型配置填充实体（生成工厂 create(type) 会调用）。 */
 	@Override
 	@SuppressWarnings({"unchecked"})
-	public Unit create(TeamTypes team, float x, float y) {
+	public Unit create(TeamType team, float x, float y) {
 
 		Unit u = Pools.obtain(Unit.class, Unit::new);
 
@@ -420,8 +419,6 @@ public class UnitType extends ContentType implements EntityType, DrawType<Unit>,
 		// 选中态（UI / 指挥会持续按它下命令）
 		CommandData.checkedUnits.remove(u, true);
 
-		// 建造认领解绑（主线程；AI 侧靠每帧自检 cur.main != u 清 cur）
-		BuildPlan.releaseUnit(u);
 
 		// 寻路队列：RouteSystem 与 Input 都在各自的线程里持这把锁操作它
 		if (WorldData.moveunits != null) {

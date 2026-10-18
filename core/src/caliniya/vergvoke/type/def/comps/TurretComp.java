@@ -9,11 +9,7 @@ import caliniya.vergvoke.type.*;
 import caliniya.vergvoke.type.type.*;
 
 /**
- * 炮塔战斗组件：TargetComp 管「打谁」，本组件管「怎么打」。
- *
- * <p>
- * 状态（reload）与配置（reloadTime / rotateSpeed / bullet，放置时从 Turret 类型拷贝进实例）
- * 都在组件上；索敌完全交给 TargetComp（失效/重搜/半径都是它的事），本组件只消费 target。
+ * 炮塔组件：TargetComp
  *
  * <p>
  * {@code self} 指向宿主实体：组件被拍平后源码里拿不到 this-as-Entity， 而开火给子弹记击杀归属需要实体引用，工厂里赋
@@ -32,7 +28,6 @@ public class TurretComp {
 	 */
 	public float reload;
 
-	// --- 配置（放置时从 Turret 类型拷贝，B 方案：配置进实例）---
 	public float reloadTime = 10f;
 	public float rotateSpeed = 500f;
 	public BulletType bullet;
@@ -51,7 +46,7 @@ public class TurretComp {
 	@Updata
 	public void update(float delta) {
 		if (target == null) {
-			return; // 没目标不转不装填（与原 Turret 行为一致；@Updata 各自是独立方法，return 不串档）
+			return; // 没目标不转不装填
 		}
 		float targetAngle = Angles.angle(x, y, target.x, target.y);
 		rotation = Angles.moveToward(rotation, targetAngle, rotateSpeed * delta);
