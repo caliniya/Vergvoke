@@ -5,6 +5,7 @@ import arc.math.*;
 import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.base.type.*;
+import caliniya.vergvoke.world.building.*;
 
 /**
  * 简而言之就是阵营数据以及相关的工具
@@ -13,8 +14,11 @@ public class TeamData {
 
 	public TeamType team;
 
+	public BuildPlan plan;
+
 	public TeamData(TeamType team) {
 		this.team = team;
+		plan = new BuildPlan(team);
 	}
 
 	/**

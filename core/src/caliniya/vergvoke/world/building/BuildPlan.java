@@ -37,6 +37,7 @@ public class BuildPlan {
 		freePlan.add(plan);
 	}
 
+
 	public static class Plan {
 		public int x;
 		public int y;
