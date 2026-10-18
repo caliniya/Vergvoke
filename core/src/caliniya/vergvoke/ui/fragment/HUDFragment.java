@@ -208,7 +208,7 @@ public class HUDFragment {
 	private void switchCate(BuildingType.BlockCategory cate) {
 		curCate = cate;
 		CommandData.buildBlock = null;
-		CommandData.mode = CommandData.Mode.nor;
+		CommandData.mode = CommandData.Mode.Build;
 		refreshBlockInfo();
 		for (Button b : cateBtns.values())
 			b.setChecked(b == cateBtns.get(cate));
@@ -263,7 +263,7 @@ public class HUDFragment {
 	/** 点击图标切换选中（移动端无悬停，直接点击即选中）；选中即进入建造模式。 */
 	private void selectBlock(BuildingType b) {
 		CommandData.buildBlock = (CommandData.buildBlock == b) ? null : b;
-		CommandData.mode = CommandData.buildBlock != null ? CommandData.Mode.build : CommandData.Mode.nor;
+		CommandData.mode = CommandData.buildBlock != null ? CommandData.Mode.Build : CommandData.Mode.Normal;
 		refreshModeButtons(); // 离开拆除模式时清按钮高亮
 		refreshBlockInfo();
 	}
@@ -406,7 +406,7 @@ public class HUDFragment {
 
 	private void updateRightPanel() {
 		rightContainer.clearChildren();
-		Table currentPanel = CommandData.mode == CommandData.Mode.cmd ? commandPanel : buildingPanel;
+		Table currentPanel = CommandData.mode == CommandData.Mode.Command ? commandPanel : buildingPanel;
 		currentPanel.clearActions();
 		Cell<Table> cell = rightContainer.add(currentPanel).bottom();
 
@@ -421,7 +421,7 @@ public class HUDFragment {
 	/// 刷新模式按钮高亮（目前只有拆除按钮；模式按钮列扩充后统一在这里刷）
 	private void refreshModeButtons() {
 		if (demoBtn != null) {
-			demoBtn.setChecked(CommandData.mode == CommandData.Mode.demo);
+			demoBtn.setChecked(CommandData.buildMode == CommandData.BuildMode.Remove);
 		}
 	}
 }

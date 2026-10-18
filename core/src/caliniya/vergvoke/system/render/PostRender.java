@@ -2,6 +2,7 @@ package caliniya.vergvoke.system.render;
 
 import arc.*;
 import arc.graphics.g2d.*;
+import arc.struct.*;
 import caliniya.vergvoke.base.type.*;
 
 /**
@@ -11,7 +12,7 @@ import caliniya.vergvoke.base.type.*;
 public class PostRender extends caliniya.vergvoke.system.System<PostRender> {
 
 	/** 后处理绘制任务（每帧在所有世界渲染后依次执行）。 */
-	public static final arc.struct.Ar<Runnable> renders = new arc.struct.Ar<>();
+	public static final Ar<Runnable> renders = new Ar<>();
 
 	@Override
 	public PostRender init() {

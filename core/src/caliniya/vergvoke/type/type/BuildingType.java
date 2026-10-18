@@ -230,9 +230,9 @@ public class BuildingType extends ContentType
 		}
 	}
 
-	/** 类型级绘制：主贴图按朝向角绘制（angle × 90°），炮塔等子类覆写。 */
 	@Override
 	public void draw(Building b) {
+
 		Draw.rect(region, b.x, b.y, b.angle * 90f);
 	}
 

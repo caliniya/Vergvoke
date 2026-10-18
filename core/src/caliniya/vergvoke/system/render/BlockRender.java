@@ -27,23 +27,18 @@ public class BlockRender extends caliniya.vergvoke.system.System<BlockRender> {
 			if (blk == null)
 				continue;
 
-			// 建造中的工地不画本体：贴图完全由 blockbuild shader 输出（PreRender 阶段，
-			// 中心擦除+亮边+扫描）——画了完整贴图会把 shader 的遮挡区透出来，特效全废
-			if (!b.finished)
-				continue;
-
 			// 剔除检测：如果不在视野内则跳过
 			if (shouldDraw(b.x, b.y, blk.psize)) {
 				// 绘制建筑（走 Entity.draw → BuildingType.draw）
 				b.draw();
-				// 阵营名（头顶，b.size 是像素边长，上边缘 = 中心 + 半边长）
+/*				// 阵营名（头顶，b.size 是像素边长，上边缘 = 中心 + 半边长）
 				if (UnitRender.showTeam) {
 					UnitRender.drawTeamTag(b, b.y + b.size * 0.5f + 8f);
 				}
 				// 调试绘制
 				if (UnitRender.debug) { // 复用 UnitRender 的 debug 开关
 					//blk.drawDebug(b);
-				}
+				}*/
 				Draw.color(); // 重置颜色
 			}
 		}
@@ -51,13 +46,10 @@ public class BlockRender extends caliniya.vergvoke.system.System<BlockRender> {
 
 	// 视野剔除判断
 	private boolean shouldDraw(float x, float y, float size) {
-		// 使用相机位置进行判断
 		float viewX = Core.camera.position.x;
 		float viewY = Core.camera.position.y;
-		// 稍微扩大缓冲区，防止边缘的建筑突然消失
-		float buffer = size;
-		float w = Core.camera.width / 2f + buffer;
-		float h = Core.camera.height / 2f + buffer;
+		float w = Core.camera.width / 2f + size;
+		float h = Core.camera.height / 2f + size;
 		return x > viewX - w && x < viewX + w && y > viewY - h && y < viewY + h;
 	}
 }

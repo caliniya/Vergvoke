@@ -7,6 +7,7 @@ import caliniya.vergvoke.base.ecs.*;
 import caliniya.vergvoke.base.game.*;
 import caliniya.vergvoke.base.type.*;
 import caliniya.vergvoke.game.*;
+import caliniya.vergvoke.type.type.*;
 
 /// 包括UI需要的建筑和单位，资源相关数据。
 public class CommandData {
@@ -23,6 +24,7 @@ public class CommandData {
 
 	/// 当前视图
 	public static ViewType viewType;
+	public static BuildingType buildBlock;
 
 	// 初始化，也包括重置数据
 	public static void init() {
